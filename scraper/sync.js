@@ -1,6 +1,6 @@
 // sync.js — robust SLCM attendance synchronizer.
 // Specifically targets the getCOPList / commonLWCApexMethods Apex action request
-// and unwraps the course attendance payload.
+// and retains the largest non-empty semester attendance capture.
 
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -146,12 +146,20 @@ function hasValidCourseRecords(list) {
 
         // Accept if request matches getCOPList OR candidate list has valid course objects
         if (isTargetRequest || hasValidCourseRecords(candidateList)) {
-          validCourseList = candidateList;
-          rawCapturedData = action.returnValue;
-          capturedActionDescriptor = descriptor || 'getCOPList';
-          console.log(
-            `✓ Intercepted Apex attendance call [${capturedActionDescriptor}] with ${candidateList.length} items.`
-          );
+          // CRITICAL: Only overwrite if candidateList is non-empty and larger than current capture.
+          // This prevents empty sibling semester tabs (0 items) from overwriting real data (10 items).
+          if (candidateList.length > 0 && candidateList.length > (validCourseList?.length || 0)) {
+            validCourseList = candidateList;
+            rawCapturedData = action.returnValue;
+            capturedActionDescriptor = descriptor || 'getCOPList';
+            console.log(
+              `✓ Intercepted Apex attendance call [${capturedActionDescriptor}] with ${candidateList.length} items.`
+            );
+          } else if (candidateList.length === 0) {
+            console.log(
+              `  (ignored empty getCOPList response — keeping previous capture of ${validCourseList?.length || 0} items)`
+            );
+          }
         } else {
           if (descriptor && !descriptor.includes('O11y')) {
             console.log(`[Aura Event] Received: ${descriptor}`);
@@ -172,13 +180,13 @@ function hasValidCourseRecords(list) {
     console.warn('Navigation note:', err.message);
   }
 
-  // Allow single-page application components up to 25 seconds to dispatch their Aura calls
+  // Allow single-page application components time to dispatch all semester Aura calls
   console.log('Awaiting portal component telemetry...');
-  const maxWaitMs = 25000;
+  const maxWaitMs = 15000;
   const pollInterval = 500;
   let elapsed = 0;
 
-  while (!validCourseList && elapsed < maxWaitMs) {
+  while (elapsed < maxWaitMs) {
     await page.waitForTimeout(pollInterval);
     elapsed += pollInterval;
 
@@ -193,6 +201,11 @@ function hasValidCourseRecords(list) {
       console.error('Resolution: Run "node login.js" to authenticate, then retry "node sync.js".\n');
       await browser.close();
       process.exit(1);
+    }
+
+    // Once we have captured valid records and waited at least 4 seconds for sibling calls to settle
+    if (validCourseList && validCourseList.length > 0 && elapsed >= 4000) {
+      break;
     }
   }
 
