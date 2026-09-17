@@ -1,5 +1,6 @@
 // sync.js — robust SLCM attendance synchronizer.
-// Specifically targets verified attendance data and rejects telemetry / instrumentation noise.
+// Specifically targets the getCOPList / commonLWCApexMethods Apex action request
+// and unwraps the course attendance payload.
 
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -102,11 +103,12 @@ function hasValidCourseRecords(list) {
 
   const page = await context.newPage();
   let validCourseList = null;
+  let rawCapturedData = null;
   let capturedActionDescriptor = '';
 
   console.log('Connecting to MAHE SLCM portal...');
 
-  // Multi-tier response listener: inspects URL, decoded POST body, and returned JSON payload
+  // Set up response listener targeting the specific getCOPList / commonLWCApexMethods POST request
   page.on('response', async (response) => {
     const url = response.url();
     if (!url.includes('/s/sfsites/aura') || response.request().method() !== 'POST') {
@@ -114,6 +116,15 @@ function hasValidCourseRecords(list) {
     }
 
     try {
+      const postData = response.request().postData() || '';
+      const decodedPost = decodeURIComponent(postData);
+
+      // Check if this outgoing request is specifically for getCOPList / attendance
+      const isTargetRequest =
+        decodedPost.includes('getCOPList') ||
+        decodedPost.includes('commonLWCApexMethods') ||
+        postData.includes('getCOPList');
+
       const json = await response.json();
       if (!json || !json.actions || !Array.isArray(json.actions)) return;
 
@@ -121,7 +132,8 @@ function hasValidCourseRecords(list) {
         if (action.state !== 'SUCCESS' || !action.returnValue) continue;
 
         const descriptor = action.descriptor || '';
-        // Skip telemetry & instrumentation noise
+
+        // Discard any O11y / telemetry logging beacons
         if (
           descriptor.includes('instrumentation') ||
           descriptor.includes('telemetry') ||
@@ -132,15 +144,15 @@ function hasValidCourseRecords(list) {
 
         const candidateList = extractAttendanceList(action.returnValue);
 
-        // ONLY accept if genuine course/attendance records are found inside
-        if (hasValidCourseRecords(candidateList)) {
+        // Accept if request matches getCOPList OR candidate list has valid course objects
+        if (isTargetRequest || hasValidCourseRecords(candidateList)) {
           validCourseList = candidateList;
+          rawCapturedData = action.returnValue;
           capturedActionDescriptor = descriptor || 'getCOPList';
           console.log(
-            `✓ Intercepted attendance action [${capturedActionDescriptor}] with ${validCourseList.length} course(s).`
+            `✓ Intercepted Apex attendance call [${capturedActionDescriptor}] with ${candidateList.length} items.`
           );
         } else {
-          // Log other non-matching action descriptors for diagnostic awareness
           if (descriptor && !descriptor.includes('O11y')) {
             console.log(`[Aura Event] Received: ${descriptor}`);
           }
@@ -160,9 +172,9 @@ function hasValidCourseRecords(list) {
     console.warn('Navigation note:', err.message);
   }
 
-  // Allow single-page application components up to 20 seconds to dispatch their Aura calls
+  // Allow single-page application components up to 25 seconds to dispatch their Aura calls
   console.log('Awaiting portal component telemetry...');
-  const maxWaitMs = 20000;
+  const maxWaitMs = 25000;
   const pollInterval = 500;
   let elapsed = 0;
 
