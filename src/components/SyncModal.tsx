@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   CheckCircle2,
   AlertTriangle,
@@ -66,7 +66,9 @@ export const SyncModal: React.FC<SyncModalProps> = ({
   onApplySync,
 }) => {
   // Map incoming code to targetCourseId (or 'NEW' / 'SKIP')
-  const [targetMappings, setTargetMappings] = useState<Record<string, string>>(() => {
+  const [targetMappings, setTargetMappings] = useState<Record<string, string>>({})
+
+  useEffect(() => {
     const initial: Record<string, string> = {}
     diff.forEach((item) => {
       if (item.matchedCourseId) {
@@ -75,8 +77,8 @@ export const SyncModal: React.FC<SyncModalProps> = ({
         initial[item.syncedCode] = 'NEW'
       }
     })
-    return initial
-  })
+    setTargetMappings(initial)
+  }, [diff])
 
   const [isApplying, setIsApplying] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -96,7 +98,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
       incomingName: item.syncedName,
       present: item.synced.present,
       absent: item.synced.absent,
-      targetCourseId: (targetMappings[item.syncedCode] || 'NEW') as any,
+      targetCourseId: (targetMappings[item.syncedCode] || item.matchedCourseId || 'NEW') as any,
     }))
 
     const activeMerges = merges.filter((m) => m.targetCourseId !== 'SKIP')
@@ -117,7 +119,9 @@ export const SyncModal: React.FC<SyncModalProps> = ({
     }
   }
 
-  const activeCount = Object.values(targetMappings).filter((t) => t !== 'SKIP').length
+  const activeCount = diff.filter(
+    (item) => (targetMappings[item.syncedCode] || item.matchedCourseId || 'NEW') !== 'SKIP'
+  ).length
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
