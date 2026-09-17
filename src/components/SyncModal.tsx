@@ -8,22 +8,30 @@ import {
   FileSpreadsheet,
   ArrowRight,
   ShieldAlert,
+  GitMerge,
+  PlusCircle,
+  XCircle,
 } from 'lucide-react'
 
-export interface SyncDiffItem {
-  status: 'match' | 'new'
-  courseId: string | null
+export interface DbCourseSummary {
+  id: string
   name: string
   code: string
+}
+
+export interface SyncDiffItem {
+  matchType: 'exact' | 'suggested' | 'none'
+  matchedCourseId: string | null
+  confidence: number
   syncedName: string
   syncedCode: string
-  current: {
+  synced: {
     present: number
     absent: number
     total: number
     pct: number
   }
-  synced: {
+  current: {
     present: number
     absent: number
     total: number
@@ -32,53 +40,75 @@ export interface SyncDiffItem {
   hasDiff: boolean
 }
 
+export interface CourseMergeDecision {
+  incomingCode: string
+  incomingName: string
+  present: number
+  absent: number
+  targetCourseId: string | 'NEW' | 'SKIP'
+}
+
 interface SyncModalProps {
   isOpen: boolean
   onClose: () => void
   diff: SyncDiffItem[]
+  availableDbCourses: DbCourseSummary[]
   syncedAt?: string
-  onApplySync: (selectedCodes: string[]) => Promise<void>
+  onApplySync: (merges: CourseMergeDecision[]) => Promise<void>
 }
 
 export const SyncModal: React.FC<SyncModalProps> = ({
   isOpen,
   onClose,
   diff,
+  availableDbCourses,
   syncedAt,
   onApplySync,
 }) => {
-  const [selectedCodes, setSelectedCodes] = useState<string[]>(() =>
-    diff.map((d) => d.syncedCode || d.code)
-  )
+  // Map incoming code to targetCourseId (or 'NEW' / 'SKIP')
+  const [targetMappings, setTargetMappings] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {}
+    diff.forEach((item) => {
+      if (item.matchedCourseId) {
+        initial[item.syncedCode] = item.matchedCourseId
+      } else {
+        initial[item.syncedCode] = 'NEW'
+      }
+    })
+    return initial
+  })
+
   const [isApplying, setIsApplying] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (!isOpen) return null
 
-  const handleToggleCode = (code: string) => {
-    setSelectedCodes((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
-    )
-  }
-
-  const handleToggleAll = () => {
-    if (selectedCodes.length === diff.length) {
-      setSelectedCodes([])
-    } else {
-      setSelectedCodes(diff.map((d) => d.syncedCode || d.code))
-    }
+  const handleTargetChange = (incomingCode: string, targetId: string) => {
+    setTargetMappings((prev) => ({
+      ...prev,
+      [incomingCode]: targetId,
+    }))
   }
 
   const handleConfirmApply = async () => {
-    if (selectedCodes.length === 0) {
-      setError('Please select at least one course to synchronize.')
+    const merges: CourseMergeDecision[] = diff.map((item) => ({
+      incomingCode: item.syncedCode,
+      incomingName: item.syncedName,
+      present: item.synced.present,
+      absent: item.synced.absent,
+      targetCourseId: (targetMappings[item.syncedCode] || 'NEW') as any,
+    }))
+
+    const activeMerges = merges.filter((m) => m.targetCourseId !== 'SKIP')
+    if (activeMerges.length === 0) {
+      setError('All courses are set to Skip. Select at least one course to synchronize.')
       return
     }
 
     setIsApplying(true)
     setError(null)
     try {
-      await onApplySync(selectedCodes)
+      await onApplySync(merges)
       onClose()
     } catch (err: any) {
       setError(err?.message || 'Failed to apply synced attendance data')
@@ -87,10 +117,10 @@ export const SyncModal: React.FC<SyncModalProps> = ({
     }
   }
 
-  const diffCount = diff.filter((d) => d.hasDiff).length
+  const activeCount = Object.values(targetMappings).filter((t) => t !== 'SKIP').length
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-[#131b2e] border border-slate-800 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
         {/* Header */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
@@ -100,15 +130,15 @@ export const SyncModal: React.FC<SyncModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-100">
-                SLCM Sync Reconciliation Diff
+                SLCM Sync & Subject Reconciliation
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {syncedAt
-                  ? `Synced at ${new Date(syncedAt).toLocaleString()}`
-                  : 'Fresh portal sync'}
+                  ? `Portal data from ${new Date(syncedAt).toLocaleString()}`
+                  : 'Portal Snapshot'}
                 {' • '}
                 <span className="text-blue-400 font-semibold">
-                  {diffCount} course(s) have updated numbers
+                  {diff.length} course(s) detected in sync file
                 </span>
               </p>
             </div>
@@ -121,105 +151,123 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           </button>
         </div>
 
-        {/* Diff Table / List */}
+        {/* Content */}
         <div className="p-6 overflow-y-auto space-y-4 flex-1">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
               {error}
             </div>
           )}
 
-          {/* Warning Banner */}
-          <div className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-4 flex items-start gap-3">
-            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          {/* Info Banner */}
+          <div className="bg-blue-950/20 border border-blue-500/30 rounded-2xl p-4 flex items-start gap-3">
+            <GitMerge className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
             <div className="space-y-1 text-xs text-slate-300">
-              <p className="font-bold text-amber-400">
-                Confirmation required before applying sync
+              <p className="font-bold text-blue-400">
+                Honest Sync: Zero Fabricated Calendar Dates
               </p>
               <p>
-                Applying this sync will adjust the confirmed attendance counts for the
-                selected courses to match your official SLCM portal figures.
+                Synced attendance numbers are saved as an authoritative verified snapshot.
+                Review the course mappings below to prevent duplicate subject cards.
               </p>
             </div>
           </div>
 
-          {/* Select all toggle */}
-          <div className="flex items-center justify-between text-xs text-slate-400 px-1 pt-1">
-            <button
-              onClick={handleToggleAll}
-              className="font-semibold text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              {selectedCodes.length === diff.length ? 'Deselect All' : 'Select All Courses'}
-            </button>
-            <span>
-              {selectedCodes.length} of {diff.length} courses selected
-            </span>
-          </div>
-
-          {/* Courses diff list */}
-          <div className="space-y-2.5">
+          {/* Courses diff & merge list */}
+          <div className="space-y-3 pt-1">
             {diff.map((item) => {
-              const code = item.syncedCode || item.code
-              const isSelected = selectedCodes.includes(code)
+              const currentTarget = targetMappings[item.syncedCode] || 'NEW'
+              const matchedDbCourse = availableDbCourses.find((c) => c.id === currentTarget)
 
               return (
                 <div
-                  key={code}
-                  onClick={() => handleToggleCode(code)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                    isSelected
-                      ? 'bg-slate-900/90 border-blue-500/40 ring-1 ring-blue-500/20'
-                      : 'bg-slate-900/40 border-slate-800 opacity-60'
+                  key={item.syncedCode}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    currentTarget === 'SKIP'
+                      ? 'bg-slate-900/30 border-slate-850 opacity-50'
+                      : 'bg-slate-900/70 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => {}} // handled by row click
-                      className="mt-1 w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 cursor-pointer"
-                    />
-                    <div className="space-y-0.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* Incoming Course Info */}
+                    <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                          {code}
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          {item.syncedCode}
                         </span>
-                        <span className="font-bold text-sm text-slate-100">
-                          {item.syncedName || item.name}
+                        <span className="font-bold text-sm text-slate-100 truncate">
+                          {item.syncedName}
                         </span>
                       </div>
-                      {item.status === 'new' && (
-                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                          New Course Found
+                      <div className="text-xs text-slate-400 flex items-center gap-3">
+                        <span>
+                          Portal Attendance:{' '}
+                          <strong className="text-emerald-400">
+                            {item.synced.present}P / {item.synced.absent}A ({item.synced.pct}%)
+                          </strong>
                         </span>
-                      )}
+                      </div>
+                    </div>
+
+                    {/* Merge Target Dropdown Selector */}
+                    <div className="shrink-0 w-full sm:w-auto">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                        Map / Merge Action
+                      </label>
+                      <select
+                        value={currentTarget}
+                        onChange={(e) => handleTargetChange(item.syncedCode, e.target.value)}
+                        className={`w-full sm:w-64 text-xs font-semibold rounded-xl px-3 py-2 border focus:outline-none focus:border-blue-500 transition-colors ${
+                          currentTarget === 'NEW'
+                            ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
+                            : currentTarget === 'SKIP'
+                            ? 'bg-slate-900 border-slate-750 text-slate-500'
+                            : 'bg-blue-950/30 border-blue-500/40 text-blue-300'
+                        }`}
+                      >
+                        {item.matchType === 'exact' && item.matchedCourseId && (
+                          <option value={item.matchedCourseId}>
+                            ✓ Merge into: {item.syncedName} (Exact Match)
+                          </option>
+                        )}
+                        {item.matchType === 'suggested' && item.matchedCourseId && (
+                          <option value={item.matchedCourseId}>
+                            ⚡ Merge into: {availableDbCourses.find((c) => c.id === item.matchedCourseId)?.name} (Suggested)
+                          </option>
+                        )}
+                        <option value="NEW">➕ Create as New Subject</option>
+                        <option value="SKIP">🚫 Skip (Do not import)</option>
+                        {availableDbCourses.length > 0 && (
+                          <optgroup label="── Merge with Existing Subject ──">
+                            {availableDbCourses.map((dbC) => (
+                              <option key={dbC.id} value={dbC.id}>
+                                Merge: {dbC.code} — {dbC.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
                     </div>
                   </div>
 
-                  {/* Numbers comparison */}
-                  <div className="flex items-center gap-4 text-xs shrink-0 self-end sm:self-center">
-                    {/* Current */}
-                    <div className="text-right">
-                      <div className="text-[10px] uppercase font-semibold text-slate-500">
-                        Roll Book DB
+                  {/* Diff Comparison if merged with DB course */}
+                  {matchedDbCourse && currentTarget !== 'NEW' && currentTarget !== 'SKIP' && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-500">Current DB:</span>
+                        <span className="font-medium text-slate-300">
+                          {item.current.present}P / {item.current.absent}A ({item.current.pct}%)
+                        </span>
                       </div>
-                      <div className="font-medium text-slate-300">
-                        {item.current.present}P / {item.current.absent}A ({item.current.pct}%)
-                      </div>
-                    </div>
-
-                    <ArrowRight className="w-4 h-4 text-slate-600" />
-
-                    {/* Incoming */}
-                    <div className="text-right">
-                      <div className="text-[10px] uppercase font-semibold text-blue-400">
-                        Portal Sync
-                      </div>
-                      <div className="font-bold text-emerald-400">
-                        {item.synced.present}P / {item.synced.absent}A ({item.synced.pct}%)
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-500">New Baseline:</span>
+                        <span className="font-bold text-emerald-400">
+                          {item.synced.present}P / {item.synced.absent}A ({item.synced.pct}%)
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )
             })}
@@ -236,13 +284,13 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           </button>
           <button
             onClick={handleConfirmApply}
-            disabled={isApplying || selectedCodes.length === 0}
+            disabled={isApplying || activeCount === 0}
             className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/20 disabled:opacity-50 flex items-center gap-2 transition-all active:scale-95"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isApplying ? 'animate-spin' : ''}`} />
             {isApplying
               ? 'Synchronizing...'
-              : `Confirm & Apply ${selectedCodes.length} Course(s)`}
+              : `Confirm & Apply ${activeCount} Subject(s)`}
           </button>
         </div>
       </div>

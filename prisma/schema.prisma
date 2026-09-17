@@ -13,6 +13,9 @@ model Course {
   code            String             @unique
   requiredPercent Float              @default(75.0)
   color           String             @default("#3b82f6")
+  syncedPresent   Int?               @default(0)
+  syncedAbsent    Int?               @default(0)
+  syncedAt        DateTime?
   timetableSlots  TimetableSlot[]
   attendance      AttendanceRecord[]
   createdAt       DateTime           @default(now())

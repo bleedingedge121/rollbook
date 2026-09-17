@@ -41,11 +41,15 @@ export default function App() {
       if (Array.isArray(rawCourses) && Array.isArray(rawAttendance)) {
         const enrichedCourses: CourseWithStats[] = rawCourses.map((c: any) => {
           const courseAttendance: AttendanceRecord[] = rawAttendance.filter(
-            (a: AttendanceRecord) => a.courseId === c.id
+            (a: AttendanceRecord) =>
+              a.courseId === c.id && !a.note?.includes('Synced from SLCM')
           )
-          const present = courseAttendance.filter((a) => a.status === 'present').length
-          const absent = courseAttendance.filter((a) => a.status === 'absent').length
-          const stats = calculateAttendance(present, absent, c.requiredPercent || 75.0)
+          const manualPresent = courseAttendance.filter((a) => a.status === 'present').length
+          const manualAbsent = courseAttendance.filter((a) => a.status === 'absent').length
+          
+          const totalPresent = (c.syncedPresent || 0) + manualPresent
+          const totalAbsent = (c.syncedAbsent || 0) + manualAbsent
+          const stats = calculateAttendance(totalPresent, totalAbsent, c.requiredPercent || 75.0)
 
           return {
             ...c,

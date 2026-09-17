@@ -6,6 +6,9 @@ export interface Course {
   code: string
   requiredPercent: number
   color: string
+  syncedPresent?: number | null
+  syncedAbsent?: number | null
+  syncedAt?: string | null
   timetableSlots?: TimetableSlot[]
   attendance?: AttendanceRecord[]
   createdAt?: string

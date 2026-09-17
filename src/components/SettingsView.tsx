@@ -15,12 +15,14 @@ import {
   CheckCircle2,
   AlertCircle,
   Database,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
-import { SyncModal, SyncDiffItem } from './SyncModal'
+import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
 
 interface SettingsViewProps {
   courses: CourseWithStats[]
@@ -53,11 +55,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Sync diff state
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
   const [syncDiff, setSyncDiff] = useState<SyncDiffItem[]>([])
+  const [availableDbCourses, setAvailableDbCourses] = useState<DbCourseSummary[]>([])
   const [syncedAtTime, setSyncedAtTime] = useState<string | undefined>()
   const [syncError, setSyncError] = useState<string | null>(null)
   const [isParsingSync, setIsParsingSync] = useState(false)
 
-  // File input ref
+  // Reset confirmation state
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false)
+  const [resetConfirmationText, setResetConfirmationText] = useState('')
+  const [isResetWithSeed, setIsResetWithSeed] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
+
+  // File input refs
   const fileInputRef = useRef<HTMLInputElement>(null)
   const backupInputRef = useRef<HTMLInputElement>(null)
 
@@ -88,19 +97,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       if (!res.ok) throw new Error(data.error || 'Failed to reconcile data')
 
       setSyncDiff(data.diff)
+      setAvailableDbCourses(data.availableDbCourses || [])
       setSyncedAtTime(data.syncedAt)
       setIsSyncModalOpen(true)
     } catch (err: any) {
       setSyncError(err.message || 'Error parsing file')
     } finally {
       setIsParsingSync(false)
-      // reset file input
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
   // Handle Apply Sync
-  const handleApplySync = async (selectedCodes: string[]) => {
+  const handleApplySync = async (merges: CourseMergeDecision[]) => {
     const res = await fetch('/api/sync/reconcile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -113,14 +122,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         })),
         syncedAt: syncedAtTime,
         apply: true,
-        selectedCourseCodes: selectedCodes,
+        merges,
       }),
     })
 
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to apply sync')
 
+    alert(data.message || 'Attendance synchronized successfully!')
     await onRefreshAll()
+  }
+
+  // Handle Reset Execution
+  const handleExecuteReset = async () => {
+    if (resetConfirmationText.trim() !== 'RESET') {
+      alert('Please type RESET in capital letters to confirm.')
+      return
+    }
+
+    setIsResetting(true)
+    try {
+      const res = await fetch('/api/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seedSample: isResetWithSeed }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to reset database')
+
+      alert(data.message || 'Database reset successfully.')
+      setIsResetModalOpen(false)
+      setResetConfirmationText('')
+      await onRefreshAll()
+    } catch (err: any) {
+      alert(`Error resetting data: ${err.message}`)
+    } finally {
+      setIsResetting(false)
+    }
   }
 
   // Export CSV
@@ -222,7 +261,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
           }`}
         >
-          <Database className="w-3.5 h-3.5" /> Backup & CSV Export
+          <Database className="w-3.5 h-3.5" /> Backup & Danger Zone
         </button>
       </div>
 
@@ -300,7 +339,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Sync Attendance Figures
                   </div>
                   <p className="text-slate-400 text-[11px]">
-                    Runs headlessly, intercepts the official Apex response, and writes <code>sync-output.json</code>:
+                    Headlessly intercepts the Apex response and writes <code>sync-output.json</code>:
                   </p>
                   <div className="bg-slate-950 p-2 rounded-lg font-mono text-[11px] text-emerald-300 border border-slate-800">
                     node sync.js
@@ -358,6 +397,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         Required: <strong className="text-slate-300">{course.requiredPercent}%</strong>
                         {' • '}
                         {course.stats.present} Present / {course.stats.absent} Absent ({course.stats.percentage}%)
+                        {course.syncedAt && (
+                          <span className="text-blue-400 ml-2">
+                            [Synced Baseline: {course.syncedPresent}P/{course.syncedAbsent}A]
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -414,7 +458,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
-            {/* Days 1 to 6, 0 (Mon-Sun) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2, 3, 4, 5, 6, 0].map((weekdayNum) => {
                 const daySlots = slots.filter((s) => s.weekday === weekdayNum)
@@ -496,7 +539,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SUB TAB 4: Backup & CSV Export */}
+      {/* SUB TAB 4: Backup & Danger Zone */}
       {activeSubTab === 'backup' && (
         <div className="space-y-6">
           <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
@@ -576,6 +619,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
           </div>
+
+          {/* DANGER ZONE: RESET ALL DATA */}
+          <div className="bg-rose-950/20 border border-rose-500/30 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-rose-400">
+                  Danger Zone: Database Reset
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Clear all subjects, timetable slots, and attendance logs to start completely fresh.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setIsResetWithSeed(false)
+                  setResetConfirmationText('')
+                  setIsResetModalOpen(true)
+                }}
+                className="px-5 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 text-xs font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Reset All Data (Empty Database)
+              </button>
+              <button
+                onClick={() => {
+                  setIsResetWithSeed(true)
+                  setResetConfirmationText('')
+                  setIsResetModalOpen(true)
+                }}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4 text-blue-400" /> Reset & Reload Sample Subjects
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -605,9 +688,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         isOpen={isSyncModalOpen}
         onClose={() => setIsSyncModalOpen(false)}
         diff={syncDiff}
+        availableDbCourses={availableDbCourses}
         syncedAt={syncedAtTime}
         onApplySync={handleApplySync}
       />
+
+      {/* Reset Confirmation Modal */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#131b2e] border border-rose-500/40 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-scaleUp">
+            <div className="flex items-center gap-3 text-rose-400">
+              <AlertTriangle className="w-6 h-6" />
+              <h3 className="text-lg font-bold text-slate-100">
+                Confirm Full Database Reset
+              </h3>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              This action will permanently delete all registered subjects, weekly schedule slots, and verified attendance logs.
+              {isResetWithSeed && ' It will then reload default sample courses.'}
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 block">
+                Type <strong className="text-rose-400 font-mono">RESET</strong> to confirm:
+              </label>
+              <input
+                type="text"
+                placeholder="RESET"
+                value={resetConfirmationText}
+                onChange={(e) => setResetConfirmationText(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-slate-100 focus:outline-none focus:border-rose-500 uppercase"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteReset}
+                disabled={isResetting || resetConfirmationText.trim() !== 'RESET'}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold disabled:opacity-40 transition-colors flex items-center gap-2"
+              >
+                {isResetting ? 'Resetting...' : 'Confirm Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
