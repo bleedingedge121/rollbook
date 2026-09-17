@@ -1,5 +1,5 @@
 // sync.js — robust SLCM attendance synchronizer.
-// Intercepts Salesforce Apex responses and recursively unwraps nested Aura envelopes.
+// Specifically targets verified attendance data and rejects telemetry / instrumentation noise.
 
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -22,7 +22,6 @@ function extractAttendanceList(raw) {
   // Case 2: Array of objects
   if (Array.isArray(raw)) {
     if (raw.length === 0) return [];
-    // If it contains objects, return it directly
     if (typeof raw[0] === 'object' && raw[0] !== null) {
       return raw;
     }
@@ -65,6 +64,22 @@ function extractAttendanceList(raw) {
   return [];
 }
 
+// Checks if a candidate list has valid attendance/course objects
+function hasValidCourseRecords(list) {
+  if (!Array.isArray(list) || list.length === 0) return false;
+  return list.some((item) => {
+    if (!item || typeof item !== 'object') return false;
+    return (
+      item.Total_number_of_classes_attended__c !== undefined ||
+      item.CourseOffering !== undefined ||
+      item.Total_Classes__c !== undefined ||
+      item.Course_Code__c !== undefined ||
+      item.classesAttended !== undefined ||
+      (item.Name && (item.present !== undefined || item.total !== undefined))
+    );
+  });
+}
+
 (async () => {
   const authPath = path.resolve(__dirname, 'auth.json');
   if (!fs.existsSync(authPath)) {
@@ -86,7 +101,7 @@ function extractAttendanceList(raw) {
   });
 
   const page = await context.newPage();
-  let rawAttendancePayload = null;
+  let validCourseList = null;
   let capturedActionDescriptor = '';
 
   console.log('Connecting to MAHE SLCM portal...');
@@ -99,35 +114,35 @@ function extractAttendanceList(raw) {
     }
 
     try {
-      const postData = response.request().postData() || '';
-      const decodedPost = decodeURIComponent(postData);
-
       const json = await response.json();
       if (!json || !json.actions || !Array.isArray(json.actions)) return;
 
       for (const action of json.actions) {
-        const isCOPList =
-          decodedPost.includes('getCOPList') ||
-          postData.includes('getCOPList') ||
-          (action.descriptor && action.descriptor.includes('getCOPList'));
+        if (action.state !== 'SUCCESS' || !action.returnValue) continue;
 
-        if (action.state === 'SUCCESS' && action.returnValue !== undefined) {
-          const list = extractAttendanceList(action.returnValue);
-          const hasAttendanceFields =
-            list.length > 0 &&
-            list.some(
-              (item) =>
-                item &&
-                (item.Total_number_of_classes_attended__c !== undefined ||
-                  item.CourseOffering !== undefined ||
-                  item.Total_Classes__c !== undefined ||
-                  item.Course_Code__c !== undefined)
-            );
+        const descriptor = action.descriptor || '';
+        // Skip telemetry & instrumentation noise
+        if (
+          descriptor.includes('instrumentation') ||
+          descriptor.includes('telemetry') ||
+          descriptor.includes('logMetrics')
+        ) {
+          continue;
+        }
 
-          if (isCOPList || hasAttendanceFields) {
-            rawAttendancePayload = action.returnValue;
-            capturedActionDescriptor = action.descriptor || 'getCOPList';
-            console.log(`✓ Intercepted Apex response [${capturedActionDescriptor}]`);
+        const candidateList = extractAttendanceList(action.returnValue);
+
+        // ONLY accept if genuine course/attendance records are found inside
+        if (hasValidCourseRecords(candidateList)) {
+          validCourseList = candidateList;
+          capturedActionDescriptor = descriptor || 'getCOPList';
+          console.log(
+            `✓ Intercepted attendance action [${capturedActionDescriptor}] with ${validCourseList.length} course(s).`
+          );
+        } else {
+          // Log other non-matching action descriptors for diagnostic awareness
+          if (descriptor && !descriptor.includes('O11y')) {
+            console.log(`[Aura Event] Received: ${descriptor}`);
           }
         }
       }
@@ -145,13 +160,13 @@ function extractAttendanceList(raw) {
     console.warn('Navigation note:', err.message);
   }
 
-  // Allow single-page application components up to 15 seconds to dispatch their Aura calls
+  // Allow single-page application components up to 20 seconds to dispatch their Aura calls
   console.log('Awaiting portal component telemetry...');
-  const maxWaitMs = 15000;
+  const maxWaitMs = 20000;
   const pollInterval = 500;
   let elapsed = 0;
 
-  while (!rawAttendancePayload && elapsed < maxWaitMs) {
+  while (!validCourseList && elapsed < maxWaitMs) {
     await page.waitForTimeout(pollInterval);
     elapsed += pollInterval;
 
@@ -169,30 +184,17 @@ function extractAttendanceList(raw) {
     }
   }
 
-  if (!rawAttendancePayload) {
+  if (!validCourseList || validCourseList.length === 0) {
     const finalUrl = page.url();
-    console.error('\n[Error] Did not capture attendance data from SLCM.');
+    console.error('\n[Error] Did not capture attendance course list from SLCM.');
     console.error(`Current Page URL: ${finalUrl}`);
     console.error('Please rerun: node login.js to refresh your authentication session.\n');
     await browser.close();
     process.exit(1);
   }
 
-  console.log('\n--- RAW PAYLOAD PREVIEW ---');
-  console.log(JSON.stringify(rawAttendancePayload, null, 2).slice(0, 3000));
-  console.log('---------------------------\n');
-
-  // Unwrap array cleanly
-  const attendanceList = extractAttendanceList(rawAttendancePayload);
-
-  if (attendanceList.length === 0) {
-    console.error('[Error] Could not find course attendance array inside payload.');
-    await browser.close();
-    process.exit(1);
-  }
-
   // Format into standard Roll Book schema
-  const courses = attendanceList.map((c) => {
+  const courses = validCourseList.map((c) => {
     const present = Number(
       c.Total_number_of_classes_attended__c ??
       c.classesAttended ??
@@ -245,7 +247,7 @@ function extractAttendanceList(raw) {
 
   fs.writeFileSync(outputPath, JSON.stringify(payload, null, 2));
 
-  console.log(`========================================`);
+  console.log(`\n========================================`);
   console.log(`✓ Synchronized ${courses.length} courses successfully!`);
   console.log(`Saved output to: ${outputPath}`);
   console.log(`========================================\n`);
