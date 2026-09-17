@@ -1,0 +1,47 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Course {
+  id              String             @id @default(cuid())
+  name            String
+  code            String             @unique
+  requiredPercent Float              @default(75.0)
+  color           String             @default("#3b82f6")
+  timetableSlots  TimetableSlot[]
+  attendance      AttendanceRecord[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model TimetableSlot {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  weekday   Int // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
+  label     String // e.g. "09:00 - 10:00"
+  room      String? // e.g. "AB4 403"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([weekday])
+}
+
+model AttendanceRecord {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  date      String // Format "YYYY-MM-DD"
+  status    String // "present" | "absent"
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([courseId])
+}

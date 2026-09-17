@@ -1,0 +1,13 @@
+{
+  "name": "roll-book-scraper",
+  "version": "1.0.0",
+  "description": "SLCM 2.0 Attendance Scraper for Roll Book",
+  "main": "sync.js",
+  "scripts": {
+    "login": "node login.js",
+    "sync": "node sync.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
