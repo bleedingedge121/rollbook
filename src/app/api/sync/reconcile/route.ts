@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { normalizeText, normalizeCode, calculateSimilarity } from '@/lib/courseMatch'
 
 interface SyncedCourse {
   name: string
@@ -21,37 +22,6 @@ interface ReconcileRequest {
   syncedAt?: string
   apply?: boolean
   merges?: CourseMergeSelection[]
-}
-
-function normalizeText(text: string): string {
-  if (!text) return ''
-  return text
-    .toLowerCase()
-    .replace(/[_\-.:,()/]/g, ' ')
-    .replace(/\b(and|the|of|for|in|to|with|using|basic|fundamentals|introduction|practice|lab|department)\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function calculateSimilarity(str1: string, str2: string): number {
-  const norm1 = normalizeText(str1)
-  const norm2 = normalizeText(str2)
-  if (norm1 === norm2) return 1.0
-  if (!norm1 || !norm2) return 0.0
-
-  const words1 = new Set(norm1.split(' ').filter(Boolean))
-  const words2 = new Set(norm2.split(' ').filter(Boolean))
-
-  if (words1.size === 0 || words2.size === 0) return 0.0
-
-  let overlap = 0
-  Array.from(words1).forEach((w) => {
-    if (words2.has(w)) overlap++
-  })
-
-  const allWords = new Set([...Array.from(words1), ...Array.from(words2)])
-  const union = allWords.size
-  return union > 0 ? overlap / union : 0
 }
 
 export async function POST(req: Request) {

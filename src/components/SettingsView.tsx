@@ -17,12 +17,14 @@ import {
   Database,
   AlertTriangle,
   RotateCcw,
+  GraduationCap,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
+import { SectionImportModal } from './SectionImportModal'
 
 interface SettingsViewProps {
   courses: CourseWithStats[]
@@ -54,6 +56,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   // Sync diff state
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
+  const [isSectionModalOpen, setIsSectionModalOpen] = useState(false)
   const [syncDiff, setSyncDiff] = useState<SyncDiffItem[]>([])
   const [availableDbCourses, setAvailableDbCourses] = useState<DbCourseSummary[]>([])
   const [syncedAtTime, setSyncedAtTime] = useState<string | undefined>()
@@ -268,6 +271,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SUB TAB 1: SLCM Sync Bridge */}
       {activeSubTab === 'sync' && (
         <div className="space-y-6">
+          {/* Official Department Timetable Import */}
+          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-100">
+                    Import Official Department Timetable
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Select your section (C01 – C22) to auto-populate subjects and weekly timetable slots directly from the 2026-27 MIT Bengaluru schedule.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsSectionModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 shrink-0"
+              >
+                <GraduationCap className="w-4 h-4" />
+                Select My Section
+              </button>
+            </div>
+          </div>
+
           <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -691,6 +721,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         availableDbCourses={availableDbCourses}
         syncedAt={syncedAtTime}
         onApplySync={handleApplySync}
+      />
+
+      <SectionImportModal
+        isOpen={isSectionModalOpen}
+        onClose={() => setIsSectionModalOpen(false)}
+        onImported={onRefreshAll}
       />
 
       {/* Reset Confirmation Modal */}
