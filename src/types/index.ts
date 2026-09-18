@@ -37,6 +37,14 @@ export interface AttendanceRecord {
   updatedAt?: string
 }
 
+export interface Holiday {
+  id: string
+  date: string // YYYY-MM-DD
+  label: string
+  type: 'holiday' | 'exam' | string
+  createdAt?: string
+}
+
 export interface CourseWithStats extends Course {
   stats: AttendanceStats
   history: AttendanceRecord[]

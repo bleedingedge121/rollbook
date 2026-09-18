@@ -14,8 +14,10 @@ import {
   Minus,
   CheckCheck,
   Trash2,
+  Palmtree,
+  Sparkles,
 } from 'lucide-react'
-import { CourseWithStats, TimetableSlot, AttendanceRecord } from '@/types'
+import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { StatsCard } from './StatsCard'
 import { toDateString, WEEKDAYS, calculateAttendance } from '@/lib/attendance'
 
@@ -23,10 +25,12 @@ interface HomeViewProps {
   courses: CourseWithStats[]
   allSlots: TimetableSlot[]
   allAttendance: AttendanceRecord[]
+  holidays?: Holiday[]
   onLogAttendance: (courseId: string, date: string, status: 'present' | 'absent', note?: string) => Promise<void>
   onDeleteAttendance: (recordId: string) => Promise<void>
   onBatchLogAttendance?: (records: { courseId: string; date: string; status: 'present' | 'absent'; note?: string }[]) => Promise<void>
   onClearDateAttendance?: (date: string) => Promise<void>
+  onSaveHoliday?: (data: { date: string; label: string; type?: string }) => Promise<void>
   onNavigateToSubjects: () => void
   onNavigateToCalendar: () => void
 }
@@ -35,10 +39,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
   courses,
   allSlots,
   allAttendance,
+  holidays = [],
   onLogAttendance,
   onDeleteAttendance,
   onBatchLogAttendance,
   onClearDateAttendance,
+  onSaveHoliday,
   onNavigateToSubjects,
   onNavigateToCalendar,
 }) => {
@@ -48,6 +54,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const today = new Date()
   const todayStr = toDateString(today)
   const currentWeekday = today.getDay() // 0 = Sun, 1 = Mon ...
+
+  // Check if today is a declared holiday or exam
+  const todayHoliday = holidays.find((h) => h.date === todayStr)
 
   // Today's scheduled slots
   const todaySlots = allSlots.filter((s) => s.weekday === currentWeekday)
@@ -80,6 +89,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
     pastDate.setDate(today.getDate() - i)
     const pastDateStr = toDateString(pastDate)
     const pastWeekday = pastDate.getDay()
+
+    // Skip if date was marked as a declared Holiday or Exam day
+    if (holidays.some((h) => h.date === pastDateStr)) {
+      continue
+    }
 
     const scheduled = allSlots.filter((s) => s.weekday === pastWeekday)
     for (const slot of scheduled) {
@@ -203,6 +217,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   }
 
+  const handleMarkDateAsHoliday = async (dateStr: string) => {
+    if (!onSaveHoliday) return
+    setIsBatchBusy(true)
+    try {
+      await onSaveHoliday({
+        date: dateStr,
+        label: 'Declared Holiday / No Class',
+        type: 'holiday',
+      })
+    } finally {
+      setIsBatchBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Top Banner / Hero */}
@@ -292,8 +320,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         />
         <StatsCard
           title="Today's Classes"
-          value={todaySlots.length}
-          subtitle={`${todayLoggedCount} logged so far`}
+          value={todayHoliday ? '0 (Holiday)' : todaySlots.length}
+          subtitle={todayHoliday ? todayHoliday.label : `${todayLoggedCount} logged so far`}
           icon={<Clock className="w-6 h-6" />}
           variant="slate"
         />
@@ -313,7 +341,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* Batch Actions Bar for Today */}
-          {todaySlots.length > 0 && (
+          {todaySlots.length > 0 && !todayHoliday && (
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => handleBatchMarkToday('present')}
@@ -345,7 +373,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
           )}
         </div>
 
-        {todaySlots.length === 0 ? (
+        {todayHoliday ? (
+          <div className="p-6 bg-amber-950/20 border border-amber-500/30 rounded-2xl flex items-center gap-3">
+            <Palmtree className="w-6 h-6 text-amber-400 shrink-0" />
+            <div>
+              <div className="font-bold text-sm text-amber-300">
+                Today is a Declared {todayHoliday.type === 'exam' ? 'Exam Day' : 'Holiday'}
+              </div>
+              <div className="text-xs text-slate-400 mt-0.5">
+                {todayHoliday.label} — no regular lectures scheduled for attendance tracking.
+              </div>
+            </div>
+          </div>
+        ) : todaySlots.length === 0 ? (
           <div className="text-center py-8 text-slate-500 bg-slate-900/40 rounded-xl border border-dashed border-slate-800">
             <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm font-medium">No classes scheduled for today.</p>
@@ -475,7 +515,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
-            {unloggedPastItems.slice(0, 6).map((item, idx) => (
+            {unloggedPastItems.slice(0, 9).map((item, idx) => (
               <div
                 key={`${item.slot.id}-${item.date}-${idx}`}
                 className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between gap-2"
@@ -501,6 +541,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     className="flex-1 py-1 rounded bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[11px] font-semibold text-center transition-colors"
                   >
                     Absent
+                  </button>
+                  <button
+                    onClick={() => handleMarkDateAsHoliday(item.date)}
+                    className="py-1 px-2.5 rounded bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-[11px] font-semibold text-center transition-colors flex items-center gap-0.5"
+                    title="Mark entire day as Holiday / No Class (cancels all sessions on this date)"
+                  >
+                    <Palmtree className="w-3 h-3" /> Holiday
                   </button>
                 </div>
               </div>

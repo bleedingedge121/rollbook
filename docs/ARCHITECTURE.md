@@ -72,6 +72,14 @@ model AttendanceRecord {
   @@index([date])
   @@index([courseId])
 }
+
+model Holiday {
+  id        String   @id @default(cuid())
+  date      String   @unique // ISO YYYY-MM-DD
+  label     String   // e.g. "Diwali Break", "Mid-Term Exams"
+  type      String   @default("holiday") // "holiday" | "exam"
+  createdAt DateTime @default(now())
+}
 ```
 
 ---
@@ -132,7 +140,12 @@ When launching with an empty database, Roll Book automatically presents an onboa
 ### 7. Database Reset & Danger Zone (`/api/reset`)
 - `POST /api/reset` — Atomic deletion of all courses, slots, and attendance records (`seedSample: boolean` option to reload baseline).
 
-### 8. Data Portability (`/api/export`)
+### 8. Holidays & Exam Days (`/api/holidays`)
+- `GET /api/holidays` — Returns all declared holidays and exam dates.
+- `POST /api/holidays` — Declares or updates a holiday `{ date, label, type }`.
+- `DELETE /api/holidays/[id]` — Deletes a holiday declaration.
+
+### 9. Data Portability (`/api/export`)
 - `GET /api/export?format=csv` — Downloads complete attendance audit trail as spreadsheet CSV.
 - `GET /api/export?format=json` — Generates a full database backup snapshot.
 - `POST /api/export` — Restores database state from a backup JSON file.

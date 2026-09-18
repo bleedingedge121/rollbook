@@ -18,8 +18,10 @@ import {
   AlertTriangle,
   RotateCcw,
   GraduationCap,
+  Palmtree,
+  FileText,
 } from 'lucide-react'
-import { CourseWithStats, TimetableSlot } from '@/types'
+import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
@@ -29,23 +31,29 @@ import { SectionImportModal } from './SectionImportModal'
 interface SettingsViewProps {
   courses: CourseWithStats[]
   slots: TimetableSlot[]
+  holidays?: Holiday[]
   onSaveCourse: (courseData: any) => Promise<void>
   onDeleteCourse: (courseId: string) => Promise<void>
   onSaveSlot: (slotData: any) => Promise<void>
   onDeleteSlot: (slotId: string) => Promise<void>
+  onSaveHoliday?: (holidayData: { date: string; label: string; type?: string }) => Promise<void>
+  onDeleteHoliday?: (id: string) => Promise<void>
   onRefreshAll: () => Promise<void>
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   courses,
   slots,
+  holidays = [],
   onSaveCourse,
   onDeleteCourse,
   onSaveSlot,
   onDeleteSlot,
+  onSaveHoliday,
+  onDeleteHoliday,
   onRefreshAll,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'sync' | 'courses' | 'timetable' | 'backup'>('sync')
+  const [activeSubTab, setActiveSubTab] = useState<'sync' | 'courses' | 'timetable' | 'holidays' | 'backup'>('sync')
 
   // Modals state
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false)
@@ -62,6 +70,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [syncedAtTime, setSyncedAtTime] = useState<string | undefined>()
   const [syncError, setSyncError] = useState<string | null>(null)
   const [isParsingSync, setIsParsingSync] = useState(false)
+
+  // Add Holiday Form State
+  const [newHolidayDate, setNewHolidayDate] = useState('')
+  const [newHolidayLabel, setNewHolidayLabel] = useState('')
+  const [newHolidayType, setNewHolidayType] = useState<'holiday' | 'exam'>('holiday')
+  const [isSubmittingHoliday, setIsSubmittingHoliday] = useState(false)
 
   // Reset confirmation state
   const [isResetModalOpen, setIsResetModalOpen] = useState(false)
@@ -134,6 +148,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     alert(data.message || 'Attendance synchronized successfully!')
     await onRefreshAll()
+  }
+
+  // Handle Create Holiday
+  const handleCreateHoliday = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newHolidayDate || !newHolidayLabel.trim() || !onSaveHoliday) return
+
+    setIsSubmittingHoliday(true)
+    try {
+      await onSaveHoliday({
+        date: newHolidayDate,
+        label: newHolidayLabel.trim(),
+        type: newHolidayType,
+      })
+      setNewHolidayDate('')
+      setNewHolidayLabel('')
+    } finally {
+      setIsSubmittingHoliday(false)
+    }
   }
 
   // Handle Reset Execution
@@ -220,7 +253,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           Settings & Data Bridge
         </h1>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          Synchronize portal attendance, configure semester timetable slots, and manage backups.
+          Synchronize portal attendance, configure timetable slots, declare holidays, and manage backups.
         </p>
       </div>
 
@@ -255,6 +288,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           }`}
         >
           <Calendar className="w-3.5 h-3.5" /> Weekly Timetable ({slots.length})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('holidays')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubTab === 'holidays'
+              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          }`}
+        >
+          <Palmtree className="w-3.5 h-3.5" /> Holidays & Exams ({holidays.length})
         </button>
         <button
           onClick={() => setActiveSubTab('backup')}
@@ -569,7 +612,131 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* SUB TAB 4: Backup & Danger Zone */}
+      {/* SUB TAB 4: Holidays & Exams */}
+      {activeSubTab === 'holidays' && (
+        <div className="space-y-6">
+          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                <Palmtree className="w-5 h-5 text-amber-400" />
+                Declared Holidays & Exam Days
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Mark holidays and exam days so they are never flagged as unlogged past classes and excluded from planning.
+              </p>
+            </div>
+
+            {/* Add Holiday Form */}
+            <form
+              onSubmit={handleCreateHoliday}
+              className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 space-y-3.5"
+            >
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5 text-blue-400" /> Declare Holiday or Exam Date
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={newHolidayDate}
+                    onChange={(e) => setNewHolidayDate(e.target.value)}
+                    required
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">Reason / Label</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Diwali Break, Mid-Term Exam"
+                    value={newHolidayLabel}
+                    onChange={(e) => setNewHolidayLabel(e.target.value)}
+                    required
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">Type</label>
+                  <select
+                    value={newHolidayType}
+                    onChange={(e) => setNewHolidayType(e.target.value as any)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="holiday">🌴 Holiday / Recess</option>
+                    <option value="exam">📝 Exam Day / Assessment</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="submit"
+                  disabled={isSubmittingHoliday || !newHolidayDate || !newHolidayLabel.trim()}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 disabled:opacity-50 transition-colors"
+                >
+                  {isSubmittingHoliday ? 'Saving...' : 'Add Date'}
+                </button>
+              </div>
+            </form>
+
+            {/* List of Declared Holidays */}
+            <div className="space-y-3">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Registered Holidays & Exams ({holidays.length})
+              </div>
+
+              {holidays.length === 0 ? (
+                <div className="text-xs text-slate-500 p-6 bg-slate-900/60 rounded-xl border border-slate-800 text-center">
+                  No holidays or exam days registered yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {holidays.map((h) => (
+                    <div
+                      key={h.id}
+                      className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              h.type === 'exam'
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            }`}
+                          >
+                            {h.type === 'exam' ? 'Exam' : 'Holiday'}
+                          </span>
+                          <span className="font-mono text-slate-200 font-semibold">{h.date}</span>
+                        </div>
+                        <div className="text-slate-300 font-medium truncate">{h.label}</div>
+                      </div>
+
+                      {onDeleteHoliday && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Remove holiday for ${h.date} (${h.label})?`)) {
+                              onDeleteHoliday(h.id)
+                            }
+                          }}
+                          className="p-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                          title="Delete holiday"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB TAB 5: Backup & Danger Zone */}
       {activeSubTab === 'backup' && (
         <div className="space-y-6">
           <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">

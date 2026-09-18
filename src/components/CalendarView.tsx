@@ -17,12 +17,15 @@ import {
   RotateCcw,
   CheckCheck,
   Trash2,
+  Palmtree,
+  FileText,
 } from 'lucide-react'
 import {
   CourseWithStats,
   TimetableSlot,
   AttendanceRecord,
   PlannedSlot,
+  Holiday,
 } from '@/types'
 import {
   format,
@@ -56,6 +59,7 @@ interface CalendarViewProps {
   courses: CourseWithStats[]
   allSlots: TimetableSlot[]
   allAttendance: AttendanceRecord[]
+  holidays?: Holiday[]
   onLogAttendance: (
     courseId: string,
     date: string,
@@ -67,16 +71,21 @@ interface CalendarViewProps {
     records: { courseId: string; date: string; status: 'present' | 'absent'; note?: string }[]
   ) => Promise<void>
   onClearDateAttendance?: (date: string) => Promise<void>
+  onSaveHoliday?: (data: { date: string; label: string; type?: string }) => Promise<void>
+  onDeleteHoliday?: (id: string) => Promise<void>
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   courses,
   allSlots,
   allAttendance,
+  holidays = [],
   onLogAttendance,
   onDeleteAttendance,
   onBatchLogAttendance,
   onClearDateAttendance,
+  onSaveHoliday,
+  onDeleteHoliday,
 }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date())
@@ -96,6 +105,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   // Toggle future plan
   const handleTogglePlan = (dateStr: string, slotId: string, courseId: string) => {
+    // If date is a declared holiday, do not allow toggling
+    if (holidays.some((h) => h.date === dateStr)) return
+
     const key = `${dateStr}_${slotId}`
     setPlannedSlots((prev) => {
       const current = prev[key]
@@ -118,6 +130,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
     calendarDays.forEach((day) => {
       const dateStr = toDateString(day)
+      // Exclude declared holidays from planning
+      if (holidays.some((h) => h.date === dateStr)) return
+
       const isTargetDay =
         (isAfter(day, today) || isSameDay(day, today)) &&
         (!limitDate || isBefore(day, limitDate) || isSameDay(day, limitDate))
@@ -141,6 +156,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   // Day specific batch planning
   const handlePlanSpecificDay = (dateStr: string, plan: 'attend' | 'skip') => {
+    if (holidays.some((h) => h.date === dateStr)) return
     const day = parseDateString(dateStr)
     const weekday = day.getDay()
     const slots = allSlots.filter((s) => s.weekday === weekday)
@@ -224,7 +240,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       const actTotal = actPresent + actAbsent
       const actualPct = actTotal > 0 ? Number(((actPresent / actTotal) * 100).toFixed(1)) : 100
 
-      // 2. Count planned future attendances / skips
+      // 2. Count planned future attendances / skips (excluding holidays)
       let planPresent = 0
       let planAbsent = 0
       const plannedCourseMap: Record<string, { present: number; absent: number }> = {}
@@ -235,6 +251,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       Object.entries(plannedSlots).forEach(([key, plan]) => {
         const [dateStr, slotId] = key.split('_')
+        if (holidays.some((h) => h.date === dateStr)) return
+
         const slot = allSlots.find((s) => s.id === slotId)
         if (!slot) return
 
@@ -320,10 +338,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         projectedByCourse: courseProjections,
         trajectoryData: trajectory,
       }
-    }, [courses, allSlots, plannedSlots, selectedCourseFilter])
+    }, [courses, allSlots, plannedSlots, selectedCourseFilter, holidays])
 
   // Get records and slots for selected inspector day
   const selectedDayStr = selectedDay ? toDateString(selectedDay) : todayStr
+  const selectedDayHoliday = holidays.find((h) => h.date === selectedDayStr)
   const selectedDayIsFuture = selectedDay
     ? isAfter(selectedDay, today) && !isSameDay(selectedDay, today)
     : false
@@ -341,7 +360,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             Calendar & Trajectory Planner
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Solid badges represent confirmed actuals; dashed outlines project future scenarios.
+            Solid badges represent confirmed actuals; dashed outlines project future scenarios; amber/purple tags indicate holidays and exams.
           </p>
         </div>
 
@@ -561,6 +580,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <span className="w-3 h-3 rounded-full border border-dashed border-rose-400 bg-rose-500/20" />
             <span>Planned Skip</span>
           </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-amber-500/40 border border-amber-500" />
+            <span>Holiday / Exam</span>
+          </div>
         </div>
 
         {/* Calendar Grid */}
@@ -585,6 +608,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             const isFuture = isAfter(day, today) && !isSameDay(day, today)
             const weekday = day.getDay()
 
+            // Holiday check for this date
+            const dayHoliday = holidays.find((h) => h.date === dateStr)
+
             // Scheduled slots for this weekday
             const slotsForDay = allSlots.filter((s) => s.weekday === weekday)
             // Actual confirmed attendance for this day
@@ -599,6 +625,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     ? 'opacity-30 bg-slate-950/20 border-slate-900'
                     : isSelected
                     ? 'bg-slate-800/90 border-blue-500 shadow-md ring-1 ring-blue-500/40'
+                    : dayHoliday
+                    ? 'bg-amber-950/15 border-amber-500/30'
                     : isCurrentDay
                     ? 'bg-slate-900 border-blue-500/50'
                     : 'bg-slate-900/50 border-slate-800/80 hover:border-slate-700'
@@ -627,29 +655,45 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                 {/* Slots & Status Badges */}
                 <div className="space-y-1 my-1 overflow-hidden">
-                  {/* Actual confirmed records (Past & Today) */}
-                  {recordsForDay.map((rec) => {
-                    const course = courses.find((c) => c.id === rec.courseId)
-                    return (
-                      <div
-                        key={rec.id}
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-sm ${
-                          rec.status === 'present'
-                            ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
-                            : 'bg-rose-600/30 text-rose-300 border border-rose-500/40'
-                        }`}
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: course?.color || '#3b82f6' }}
-                        />
-                        <span className="truncate">{course?.code || 'Class'}</span>
-                      </div>
-                    )
-                  })}
+                  {/* Holiday Banner Tag */}
+                  {dayHoliday && (
+                    <div
+                      className={`text-[10px] font-bold p-1 rounded-md truncate flex items-center gap-1 ${
+                        dayHoliday.type === 'exam'
+                          ? 'bg-purple-500/20 border border-purple-500/30 text-purple-300'
+                          : 'bg-amber-500/20 border border-amber-500/30 text-amber-300'
+                      }`}
+                    >
+                      <Palmtree className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{dayHoliday.label}</span>
+                    </div>
+                  )}
 
-                  {/* Future Planning Slots */}
-                  {(isFuture || (isToday(day) && recordsForDay.length === 0)) &&
+                  {/* Actual confirmed records (Past & Today) */}
+                  {!dayHoliday &&
+                    recordsForDay.map((rec) => {
+                      const course = courses.find((c) => c.id === rec.courseId)
+                      return (
+                        <div
+                          key={rec.id}
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-sm ${
+                            rec.status === 'present'
+                              ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
+                              : 'bg-rose-600/30 text-rose-300 border border-rose-500/40'
+                          }`}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: course?.color || '#3b82f6' }}
+                          />
+                          <span className="truncate">{course?.code || 'Class'}</span>
+                        </div>
+                      )
+                    })}
+
+                  {/* Future Planning Slots (only if not a holiday) */}
+                  {!dayHoliday &&
+                    (isFuture || (isToday(day) && recordsForDay.length === 0)) &&
                     slotsForDay.map((slot) => {
                       const course = courses.find((c) => c.id === slot.courseId)
                       const planKey = `${dateStr}_${slot.id}`
@@ -684,8 +728,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     })}
                 </div>
 
-                {/* Footer indicator if day has no slots */}
-                {slotsForDay.length === 0 && recordsForDay.length === 0 && (
+                {/* Footer indicator if day has no slots and not a holiday */}
+                {!dayHoliday && slotsForDay.length === 0 && recordsForDay.length === 0 && (
                   <div className="text-[10px] text-slate-700 text-center py-1">
                     Off
                   </div>
@@ -706,14 +750,27 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 Day Inspector: {format(selectedDay, 'EEEE, MMMM d, yyyy')}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                {selectedDayIsFuture
+                {selectedDayHoliday
+                  ? `Declared ${selectedDayHoliday.type === 'exam' ? 'Exam Day' : 'Holiday'}: ${selectedDayHoliday.label}`
+                  : selectedDayIsFuture
                   ? 'Future Date: Configure planning assumptions below'
                   : 'Past/Today: Confirm actual attendance'}
               </p>
             </div>
 
             {/* Fast 1-Click Day Batch Buttons */}
-            {selectedDaySlots.length > 0 && (
+            {selectedDayHoliday ? (
+              <div className="flex items-center gap-2">
+                {onDeleteHoliday && (
+                  <button
+                    onClick={() => onDeleteHoliday(selectedDayHoliday.id)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Remove Holiday Status
+                  </button>
+                )}
+              </div>
+            ) : selectedDaySlots.length > 0 ? (
               <div className="flex items-center gap-2 shrink-0">
                 {selectedDayIsFuture ? (
                   <>
@@ -770,8 +827,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
+
+          {/* Holiday Alert Banner in Inspector if applicable */}
+          {selectedDayHoliday && (
+            <div className="p-4 bg-amber-950/20 border border-amber-500/30 rounded-2xl flex items-center gap-3">
+              <Palmtree className="w-5 h-5 text-amber-400 shrink-0" />
+              <div className="text-xs text-slate-300">
+                <strong className="text-amber-300">
+                  {selectedDayHoliday.label} ({selectedDayHoliday.type === 'exam' ? 'Exam Day' : 'Holiday'})
+                </strong>{' '}
+                — No classes scheduled on this date.
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Scheduled slots for this weekday */}
@@ -830,64 +900,66 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       </div>
 
                       {/* Action buttons depending on whether day is future or past */}
-                      <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
-                        {selectedDayIsFuture ? (
-                          <div className="flex items-center gap-2 w-full">
-                            <span className="text-xs text-slate-400 font-medium">
-                              Simulation:
-                            </span>
-                            <button
-                              onClick={() =>
-                                setPlannedSlots((prev) => ({
-                                  ...prev,
-                                  [planKey]: 'attend',
-                                }))
-                              }
-                              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                                currentPlan === 'attend'
-                                  ? 'bg-emerald-600/30 border-emerald-500 text-emerald-300 shadow-sm'
-                                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                              }`}
-                            >
-                              Plan Attend
-                            </button>
-                            <button
-                              onClick={() =>
-                                setPlannedSlots((prev) => ({
-                                  ...prev,
-                                  [planKey]: 'skip',
-                                }))
-                              }
-                              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                                currentPlan === 'skip'
-                                  ? 'bg-rose-600/30 border-rose-500 text-rose-300 shadow-sm'
-                                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
-                              }`}
-                            >
-                              Plan Skip
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 w-full">
-                            <button
-                              onClick={() =>
-                                onLogAttendance(slot.courseId, selectedDayStr, 'present')
-                              }
-                              className="flex-1 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 text-xs font-semibold transition-colors"
-                            >
-                              Mark Present
-                            </button>
-                            <button
-                              onClick={() =>
-                                onLogAttendance(slot.courseId, selectedDayStr, 'absent')
-                              }
-                              className="flex-1 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-xs font-semibold transition-colors"
-                            >
-                              Mark Absent
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      {!selectedDayHoliday && (
+                        <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
+                          {selectedDayIsFuture ? (
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="text-xs text-slate-400 font-medium">
+                                Simulation:
+                              </span>
+                              <button
+                                onClick={() =>
+                                  setPlannedSlots((prev) => ({
+                                    ...prev,
+                                    [planKey]: 'attend',
+                                  }))
+                                }
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                  currentPlan === 'attend'
+                                    ? 'bg-emerald-600/30 border-emerald-500 text-emerald-300 shadow-sm'
+                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                Plan Attend
+                              </button>
+                              <button
+                                onClick={() =>
+                                  setPlannedSlots((prev) => ({
+                                    ...prev,
+                                    [planKey]: 'skip',
+                                  }))
+                                }
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                  currentPlan === 'skip'
+                                    ? 'bg-rose-600/30 border-rose-500 text-rose-300 shadow-sm'
+                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                Plan Skip
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 w-full">
+                              <button
+                                onClick={() =>
+                                  onLogAttendance(slot.courseId, selectedDayStr, 'present')
+                                }
+                                className="flex-1 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 text-xs font-semibold transition-colors"
+                              >
+                                Mark Present
+                              </button>
+                              <button
+                                onClick={() =>
+                                  onLogAttendance(slot.courseId, selectedDayStr, 'absent')
+                                }
+                                className="flex-1 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-xs font-semibold transition-colors"
+                              >
+                                Mark Absent
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })

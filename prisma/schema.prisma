@@ -48,3 +48,13 @@ model AttendanceRecord {
   @@index([date])
   @@index([courseId])
 }
+
+model Holiday {
+  id        String   @id @default(cuid())
+  date      String   // "YYYY-MM-DD"
+  label     String   // e.g. "Diwali Break", "Mid-Term Exams"
+  type      String   @default("holiday") // "holiday" | "exam"
+  createdAt DateTime @default(now())
+
+  @@unique([date])
+}

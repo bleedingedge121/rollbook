@@ -7,7 +7,7 @@ import { SubjectsView } from '@/components/SubjectsView'
 import { CalendarView } from '@/components/CalendarView'
 import { SettingsView } from '@/components/SettingsView'
 import { CourseModal } from '@/components/CourseModal'
-import { Course, CourseWithStats, TimetableSlot, AttendanceRecord } from '@/types'
+import { Course, CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { calculateAttendance } from '@/lib/attendance'
 import { Loader2 } from 'lucide-react'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
@@ -17,6 +17,7 @@ export default function App() {
   const [courses, setCourses] = useState<CourseWithStats[]>([])
   const [allSlots, setAllSlots] = useState<TimetableSlot[]>([])
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([])
+  const [holidays, setHolidays] = useState<Holiday[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
@@ -28,16 +29,18 @@ export default function App() {
   // Fetch all core data
   const fetchData = useCallback(async () => {
     try {
-      const [coursesRes, slotsRes, attendanceRes] = await Promise.all([
+      const [coursesRes, slotsRes, attendanceRes, holidaysRes] = await Promise.all([
         fetch('/api/courses'),
         fetch('/api/timetable'),
         fetch('/api/attendance'),
+        fetch('/api/holidays'),
       ])
 
-      const [rawCourses, rawSlots, rawAttendance] = await Promise.all([
+      const [rawCourses, rawSlots, rawAttendance, rawHolidays] = await Promise.all([
         coursesRes.json(),
         slotsRes.json(),
         attendanceRes.json(),
+        holidaysRes.json(),
       ])
 
       if (Array.isArray(rawCourses) && Array.isArray(rawAttendance)) {
@@ -66,6 +69,7 @@ export default function App() {
 
       if (Array.isArray(rawSlots)) setAllSlots(rawSlots)
       if (Array.isArray(rawAttendance)) setAllAttendance(rawAttendance)
+      if (Array.isArray(rawHolidays)) setHolidays(rawHolidays)
     } catch (err) {
       console.error('Failed to load Roll Book data:', err)
     } finally {
@@ -214,6 +218,31 @@ export default function App() {
     await fetchData()
   }
 
+  // Holiday Handlers
+  const handleSaveHoliday = async (holidayData: { date: string; label: string; type?: string }) => {
+    const res = await fetch('/api/holidays', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(holidayData),
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      throw new Error(data.error || 'Failed to save holiday')
+    }
+    await fetchData()
+  }
+
+  const handleDeleteHoliday = async (id: string) => {
+    const res = await fetch(`/api/holidays/${id}`, {
+      method: 'DELETE',
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      throw new Error(data.error || 'Failed to delete holiday')
+    }
+    await fetchData()
+  }
+
   // Calculate top-level stats for navigation
   let totalPresent = 0
   let totalAbsent = 0
@@ -269,10 +298,12 @@ export default function App() {
             courses={courses}
             allSlots={allSlots}
             allAttendance={allAttendance}
+            holidays={holidays}
             onLogAttendance={handleLogAttendance}
             onDeleteAttendance={handleDeleteAttendance}
             onBatchLogAttendance={handleBatchLogAttendance}
             onClearDateAttendance={handleClearDateAttendance}
+            onSaveHoliday={handleSaveHoliday}
             onNavigateToSubjects={() => setActiveTab('subjects')}
             onNavigateToCalendar={() => setActiveTab('calendar')}
           />
@@ -300,10 +331,13 @@ export default function App() {
             courses={courses}
             allSlots={allSlots}
             allAttendance={allAttendance}
+            holidays={holidays}
             onLogAttendance={handleLogAttendance}
             onDeleteAttendance={handleDeleteAttendance}
             onBatchLogAttendance={handleBatchLogAttendance}
             onClearDateAttendance={handleClearDateAttendance}
+            onSaveHoliday={handleSaveHoliday}
+            onDeleteHoliday={handleDeleteHoliday}
           />
         )}
 
@@ -311,10 +345,13 @@ export default function App() {
           <SettingsView
             courses={courses}
             slots={allSlots}
+            holidays={holidays}
             onSaveCourse={handleSaveCourse}
             onDeleteCourse={handleDeleteCourse}
             onSaveSlot={handleSaveSlot}
             onDeleteSlot={handleDeleteSlot}
+            onSaveHoliday={handleSaveHoliday}
+            onDeleteHoliday={handleDeleteHoliday}
             onRefreshAll={fetchData}
           />
         )}
