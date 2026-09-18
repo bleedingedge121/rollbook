@@ -16,10 +16,16 @@ import {
   Trash2,
   Palmtree,
   Sparkles,
+  Zap,
+  Activity,
+  Layers,
+  Flame,
+  Shield,
+  TrendingUp,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
-import { StatsCard } from './StatsCard'
-import { toDateString, WEEKDAYS, calculateAttendance } from '@/lib/attendance'
+import { toDateString, WEEKDAYS } from '@/lib/attendance'
+import { motion, AnimatePresence, Variants } from 'framer-motion'
 
 interface HomeViewProps {
   courses: CourseWithStats[]
@@ -231,150 +237,191 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   }
 
-  return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Top Banner / Hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#131b2e] via-[#101728] to-[#0d1322] border border-slate-800/90 p-6 sm:p-8 shadow-xl">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-medium text-blue-400">
-              <CalendarIcon className="w-3.5 h-3.5" />
-              <span>
-                {WEEKDAYS[currentWeekday]}, {today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-100 tracking-tight">
-              Attendance Command Center
-            </h1>
-            <p className="text-sm text-slate-400 max-w-xl">
-              Strictly confirmed actual records. No theoretical assumptions.
-            </p>
-          </div>
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+      },
+    },
+  }
 
-          {/* Big Gauge Card */}
-          <div className="flex items-center gap-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-inner">
-            <div className="relative w-20 h-20 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-800"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 15 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+  }
+
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-8"
+    >
+      {/* 1. Tactical Flight Deck (Hero KPI Hub) */}
+      <motion.div
+        variants={itemVariants}
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c121e] via-[#090e18] to-[#070a12] border border-slate-800/80 p-6 sm:p-8 shadow-2xl"
+      >
+        {/* Ambient background aura */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          {/* Main Status & Gauge */}
+          <div className="flex items-center gap-6">
+            {/* Radial Attendance Meter */}
+            <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+              <svg className="w-full h-full transform -rotate-90">
+                <circle
+                  cx="56"
+                  cy="56"
+                  r="46"
+                  className="stroke-slate-800/80"
+                  strokeWidth="8"
+                  fill="transparent"
                 />
-                <path
-                  className={isOverallSafe ? 'text-emerald-500' : 'text-rose-500'}
-                  strokeDasharray={`${overallPct}, 100`}
-                  strokeWidth="3.5"
+                <motion.circle
+                  cx="56"
+                  cy="56"
+                  r="46"
+                  stroke={isOverallSafe ? '#10b981' : '#f43f5e'}
+                  strokeWidth="8"
+                  strokeDasharray={289}
+                  initial={{ strokeDashoffset: 289 }}
+                  animate={{
+                    strokeDashoffset: 289 - (289 * Math.min(overallPct, 100)) / 100,
+                  }}
+                  transition={{ duration: 1.2, ease: 'easeOut' }}
                   strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="transparent"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-lg font-bold text-slate-100">{overallPct}%</span>
+                <span className="font-mono font-black text-2xl text-slate-100 tracking-tight">
+                  {overallPct}%
+                </span>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                  Standing
+                </span>
               </div>
             </div>
-            <div className="space-y-1">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Overall Standing
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-100 tracking-tight font-sans">
+                  Attendance Command Deck
+                </h1>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold tracking-wide uppercase border ${
+                    isOverallSafe
+                      ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
+                      : 'bg-rose-950/40 text-rose-300 border-rose-500/30'
+                  }`}
+                >
+                  {isOverallSafe ? 'Target Secured' : 'Critical Deficit'}
+                </span>
               </div>
-              <div
-                className={`text-sm font-bold ${
-                  isOverallSafe ? 'text-emerald-400' : 'text-rose-400'
-                }`}
-              >
-                {isOverallSafe ? 'Above Target (Safe)' : 'Action Required'}
+              <p className="text-xs text-slate-400 max-w-md">
+                Strictly confirmed actual records. No theoretical assumptions.
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Metrics Strip */}
+          <div className="grid grid-cols-3 gap-3 w-full lg:w-auto">
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl px-4 py-3 min-w-[110px]">
+              <div className="text-[11px] font-mono font-medium text-slate-400 uppercase tracking-wider">
+                Held
               </div>
-              <div className="text-xs text-slate-500">
-                {totalCoursesSafe} of {courses.length} courses compliant
+              <div className="text-xl font-bold font-mono text-slate-100 mt-0.5">{totalHeld}</div>
+            </div>
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl px-4 py-3 min-w-[110px]">
+              <div className="text-[11px] font-mono font-medium text-emerald-400 uppercase tracking-wider">
+                Attended
               </div>
+              <div className="text-xl font-bold font-mono text-emerald-400 mt-0.5">
+                {totalPresent}
+              </div>
+            </div>
+            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl px-4 py-3 min-w-[110px]">
+              <div className="text-[11px] font-mono font-medium text-rose-400 uppercase tracking-wider">
+                Missed
+              </div>
+              <div className="text-xl font-bold font-mono text-rose-400 mt-0.5">{totalAbsent}</div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Overall Attendance"
-          value={`${overallPct}%`}
-          subtitle={`${totalPresent} present / ${totalHeld} held`}
-          icon={<ShieldCheck className="w-6 h-6" />}
-          variant={isOverallSafe ? 'emerald' : 'rose'}
-        />
-        <StatsCard
-          title="Total Classes Attended"
-          value={totalPresent}
-          subtitle={`Across ${courses.length} registered subjects`}
-          icon={<CheckCircle2 className="w-6 h-6" />}
-          variant="blue"
-        />
-        <StatsCard
-          title="Missed Classes"
-          value={totalAbsent}
-          subtitle={`${totalHeld > 0 ? ((totalAbsent / totalHeld) * 100).toFixed(1) : 0}% absence rate`}
-          icon={<XCircle className="w-6 h-6" />}
-          variant="amber"
-        />
-        <StatsCard
-          title="Today's Classes"
-          value={todayHoliday ? '0 (Holiday)' : todaySlots.length}
-          subtitle={todayHoliday ? todayHoliday.label : `${todayLoggedCount} logged so far`}
-          icon={<Clock className="w-6 h-6" />}
-          variant="slate"
-        />
-      </div>
-
-      {/* Today's Schedule & Quick Logger */}
-      <div className="bg-[#131b2e] border border-slate-800 rounded-2xl p-6 shadow-md space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
-          <div>
-            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-400" />
-              Today's Schedule ({WEEKDAYS[currentWeekday]})
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Confirm lecture attendance with individual buttons or 1-click batch actions.
-            </p>
+      {/* 2. Today's Flight Schedule */}
+      <motion.div
+        variants={itemVariants}
+        className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                Today’s Schedule
+                <span className="text-xs font-mono font-normal text-slate-400">
+                  ({WEEKDAYS[currentWeekday]}, {today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                {todaySlots.length} lecture{todaySlots.length === 1 ? '' : 's'} scheduled for today
+              </p>
+            </div>
           </div>
 
-          {/* Batch Actions Bar for Today */}
+          {/* 1-Click Batch Controls for Today */}
           {todaySlots.length > 0 && !todayHoliday && (
-            <div className="flex items-center gap-2 shrink-0">
-              <button
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleBatchMarkToday('present')}
                 disabled={isBatchBusy || loggingId !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
-                title="Mark all today's classes as Present"
+                className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                title="Mark all of today's classes as Present in 1 click"
               >
-                <CheckCheck className="w-3.5 h-3.5" /> All Present
-              </button>
-              <button
+                <CheckCheck className="w-3.5 h-3.5" />
+                All Present
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => handleBatchMarkToday('absent')}
                 disabled={isBatchBusy || loggingId !== null}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
-                title="Mark all today's classes as Absent"
+                className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                title="Mark all of today's classes as Absent in 1 click"
               >
-                <X className="w-3.5 h-3.5" /> All Absent
-              </button>
+                <X className="w-3.5 h-3.5" />
+                All Absent
+              </motion.button>
               {todayLoggedCount > 0 && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={handleClearAllToday}
                   disabled={isBatchBusy || loggingId !== null}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-800 transition-colors"
-                  title="Clear all today's logs"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 transition-colors disabled:opacity-50"
+                  title="Clear today's logs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                </motion.button>
               )}
             </div>
           )}
         </div>
 
+        {/* Holiday Banner if Today is Holiday */}
         {todayHoliday ? (
-          <div className="p-6 bg-amber-950/20 border border-amber-500/30 rounded-2xl flex items-center gap-3">
+          <div className="p-5 bg-amber-950/20 border border-amber-500/30 rounded-2xl flex items-center gap-3">
             <Palmtree className="w-6 h-6 text-amber-400 shrink-0" />
             <div>
               <div className="font-bold text-sm text-amber-300">
@@ -386,12 +433,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </div>
         ) : todaySlots.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 bg-slate-900/40 rounded-xl border border-dashed border-slate-800">
-            <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <div className="text-center py-8 text-slate-500 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
+            <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-50 text-slate-600" />
             <p className="text-sm font-medium">No classes scheduled for today.</p>
-            <p className="text-xs text-slate-600 mt-1">
-              Enjoy your free day or configure slots in Settings.
-            </p>
+            <p className="text-xs text-slate-600 mt-1">Enjoy your free day!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -401,151 +446,174 @@ export const HomeView: React.FC<HomeViewProps> = ({
               const isBusy = loggingId !== null || isBatchBusy
 
               return (
-                <div
+                <motion.div
                   key={slot.id}
-                  className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4 transition-all hover:border-slate-700"
+                  whileHover={{ y: -2 }}
+                  className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between space-y-3 transition-all"
                 >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: course?.color || '#3b82f6' }}
-                      />
-                      <span className="font-semibold text-sm text-slate-200 truncate">
-                        {course?.name || 'Unknown Course'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <span className="font-mono text-slate-300 font-medium">
-                        {course?.code}
-                      </span>
-                      <span>•</span>
-                      <span>{slot.label}</span>
-                      {slot.room && (
-                        <>
-                          <span>•</span>
-                          <span className="text-slate-300">{slot.room}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions / Status */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {existing ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                            existing.status === 'present'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                          }`}
-                        >
-                          {existing.status === 'present' ? (
-                            <Check className="w-3.5 h-3.5" />
-                          ) : (
-                            <X className="w-3.5 h-3.5" />
-                          )}
-                          {existing.status}
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: course?.color || '#06b6d4' }}
+                        />
+                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                          {course?.code}
                         </span>
-                        <button
-                          onClick={() => handleRemoveLog(existing.id)}
-                          disabled={isBusy}
-                          title="Reset status"
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
+                        <span className="font-bold text-sm text-slate-100 truncate">
+                          {course?.name || 'Unknown Course'}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleQuickLog(slot.courseId, 'present')}
-                          disabled={isBusy}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 text-xs font-semibold transition-all disabled:opacity-50"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Present
-                        </button>
-                        <button
-                          onClick={() => handleQuickLog(slot.courseId, 'absent')}
-                          disabled={isBusy}
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 border border-rose-500/30 text-xs font-semibold transition-all disabled:opacity-50"
-                        >
-                          <X className="w-3.5 h-3.5" /> Absent
-                        </button>
+                      <div className="text-xs text-slate-400 flex items-center gap-2 pl-4">
+                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{slot.label}</span>
+                        {slot.room && (
+                          <>
+                            <span>•</span>
+                            <span className="text-slate-300 font-mono">{slot.room}</span>
+                          </>
+                        )}
                       </div>
+                    </div>
+
+                    {existing && (
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                          existing.status === 'present'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                        }`}
+                      >
+                        {existing.status === 'present' ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                        {existing.status}
+                      </span>
                     )}
                   </div>
-                </div>
+
+                  {/* Logging Action Buttons */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+                    <button
+                      onClick={() => handleQuickLog(slot.courseId, 'present')}
+                      disabled={isBusy}
+                      className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        existing?.status === 'present'
+                          ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
+                          : 'bg-emerald-950/30 text-emerald-400 hover:bg-emerald-900/40 border border-emerald-500/20'
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Present
+                    </button>
+                    <button
+                      onClick={() => handleQuickLog(slot.courseId, 'absent')}
+                      disabled={isBusy}
+                      className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        existing?.status === 'absent'
+                          ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20'
+                          : 'bg-rose-950/30 text-rose-400 hover:bg-rose-900/40 border border-rose-500/20'
+                      }`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Absent
+                    </button>
+                    {existing && (
+                      <button
+                        onClick={() => handleRemoveLog(existing.id)}
+                        disabled={isBusy}
+                        className="p-1.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                        title="Reset status"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
               )
             })}
           </div>
         )}
-      </div>
+      </motion.div>
 
-      {/* Unlogged Past Classes Prompt */}
+      {/* 3. Unlogged Past Classes Backlog Resolver */}
       {unloggedPastItems.length > 0 && (
-        <div className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-5 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-              <AlertTriangle className="w-4 h-4" />
-              <span>Unlogged Past Sessions ({unloggedPastItems.length})</span>
+        <motion.div
+          variants={itemVariants}
+          className="bg-[#0c121e] border border-amber-500/30 rounded-3xl p-6 shadow-xl space-y-4"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  Unlogged Past Sessions ({unloggedPastItems.length})
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Scheduled classes from the past 7 days needing attendance confirmation.
+                </p>
+              </div>
             </div>
-            
-            {/* Batch buttons for all unlogged */}
+
+            {/* Quick Bulk Resolution */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handleBatchMarkUnlogged('present')}
                 disabled={isBatchBusy}
-                className="px-3 py-1 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/35 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-colors flex items-center gap-1 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
               >
-                <CheckCheck className="w-3.5 h-3.5" /> Mark All Present ({unloggedPastItems.length})
+                <CheckCheck className="w-3.5 h-3.5" />
+                Mark All Present ({unloggedPastItems.length})
               </button>
               <button
                 onClick={() => handleBatchMarkUnlogged('absent')}
                 disabled={isBatchBusy}
-                className="px-3 py-1 rounded-lg bg-rose-600/25 hover:bg-rose-600/35 border border-rose-500/40 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
               >
-                <X className="w-3.5 h-3.5" /> Mark All Absent ({unloggedPastItems.length})
+                <X className="w-3.5 h-3.5" />
+                Mark All Absent ({unloggedPastItems.length})
               </button>
             </div>
           </div>
-          <p className="text-xs text-slate-300">
-            The following scheduled lectures from the past week have not been logged. Did you attend them?
-          </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {unloggedPastItems.slice(0, 9).map((item, idx) => (
               <div
                 key={`${item.slot.id}-${item.date}-${idx}`}
-                className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-between gap-2"
+                className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between space-y-2.5"
               >
-                <div>
+                <div className="space-y-1">
                   <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="font-mono text-slate-300">{item.date}</span>
-                    <span>{item.slot.label}</span>
+                    <span className="font-mono text-amber-400 font-semibold">{item.date}</span>
+                    <span className="font-mono">{item.slot.label}</span>
                   </div>
-                  <div className="font-semibold text-xs text-slate-200 truncate mt-1">
-                    {item.courseName}
+                  <div className="font-semibold text-xs text-slate-200 truncate">
+                    {item.courseName} ({item.courseCode})
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 pt-1">
+
+                <div className="flex items-center gap-1.5 pt-2 border-t border-slate-800/60">
                   <button
                     onClick={() => handleQuickLog(item.slot.courseId, 'present', item.date)}
-                    className="flex-1 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold text-center transition-colors"
+                    className="flex-1 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold text-center transition-colors"
                   >
                     Present
                   </button>
                   <button
                     onClick={() => handleQuickLog(item.slot.courseId, 'absent', item.date)}
-                    className="flex-1 py-1 rounded bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[11px] font-semibold text-center transition-colors"
+                    className="flex-1 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[11px] font-semibold text-center transition-colors"
                   >
                     Absent
                   </button>
                   <button
                     onClick={() => handleMarkDateAsHoliday(item.date)}
-                    className="py-1 px-2.5 rounded bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-[11px] font-semibold text-center transition-colors flex items-center gap-0.5"
-                    title="Mark entire day as Holiday / No Class (cancels all sessions on this date)"
+                    className="py-1 px-2.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-[11px] font-semibold text-center transition-colors flex items-center gap-1"
+                    title="Mark entire day as Holiday / No Class"
                   >
                     <Palmtree className="w-3 h-3" /> Holiday
                   </button>
@@ -553,55 +621,65 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
-      {/* Quick Course Overview Grid */}
-      <div className="space-y-4">
+      {/* 4. Subject Standing Matrix */}
+      <motion.div
+        variants={itemVariants}
+        className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5"
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-100">Subjects Summary</h2>
-            <p className="text-xs text-slate-400">
-              Instant snapshot of your margins and requirements
+            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2 font-sans">
+              <Layers className="w-4 h-4 text-cyan-400" />
+              Subjects Overview & Buffers
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Deterministic calculations for safe-zone skips and recovery requirements.
             </p>
           </div>
+
           <button
             onClick={onNavigateToSubjects}
-            className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
+            className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
           >
             All Subjects <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {courses.map((course) => {
             const { stats } = course
             return (
-              <div
+              <motion.div
                 key={course.id}
-                className="bg-[#131b2e] border border-slate-800 rounded-2xl p-5 space-y-4 transition-all hover:border-slate-700"
+                whileHover={{ y: -2 }}
+                onClick={onNavigateToSubjects}
+                className="bg-slate-900/50 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-4 transition-all cursor-pointer space-y-3"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
                       {course.code}
                     </span>
-                    <h3 className="font-bold text-sm text-slate-100 truncate max-w-[180px]">
+                    <h4 className="font-bold text-sm text-slate-100 truncate max-w-[180px]">
                       {course.name}
-                    </h3>
+                    </h4>
                   </div>
-                  <div
-                    className={`text-lg font-extrabold px-2.5 py-1 rounded-xl border ${
+                  <span
+                    className={`font-mono font-black text-sm px-2.5 py-1 rounded-xl border ${
                       stats.isSafe
-                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                        : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                        ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
+                        : 'bg-rose-950/40 text-rose-300 border-rose-500/30'
                     }`}
                   >
                     {stats.percentage}%
-                  </div>
+                  </span>
                 </div>
 
-                <div className="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden">
+                {/* Progress Bar */}
+                <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
                       stats.isSafe ? 'bg-emerald-500' : 'bg-rose-500'
@@ -610,27 +688,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60 font-mono">
                   <span>
-                    Held: <strong className="text-slate-200">{stats.total}</strong> (P: {stats.present}, A: {stats.absent})
+                    {stats.present}P / {stats.absent}A ({stats.total} Held)
                   </span>
-                  <span
-                    className={`font-semibold ${
-                      stats.isSafe ? 'text-emerald-400' : 'text-rose-400'
-                    }`}
-                  >
+                  <span className={stats.isSafe ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
                     {stats.isSafe
                       ? stats.maxSkippable > 0
-                        ? `Can skip ${stats.maxSkippable}`
-                        : 'No skip'
+                        ? `+${stats.maxSkippable} skippable`
+                        : 'No buffer'
                       : `Must attend ${stats.mustAttendNext}`}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }
