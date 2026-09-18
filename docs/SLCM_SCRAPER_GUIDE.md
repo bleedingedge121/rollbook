@@ -28,9 +28,10 @@ Rather than attempting to forge volatile Salesforce session tokens, CSRF tokens,
 
 ### 2. `sync.js` (Headless Apex Interceptor)
 - Boots a headless Chromium browser using `auth.json`.
-- Intercepts outgoing `/s/sfsites/aura` POST requests specifically matching `getCOPList` (or `commonLWCApexMethods`).
-- Filters out OpenTelemetry background beacons (`O11yInstrumentationResult`).
-- Recursively unwraps the nested Aura response tree (`action.returnValue`).
+- Intercepts outgoing `/s/sfsites/aura` POST requests specifically matching `getCOPList` or `commonLWCApexMethods`.
+- **Telemetry Beacon Filtering**: Discards OpenTelemetry background beacons (`O11yInstrumentationResult`, `interactionMetrics`).
+- **Multi-Semester Winner Strategy**: SLCM fires `getCOPList` multiple times on load (once per semester filter). The scraper retains the largest non-empty payload, ensuring trailing empty calls (0 items) do not overwrite verified records (10 items).
+- **Deep Envelope Unwrapping**: Recursively parses `action.returnValue` trees or JSON strings to locate the true array of course objects.
 - Extracts verified counts (`Total_number_of_classes_attended__c`, `Total_Classes__c`, `Course_Code__c`, `CourseOffering`).
 - Outputs clean data into `sync-output.json`.
 
@@ -57,8 +58,8 @@ node sync.js
 ```
 The script will output:
 ```
-✓ Intercepted Apex attendance call [getCOPList] with 6 items.
-✓ Synchronized 6 courses successfully!
+✓ Intercepted Apex attendance call [getCOPList] with 10 items.
+✓ Synchronized 10 courses successfully!
 Saved output to: .../scraper/sync-output.json
 ```
 
@@ -66,7 +67,7 @@ Saved output to: .../scraper/sync-output.json
 1. Open Roll Book web app at `http://localhost:3000`.
 2. Go to **Settings & Sync** $\rightarrow$ **SLCM Sync Bridge**.
 3. Click **Load Synced Data (JSON)** and select `scraper/sync-output.json`.
-4. Review the reconciliation diff and confirm updates.
+4. Review the reconciliation diff and choose your course merge mappings before confirming.
 
 ---
 
@@ -76,5 +77,6 @@ Saved output to: .../scraper/sync-output.json
 | :--- | :--- | :--- |
 | `[Session Expired] Redirected to login page` | Salesforce or Azure SSO token expired | Run `node login.js` to refresh session |
 | `auth.json not found` | First-time setup incomplete | Run `node login.js` before `sync.js` |
+| `Intercepted call with 0 items` | Sibling empty semester tabs firing | `sync.js` auto-retains the largest non-empty payload |
 | Navigation timeout on slow network | Page loading exceeded timeout envelope | Check VPN/Wi-Fi connection |
 | SLCM internal endpoint changed | MAHE updated Apex method name | Open DevTools Network tab on `/s/attendance`, find the new Fetch call, and update `postData.includes(...)` in `sync.js` |

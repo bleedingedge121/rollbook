@@ -4,11 +4,21 @@ This document details the mathematical models used throughout **Roll Book** for 
 
 ---
 
-## 📌 Variable Definitions
+## 📌 Variable Definitions & Layered Attendance Model
 
-- $P$: Total verified lectures attended (**Present**)
-- $A$: Total verified lectures missed (**Absent**)
-- $T = P + A$: Total lectures conducted (**Held**)
+To maintain authentic data without fabricating fake calendar records, attendance is computed as a layered combination:
+
+- $P_{\text{synced}}$: Verified baseline attended classes from official SLCM sync (`course.syncedPresent`)
+- $A_{\text{synced}}$: Verified baseline missed classes from official SLCM sync (`course.syncedAbsent`)
+- $P_{\text{manual}}$: Confirmed individual manual attendance records marked as *Present*
+- $A_{\text{manual}}$: Confirmed individual manual attendance records marked as *Absent*
+
+$$P = P_{\text{synced}} + P_{\text{manual}}$$
+
+$$A = A_{\text{synced}} + A_{\text{manual}}$$
+
+$$T = P + A \quad (\text{Total Lectures Held})$$
+
 - $R$: Target attendance requirement threshold fraction ($R = \frac{\text{Required \%}}{100}$, e.g. $0.75$ for $75\%$)
 - $\text{pct}$: Current verified attendance percentage
 
