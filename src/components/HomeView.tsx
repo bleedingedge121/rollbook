@@ -12,6 +12,8 @@ import {
   Check,
   X,
   Minus,
+  CheckCheck,
+  Trash2,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, AttendanceRecord } from '@/types'
 import { StatsCard } from './StatsCard'
@@ -23,6 +25,8 @@ interface HomeViewProps {
   allAttendance: AttendanceRecord[]
   onLogAttendance: (courseId: string, date: string, status: 'present' | 'absent', note?: string) => Promise<void>
   onDeleteAttendance: (recordId: string) => Promise<void>
+  onBatchLogAttendance?: (records: { courseId: string; date: string; status: 'present' | 'absent'; note?: string }[]) => Promise<void>
+  onClearDateAttendance?: (date: string) => Promise<void>
   onNavigateToSubjects: () => void
   onNavigateToCalendar: () => void
 }
@@ -33,10 +37,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
   allAttendance,
   onLogAttendance,
   onDeleteAttendance,
+  onBatchLogAttendance,
+  onClearDateAttendance,
   onNavigateToSubjects,
   onNavigateToCalendar,
 }) => {
   const [loggingId, setLoggingId] = useState<string | null>(null)
+  const [isBatchBusy, setIsBatchBusy] = useState(false)
+
   const today = new Date()
   const todayStr = toDateString(today)
   const currentWeekday = today.getDay() // 0 = Sun, 1 = Mon ...
@@ -106,6 +114,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return allAttendance.find((a) => a.courseId === courseId && a.date === todayStr)
   }
 
+  const todayLoggedCount = todaySlots.filter((s) => getTodayRecord(s.courseId)).length
+
   const handleQuickLog = async (
     courseId: string,
     status: 'present' | 'absent',
@@ -126,6 +136,70 @@ export const HomeView: React.FC<HomeViewProps> = ({
       await onDeleteAttendance(recordId)
     } finally {
       setLoggingId(null)
+    }
+  }
+
+  // Batch actions for Today
+  const handleBatchMarkToday = async (status: 'present' | 'absent') => {
+    if (todaySlots.length === 0) return
+    setIsBatchBusy(true)
+    try {
+      const records = todaySlots.map((s) => ({
+        courseId: s.courseId,
+        date: todayStr,
+        status,
+        note: 'Marked all via Today logger',
+      }))
+      if (onBatchLogAttendance) {
+        await onBatchLogAttendance(records)
+      } else {
+        for (const r of records) {
+          await onLogAttendance(r.courseId, r.date, r.status, r.note)
+        }
+      }
+    } finally {
+      setIsBatchBusy(false)
+    }
+  }
+
+  const handleClearAllToday = async () => {
+    if (todayLoggedCount === 0) return
+    if (!confirm('Clear all attendance logs for today?')) return
+    setIsBatchBusy(true)
+    try {
+      if (onClearDateAttendance) {
+        await onClearDateAttendance(todayStr)
+      } else {
+        const todayRecs = allAttendance.filter((a) => a.date === todayStr)
+        for (const r of todayRecs) {
+          await onDeleteAttendance(r.id)
+        }
+      }
+    } finally {
+      setIsBatchBusy(false)
+    }
+  }
+
+  // Batch actions for Unlogged Past Sessions
+  const handleBatchMarkUnlogged = async (status: 'present' | 'absent') => {
+    if (unloggedPastItems.length === 0) return
+    setIsBatchBusy(true)
+    try {
+      const records = unloggedPastItems.map((item) => ({
+        courseId: item.slot.courseId,
+        date: item.date,
+        status,
+        note: 'Confirmed past batch',
+      }))
+      if (onBatchLogAttendance) {
+        await onBatchLogAttendance(records)
+      } else {
+        for (const r of records) {
+          await onLogAttendance(r.courseId, r.date, r.status, r.note)
+        }
+      }
+    } finally {
+      setIsBatchBusy(false)
     }
   }
 
@@ -219,7 +293,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <StatsCard
           title="Today's Classes"
           value={todaySlots.length}
-          subtitle={`${todaySlots.filter((s) => getTodayRecord(s.courseId)).length} logged so far`}
+          subtitle={`${todayLoggedCount} logged so far`}
           icon={<Clock className="w-6 h-6" />}
           variant="slate"
         />
@@ -227,22 +301,48 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Today's Schedule & Quick Logger */}
       <div className="bg-[#131b2e] border border-slate-800 rounded-2xl p-6 shadow-md space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
           <div>
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
               <Clock className="w-5 h-5 text-blue-400" />
               Today's Schedule ({WEEKDAYS[currentWeekday]})
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Confirm your lecture attendance as it happens.
+              Confirm lecture attendance with individual buttons or 1-click batch actions.
             </p>
           </div>
-          <button
-            onClick={onNavigateToCalendar}
-            className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
-          >
-            Full Timetable <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+
+          {/* Batch Actions Bar for Today */}
+          {todaySlots.length > 0 && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => handleBatchMarkToday('present')}
+                disabled={isBatchBusy || loggingId !== null}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+                title="Mark all today's classes as Present"
+              >
+                <CheckCheck className="w-3.5 h-3.5" /> All Present
+              </button>
+              <button
+                onClick={() => handleBatchMarkToday('absent')}
+                disabled={isBatchBusy || loggingId !== null}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-semibold transition-all active:scale-95 disabled:opacity-50"
+                title="Mark all today's classes as Absent"
+              >
+                <X className="w-3.5 h-3.5" /> All Absent
+              </button>
+              {todayLoggedCount > 0 && (
+                <button
+                  onClick={handleClearAllToday}
+                  disabled={isBatchBusy || loggingId !== null}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-800 transition-colors"
+                  title="Clear all today's logs"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {todaySlots.length === 0 ? (
@@ -258,7 +358,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {todaySlots.map((slot) => {
               const course = courses.find((c) => c.id === slot.courseId)
               const existing = getTodayRecord(slot.courseId)
-              const isBusy = loggingId !== null
+              const isBusy = loggingId !== null || isBatchBusy
 
               return (
                 <div
@@ -346,14 +446,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* Unlogged Past Classes Prompt */}
       {unloggedPastItems.length > 0 && (
         <div className="bg-amber-950/20 border border-amber-500/30 rounded-2xl p-5 space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
               <AlertTriangle className="w-4 h-4" />
               <span>Unlogged Past Sessions ({unloggedPastItems.length})</span>
             </div>
-            <span className="text-xs text-amber-400/80">
-              Only confirmed dates affect your attendance
-            </span>
+            
+            {/* Batch buttons for all unlogged */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleBatchMarkUnlogged('present')}
+                disabled={isBatchBusy}
+                className="px-3 py-1 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/35 border border-emerald-500/40 text-emerald-300 text-xs font-semibold transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                <CheckCheck className="w-3.5 h-3.5" /> Mark All Present ({unloggedPastItems.length})
+              </button>
+              <button
+                onClick={() => handleBatchMarkUnlogged('absent')}
+                disabled={isBatchBusy}
+                className="px-3 py-1 rounded-lg bg-rose-600/25 hover:bg-rose-600/35 border border-rose-500/40 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                <X className="w-3.5 h-3.5" /> Mark All Absent ({unloggedPastItems.length})
+              </button>
+            </div>
           </div>
           <p className="text-xs text-slate-300">
             The following scheduled lectures from the past week have not been logged. Did you attend them?

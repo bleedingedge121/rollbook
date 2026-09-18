@@ -118,6 +118,32 @@ export default function App() {
     await fetchData()
   }
 
+  const handleBatchLogAttendance = async (
+    records: { courseId: string; date: string; status: 'present' | 'absent'; note?: string }[]
+  ) => {
+    const res = await fetch('/api/attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records }),
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      throw new Error(data.error || 'Failed to batch log attendance')
+    }
+    await fetchData()
+  }
+
+  const handleClearDateAttendance = async (date: string) => {
+    const res = await fetch(`/api/attendance?date=${encodeURIComponent(date)}`, {
+      method: 'DELETE',
+    })
+    if (!res.ok) {
+      const data = await res.json()
+      throw new Error(data.error || 'Failed to clear date attendance')
+    }
+    await fetchData()
+  }
+
   // Course Handlers
   const handleSaveCourse = async (courseData: {
     id?: string
@@ -245,6 +271,8 @@ export default function App() {
             allAttendance={allAttendance}
             onLogAttendance={handleLogAttendance}
             onDeleteAttendance={handleDeleteAttendance}
+            onBatchLogAttendance={handleBatchLogAttendance}
+            onClearDateAttendance={handleClearDateAttendance}
             onNavigateToSubjects={() => setActiveTab('subjects')}
             onNavigateToCalendar={() => setActiveTab('calendar')}
           />
@@ -274,6 +302,8 @@ export default function App() {
             allAttendance={allAttendance}
             onLogAttendance={handleLogAttendance}
             onDeleteAttendance={handleDeleteAttendance}
+            onBatchLogAttendance={handleBatchLogAttendance}
+            onClearDateAttendance={handleClearDateAttendance}
           />
         )}
 

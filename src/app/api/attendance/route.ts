@@ -54,6 +54,15 @@ export async function POST(req: Request) {
       const created = []
       for (const rec of body.records) {
         if (!rec.courseId || !rec.date || !rec.status) continue
+
+        // Delete existing record for this course + date to avoid duplicates
+        await prisma.attendanceRecord.deleteMany({
+          where: {
+            courseId: rec.courseId,
+            date: rec.date,
+          },
+        })
+
         const item = await prisma.attendanceRecord.create({
           data: {
             courseId: rec.courseId,
@@ -82,6 +91,14 @@ export async function POST(req: Request) {
       )
     }
 
+    // Delete existing record for this course + date to avoid duplicates
+    await prisma.attendanceRecord.deleteMany({
+      where: {
+        courseId,
+        date,
+      },
+    })
+
     const record = await prisma.attendanceRecord.create({
       data: {
         courseId,
@@ -99,6 +116,37 @@ export async function POST(req: Request) {
     console.error('Failed to create attendance record:', error)
     return NextResponse.json(
       { error: 'Failed to create attendance record' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const date = searchParams.get('date')
+    const courseId = searchParams.get('courseId')
+
+    if (!date && !courseId) {
+      return NextResponse.json(
+        { error: 'date or courseId query parameter is required' },
+        { status: 400 }
+      )
+    }
+
+    const whereClause: any = {}
+    if (date) whereClause.date = date
+    if (courseId) whereClause.courseId = courseId
+
+    const result = await prisma.attendanceRecord.deleteMany({
+      where: whereClause,
+    })
+
+    return NextResponse.json({ success: true, count: result.count })
+  } catch (error) {
+    console.error('Failed to delete attendance records:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete attendance records' },
       { status: 500 }
     )
   }

@@ -15,6 +15,8 @@ import {
   Clock,
   ShieldCheck,
   RotateCcw,
+  CheckCheck,
+  Trash2,
 } from 'lucide-react'
 import {
   CourseWithStats,
@@ -61,6 +63,10 @@ interface CalendarViewProps {
     note?: string
   ) => Promise<void>
   onDeleteAttendance: (recordId: string) => Promise<void>
+  onBatchLogAttendance?: (
+    records: { courseId: string; date: string; status: 'present' | 'absent'; note?: string }[]
+  ) => Promise<void>
+  onClearDateAttendance?: (date: string) => Promise<void>
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -69,11 +75,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   allAttendance,
   onLogAttendance,
   onDeleteAttendance,
+  onBatchLogAttendance,
+  onClearDateAttendance,
 }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date())
   const [selectedDay, setSelectedDay] = useState<Date | null>(new Date())
   const [plannedSlots, setPlannedSlots] = useState<Record<string, 'attend' | 'skip'>>({})
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>('all')
+  const [isDayBatchBusy, setIsDayBatchBusy] = useState(false)
 
   const today = new Date()
   const todayStr = toDateString(today)
@@ -103,11 +112,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }
 
   // Quick preset planning buttons
-  const handlePlanAll = (plan: 'attend' | 'skip') => {
+  const handlePlanAll = (plan: 'attend' | 'skip', daysForward?: number) => {
     const updated: Record<string, 'attend' | 'skip'> = { ...plannedSlots }
+    const limitDate = daysForward ? addDays(today, daysForward) : null
+
     calendarDays.forEach((day) => {
       const dateStr = toDateString(day)
-      if (isAfter(day, today) || isSameDay(day, today)) {
+      const isTargetDay =
+        (isAfter(day, today) || isSameDay(day, today)) &&
+        (!limitDate || isBefore(day, limitDate) || isSameDay(day, limitDate))
+
+      if (isTargetDay) {
         const weekday = day.getDay()
         const slots = allSlots.filter((s) => s.weekday === weekday)
         slots.forEach((slot) => {
@@ -122,6 +137,74 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   const handleResetPlans = () => {
     setPlannedSlots({})
+  }
+
+  // Day specific batch planning
+  const handlePlanSpecificDay = (dateStr: string, plan: 'attend' | 'skip') => {
+    const day = parseDateString(dateStr)
+    const weekday = day.getDay()
+    const slots = allSlots.filter((s) => s.weekday === weekday)
+    const updated = { ...plannedSlots }
+    slots.forEach((slot) => {
+      updated[`${dateStr}_${slot.id}`] = plan
+    })
+    setPlannedSlots(updated)
+  }
+
+  const handleResetSpecificDay = (dateStr: string) => {
+    const updated = { ...plannedSlots }
+    Object.keys(updated).forEach((k) => {
+      if (k.startsWith(`${dateStr}_`)) {
+        delete updated[k]
+      }
+    })
+    setPlannedSlots(updated)
+  }
+
+  // Day specific batch attendance logging
+  const handleBatchMarkDay = async (dateStr: string, status: 'present' | 'absent') => {
+    const day = parseDateString(dateStr)
+    const weekday = day.getDay()
+    const slots = allSlots.filter((s) => s.weekday === weekday)
+    if (slots.length === 0) return
+
+    setIsDayBatchBusy(true)
+    try {
+      const records = slots.map((s) => ({
+        courseId: s.courseId,
+        date: dateStr,
+        status,
+        note: 'Day Inspector bulk log',
+      }))
+      if (onBatchLogAttendance) {
+        await onBatchLogAttendance(records)
+      } else {
+        for (const r of records) {
+          await onLogAttendance(r.courseId, r.date, r.status, r.note)
+        }
+      }
+    } finally {
+      setIsDayBatchBusy(false)
+    }
+  }
+
+  const handleClearDayAttendance = async (dateStr: string) => {
+    const dayRecs = allAttendance.filter((a) => a.date === dateStr)
+    if (dayRecs.length === 0) return
+    if (!confirm(`Clear all attendance logs for ${dateStr}?`)) return
+
+    setIsDayBatchBusy(true)
+    try {
+      if (onClearDateAttendance) {
+        await onClearDateAttendance(dateStr)
+      } else {
+        for (const r of dayRecs) {
+          await onDeleteAttendance(r.id)
+        }
+      }
+    } finally {
+      setIsDayBatchBusy(false)
+    }
   }
 
   // Projected trajectory calculations
@@ -296,8 +379,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
           </div>
 
-          {/* Preset Actions */}
-          <div className="flex items-center gap-2">
+          {/* Preset Actions Toolbar */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => handlePlanAll('attend')}
               className="px-3 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 text-xs font-semibold transition-colors flex items-center gap-1"
@@ -309,6 +392,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               className="px-3 py-1.5 rounded-xl bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/30 text-amber-400 text-xs font-semibold transition-colors flex items-center gap-1"
             >
               <X className="w-3.5 h-3.5" /> Plan Skip All
+            </button>
+            <button
+              onClick={() => handlePlanAll('attend', 14)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors hidden sm:flex items-center gap-1"
+            >
+              +2 Wks Attend
+            </button>
+            <button
+              onClick={() => handlePlanAll('skip', 14)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors hidden sm:flex items-center gap-1"
+            >
+              +2 Wks Skip
             </button>
             <button
               onClick={handleResetPlans}
@@ -604,7 +699,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       {/* Selected Day Inspector */}
       {selectedDay && (
         <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
             <div>
               <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5 text-blue-400" />
@@ -616,6 +711,66 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   : 'Past/Today: Confirm actual attendance'}
               </p>
             </div>
+
+            {/* Fast 1-Click Day Batch Buttons */}
+            {selectedDaySlots.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0">
+                {selectedDayIsFuture ? (
+                  <>
+                    <button
+                      onClick={() => handlePlanSpecificDay(selectedDayStr, 'attend')}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                      title="Plan all classes for this day as Attend"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" /> Plan All Attend
+                    </button>
+                    <button
+                      onClick={() => handlePlanSpecificDay(selectedDayStr, 'skip')}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                      title="Plan all classes for this day as Skip"
+                    >
+                      <X className="w-3.5 h-3.5" /> Plan All Skip
+                    </button>
+                    <button
+                      onClick={() => handleResetSpecificDay(selectedDayStr)}
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 transition-colors"
+                      title="Reset planning for this date"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleBatchMarkDay(selectedDayStr, 'present')}
+                      disabled={isDayBatchBusy}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
+                      title="Mark all classes on this date as Present"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" /> All Present
+                    </button>
+                    <button
+                      onClick={() => handleBatchMarkDay(selectedDayStr, 'absent')}
+                      disabled={isDayBatchBusy}
+                      className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
+                      title="Mark all classes on this date as Absent"
+                    >
+                      <X className="w-3.5 h-3.5" /> All Absent
+                    </button>
+                    {selectedDayAttendance.length > 0 && (
+                      <button
+                        onClick={() => handleClearDayAttendance(selectedDayStr)}
+                        disabled={isDayBatchBusy}
+                        className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-800 transition-colors"
+                        title="Clear logs for this date"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
