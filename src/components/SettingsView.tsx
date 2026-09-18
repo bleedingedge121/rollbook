@@ -19,7 +19,10 @@ import {
   RotateCcw,
   GraduationCap,
   Palmtree,
-  FileText,
+  Layers,
+  Sparkles,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
@@ -27,6 +30,7 @@ import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
 import { SectionImportModal } from './SectionImportModal'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SettingsViewProps {
   courses: CourseWithStats[]
@@ -103,7 +107,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         throw new Error('Invalid sync-output.json format: "courses" array missing.')
       }
 
-      // Reconcile via backend API
       const res = await fetch('/api/sync/reconcile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -249,65 +252,99 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     <div className="space-y-8 animate-fadeIn">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-          Settings & Data Bridge
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight font-sans">
+          Command & System Bridge
         </h1>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
           Synchronize portal attendance, configure timetable slots, declare holidays, and manage backups.
         </p>
       </div>
 
-      {/* Sub Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-2 overflow-x-auto">
+      {/* Sub Tabs Bar */}
+      <div className="flex items-center p-1 rounded-2xl bg-slate-900 border border-slate-800/80 overflow-x-auto gap-1">
         <button
           onClick={() => setActiveSubTab('sync')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-            activeSubTab === 'sync'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubTab === 'sync' ? 'text-white' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <RefreshCw className="w-3.5 h-3.5" /> SLCM Sync Bridge
+          {activeSubTab === 'sync' && (
+            <motion.div
+              layoutId="activeSettingsSubTab"
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 border border-cyan-500/40 shadow-sm"
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            />
+          )}
+          <RefreshCw className="w-3.5 h-3.5 relative z-10 text-cyan-400" />
+          <span className="relative z-10">SLCM Sync Bridge</span>
         </button>
+
         <button
           onClick={() => setActiveSubTab('courses')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-            activeSubTab === 'courses'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubTab === 'courses' ? 'text-white' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <BookOpen className="w-3.5 h-3.5" /> Subjects ({courses.length})
+          {activeSubTab === 'courses' && (
+            <motion.div
+              layoutId="activeSettingsSubTab"
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 border border-cyan-500/40 shadow-sm"
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            />
+          )}
+          <BookOpen className="w-3.5 h-3.5 relative z-10 text-cyan-400" />
+          <span className="relative z-10">Subjects ({courses.length})</span>
         </button>
+
         <button
           onClick={() => setActiveSubTab('timetable')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-            activeSubTab === 'timetable'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubTab === 'timetable' ? 'text-white' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Calendar className="w-3.5 h-3.5" /> Weekly Timetable ({slots.length})
+          {activeSubTab === 'timetable' && (
+            <motion.div
+              layoutId="activeSettingsSubTab"
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 border border-cyan-500/40 shadow-sm"
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            />
+          )}
+          <Calendar className="w-3.5 h-3.5 relative z-10 text-cyan-400" />
+          <span className="relative z-10">Weekly Timetable ({slots.length})</span>
         </button>
+
         <button
           onClick={() => setActiveSubTab('holidays')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-            activeSubTab === 'holidays'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubTab === 'holidays' ? 'text-white' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Palmtree className="w-3.5 h-3.5" /> Holidays & Exams ({holidays.length})
+          {activeSubTab === 'holidays' && (
+            <motion.div
+              layoutId="activeSettingsSubTab"
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 border border-cyan-500/40 shadow-sm"
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            />
+          )}
+          <Palmtree className="w-3.5 h-3.5 relative z-10 text-amber-400" />
+          <span className="relative z-10">Holidays & Exams ({holidays.length})</span>
         </button>
+
         <button
           onClick={() => setActiveSubTab('backup')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-            activeSubTab === 'backup'
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            activeSubTab === 'backup' ? 'text-white' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          <Database className="w-3.5 h-3.5" /> Backup & Danger Zone
+          {activeSubTab === 'backup' && (
+            <motion.div
+              layoutId="activeSettingsSubTab"
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 border border-cyan-500/40 shadow-sm"
+              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            />
+          )}
+          <Database className="w-3.5 h-3.5 relative z-10 text-cyan-400" />
+          <span className="relative z-10">Backup & Danger Zone</span>
         </button>
       </div>
 
@@ -315,45 +352,46 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {activeSubTab === 'sync' && (
         <div className="space-y-6">
           {/* Official Department Timetable Import */}
-          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
                     <GraduationCap className="w-5 h-5" />
                   </div>
-                  <h2 className="text-lg font-bold text-slate-100">
+                  <h2 className="text-base font-bold text-slate-100 font-sans">
                     Import Official Department Timetable
                   </h2>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Select your section (C01 – C22) to auto-populate subjects and weekly timetable slots directly from the 2026-27 MIT Bengaluru schedule.
+                  Select your section (C01 – C22) to auto-populate subjects and weekly timetable slots directly from the MIT Bengaluru official database.
                 </p>
               </div>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setIsSectionModalOpen(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 shrink-0"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all active:scale-95 shrink-0 font-mono"
               >
                 <GraduationCap className="w-4 h-4" />
                 Select My Section
-              </button>
+              </motion.button>
             </div>
           </div>
 
-          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+          <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                  <RefreshCw className="w-5 h-5 text-blue-400" />
+                <h2 className="text-base font-bold text-slate-100 flex items-center gap-2.5 font-sans">
+                  <RefreshCw className="w-5 h-5 text-cyan-400" />
                   Import Synced SLCM Attendance Data
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Upload the <code className="text-blue-300">sync-output.json</code> generated by your local scraper.
+                  Upload the <code className="text-cyan-300 font-mono">sync-output.json</code> generated by your local headless scraper.
                 </p>
               </div>
 
-              {/* Hidden File Input */}
               <input
                 type="file"
                 ref={fileInputRef}
@@ -362,14 +400,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="hidden"
               />
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isParsingSync}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/20 transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-600/20 transition-all active:scale-95 disabled:opacity-50 font-mono"
               >
                 <Upload className="w-4 h-4" />
                 {isParsingSync ? 'Parsing File...' : 'Load Synced Data (JSON)'}
-              </button>
+              </motion.button>
             </div>
 
             {syncError && (
@@ -381,32 +421,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Step by Step Scraper Instructions */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-4">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
-                <Terminal className="w-4 h-4 text-blue-400" />
-                How to run the local SLCM scraper
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300 font-mono">
+                <Terminal className="w-4 h-4 text-cyan-400" />
+                Local SLCM Scraper Instructions
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                 {/* Step 1 */}
-                <div className="bg-[#0e1422] border border-slate-800 rounded-xl p-4 space-y-2">
+                <div className="bg-[#070a12] border border-slate-800/80 rounded-xl p-4 space-y-2">
                   <div className="flex items-center gap-2 font-bold text-slate-200">
-                    <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 text-[11px] flex items-center justify-center font-mono">
+                    <span className="w-5 h-5 rounded-full bg-cyan-600/30 text-cyan-400 text-[11px] flex items-center justify-center font-mono">
                       1
                     </span>
-                    One-time Interactive Login
+                    One-Time Interactive Login
                   </div>
                   <p className="text-slate-400 text-[11px]">
-                    Opens a real browser to log in with your MAHE Microsoft SSO + MFA and saves the session to <code>auth.json</code>:
+                    Opens Playwright browser to log into MAHE Microsoft SSO + MFA and saves session to <code>auth.json</code>:
                   </p>
-                  <div className="bg-slate-950 p-2 rounded-lg font-mono text-[11px] text-blue-300 border border-slate-800">
+                  <div className="bg-slate-950 p-2.5 rounded-lg font-mono text-[11px] text-cyan-300 border border-slate-800">
                     cd scraper && node login.js
                   </div>
                 </div>
 
                 {/* Step 2 */}
-                <div className="bg-[#0e1422] border border-slate-800 rounded-xl p-4 space-y-2">
+                <div className="bg-[#070a12] border border-slate-800/80 rounded-xl p-4 space-y-2">
                   <div className="flex items-center gap-2 font-bold text-slate-200">
-                    <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 text-[11px] flex items-center justify-center font-mono">
+                    <span className="w-5 h-5 rounded-full bg-cyan-600/30 text-cyan-400 text-[11px] flex items-center justify-center font-mono">
                       2
                     </span>
                     Sync Attendance Figures
@@ -414,7 +454,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <p className="text-slate-400 text-[11px]">
                     Headlessly intercepts the Apex response and writes <code>sync-output.json</code>:
                   </p>
-                  <div className="bg-slate-950 p-2 rounded-lg font-mono text-[11px] text-emerald-300 border border-slate-800">
+                  <div className="bg-slate-950 p-2.5 rounded-lg font-mono text-[11px] text-emerald-300 border border-slate-800">
                     node sync.js
                   </div>
                 </div>
@@ -427,23 +467,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SUB TAB 2: Subjects Management */}
       {activeSubTab === 'courses' && (
         <div className="space-y-6">
-          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+          <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-100">Manage Registered Subjects</h2>
+                <h2 className="text-base font-bold text-slate-100 font-sans">Manage Registered Subjects</h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Configure attendance thresholds and subject identifiers.
                 </p>
               </div>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   setEditingCourse(null)
                   setIsCourseModalOpen(true)
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-colors shadow-md shadow-cyan-600/20"
               >
                 <Plus className="w-4 h-4" /> Add Subject
-              </button>
+              </motion.button>
             </div>
 
             <div className="space-y-2.5">
@@ -454,8 +496,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className="w-3.5 h-3.5 rounded-full shrink-0"
-                      style={{ backgroundColor: course.color || '#3b82f6' }}
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: course.color || '#06b6d4' }}
                     />
                     <div>
                       <div className="flex items-center gap-2">
@@ -466,12 +508,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           {course.name}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5">
+                      <div className="text-xs text-slate-400 mt-0.5 font-mono">
                         Required: <strong className="text-slate-300">{course.requiredPercent}%</strong>
                         {' • '}
                         {course.stats.present} Present / {course.stats.absent} Absent ({course.stats.percentage}%)
                         {course.syncedAt && (
-                          <span className="text-blue-400 ml-2">
+                          <span className="text-cyan-400 ml-2">
                             [Synced Baseline: {course.syncedPresent}P/{course.syncedAbsent}A]
                           </span>
                         )}
@@ -479,7 +521,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => {
                         setEditingCourse(course)
@@ -488,7 +530,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
                       title="Edit subject"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => {
@@ -499,7 +541,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
                       title="Delete subject"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -512,23 +554,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SUB TAB 3: Timetable Management */}
       {activeSubTab === 'timetable' && (
         <div className="space-y-6">
-          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+          <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-100">Weekly Timetable Schedule</h2>
+                <h2 className="text-base font-bold text-slate-100 font-sans">Weekly Timetable Schedule</h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Configure the recurring schedule that drives future planning mode.
                 </p>
               </div>
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   setEditingSlot(null)
                   setIsSlotModalOpen(true)
                 }}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-colors shadow-md shadow-cyan-600/20"
               >
                 <Plus className="w-4 h-4" /> Add Slot
-              </button>
+              </motion.button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -543,13 +587,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <span className="font-bold text-sm text-slate-200">
                         {WEEKDAYS[weekdayNum]}
                       </span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-slate-500 font-mono">
                         {daySlots.length} lecture{daySlots.length === 1 ? '' : 's'}
                       </span>
                     </div>
 
                     {daySlots.length === 0 ? (
-                      <div className="text-xs text-slate-600 py-3 text-center">
+                      <div className="text-xs text-slate-600 py-3 text-center font-mono">
                         No lectures scheduled
                       </div>
                     ) : (
@@ -559,24 +603,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                           return (
                             <div
                               key={slot.id}
-                              className="bg-[#0e1422] border border-slate-800/80 rounded-xl p-2.5 flex items-center justify-between gap-3 text-xs"
+                              className="bg-[#070a12] border border-slate-800/80 rounded-xl p-2.5 flex items-center justify-between gap-3 text-xs"
                             >
                               <div className="space-y-0.5 min-w-0">
                                 <div className="flex items-center gap-1.5 font-semibold text-slate-200 truncate">
                                   <span
                                     className="w-2 h-2 rounded-full shrink-0"
                                     style={{
-                                      backgroundColor: course?.color || '#3b82f6',
+                                      backgroundColor: course?.color || '#06b6d4',
                                     }}
                                   />
                                   <span className="truncate">{course?.name}</span>
                                 </div>
                                 <div className="text-slate-400 text-[11px] flex items-center gap-2">
-                                  <span>{slot.label}</span>
+                                  <span className="font-mono">{slot.label}</span>
                                   {slot.room && (
                                     <>
                                       <span>•</span>
-                                      <span className="text-slate-300">{slot.room}</span>
+                                      <span className="text-slate-300 font-mono">{slot.room}</span>
                                     </>
                                   )}
                                 </div>
@@ -615,9 +659,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SUB TAB 4: Holidays & Exams */}
       {activeSubTab === 'holidays' && (
         <div className="space-y-6">
-          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+          <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-6">
             <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2 font-sans">
                 <Palmtree className="w-5 h-5 text-amber-400" />
                 Declared Holidays & Exam Days
               </h2>
@@ -631,8 +675,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               onSubmit={handleCreateHoliday}
               className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4.5 space-y-3.5"
             >
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5 text-blue-400" /> Declare Holiday or Exam Date
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5 font-mono">
+                <Plus className="w-3.5 h-3.5 text-cyan-400" /> Declare Holiday or Exam Date
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -643,7 +687,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     value={newHolidayDate}
                     onChange={(e) => setNewHolidayDate(e.target.value)}
                     required
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                   />
                 </div>
                 <div>
@@ -654,7 +698,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     value={newHolidayLabel}
                     onChange={(e) => setNewHolidayLabel(e.target.value)}
                     required
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
                   />
                 </div>
                 <div>
@@ -662,7 +706,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <select
                     value={newHolidayType}
                     onChange={(e) => setNewHolidayType(e.target.value as any)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
                   >
                     <option value="holiday">🌴 Holiday / Recess</option>
                     <option value="exam">📝 Exam Day / Assessment</option>
@@ -671,24 +715,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               <div className="flex justify-end pt-1">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={isSubmittingHoliday || !newHolidayDate || !newHolidayLabel.trim()}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-md shadow-cyan-600/20 disabled:opacity-50 transition-colors"
                 >
                   {isSubmittingHoliday ? 'Saving...' : 'Add Date'}
-                </button>
+                </motion.button>
               </div>
             </form>
 
             {/* List of Declared Holidays */}
             <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
                 Registered Holidays & Exams ({holidays.length})
               </div>
 
               {holidays.length === 0 ? (
-                <div className="text-xs text-slate-500 p-6 bg-slate-900/60 rounded-xl border border-slate-800 text-center">
+                <div className="text-xs text-slate-500 p-6 bg-slate-900/60 rounded-xl border border-slate-800 text-center font-mono">
                   No holidays or exam days registered yet.
                 </div>
               ) : (
@@ -701,7 +747,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                               h.type === 'exam'
                                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                                 : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
@@ -739,10 +785,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SUB TAB 5: Backup & Danger Zone */}
       {activeSubTab === 'backup' && (
         <div className="space-y-6">
-          <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+          <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5">
             <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <Database className="w-5 h-5 text-blue-400" />
+              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2.5 font-sans">
+                <Database className="w-5 h-5 text-cyan-400" />
                 Data Portability & Backup
               </h2>
               <p className="text-xs text-slate-400 mt-1">
@@ -762,31 +808,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     Export all subjects and verified attendance logs as spreadsheet CSV.
                   </p>
                 </div>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleExportCSV}
-                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors font-mono"
                 >
                   <Download className="w-3.5 h-3.5" /> Download CSV
-                </button>
+                </motion.button>
               </div>
 
               {/* JSON Backup */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 font-bold text-slate-200 text-sm">
-                    <Download className="w-4 h-4 text-blue-400" />
+                    <Download className="w-4 h-4 text-cyan-400" />
                     Full JSON Backup
                   </div>
                   <p className="text-xs text-slate-400">
                     Complete schema backup including timetable slots and configurations.
                   </p>
                 </div>
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleExportJSON}
-                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors font-mono"
                 >
                   <Download className="w-3.5 h-3.5" /> Download JSON
-                </button>
+                </motion.button>
               </div>
 
               {/* Restore Backup */}
@@ -807,24 +857,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onChange={handleImportBackup}
                   className="hidden"
                 />
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => backupInputRef.current?.click()}
-                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors font-mono"
                 >
                   <Upload className="w-3.5 h-3.5" /> Restore Backup
-                </button>
+                </motion.button>
               </div>
             </div>
           </div>
 
-          {/* DANGER ZONE: RESET ALL DATA */}
-          <div className="bg-rose-950/20 border border-rose-500/30 rounded-3xl p-6 shadow-xl space-y-4">
+          {/* DANGER ZONE */}
+          <div className="bg-rose-950/20 border border-rose-500/30 rounded-3xl p-6 sm:p-7 shadow-xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-rose-400">
+                <h3 className="text-base font-bold text-rose-400 font-sans">
                   Danger Zone: Database Reset
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -852,7 +904,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }}
                 className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors flex items-center justify-center gap-2"
               >
-                <RotateCcw className="w-4 h-4 text-blue-400" /> Reset & Reload Sample Subjects
+                <RotateCcw className="w-4 h-4 text-cyan-400" /> Reset & Reload Sample Subjects
               </button>
             </div>
           </div>
@@ -899,10 +951,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Reset Confirmation Modal */}
       {isResetModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#131b2e] border border-rose-500/40 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-scaleUp">
+          <div className="bg-[#0c121e] border border-rose-500/40 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-5 animate-scaleUp">
             <div className="flex items-center gap-3 text-rose-400">
               <AlertTriangle className="w-6 h-6" />
-              <h3 className="text-lg font-bold text-slate-100">
+              <h3 className="text-lg font-bold text-slate-100 font-sans">
                 Confirm Full Database Reset
               </h3>
             </div>
@@ -913,8 +965,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </p>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 block">
-                Type <strong className="text-rose-400 font-mono">RESET</strong> to confirm:
+              <label className="text-xs font-semibold text-slate-300 block font-mono">
+                Type <strong className="text-rose-400">RESET</strong> to confirm:
               </label>
               <input
                 type="text"

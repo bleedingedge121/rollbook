@@ -11,14 +11,15 @@ import {
   X,
   Plus,
   AlertCircle,
-  HelpCircle,
   Clock,
   ShieldCheck,
   RotateCcw,
   CheckCheck,
   Trash2,
   Palmtree,
-  FileText,
+  Zap,
+  Layers,
+  Activity,
 } from 'lucide-react'
 import {
   CourseWithStats,
@@ -43,7 +44,7 @@ import {
   isToday,
   addDays,
 } from 'date-fns'
-import { toDateString, parseDateString, calculateAttendance } from '@/lib/attendance'
+import { toDateString, parseDateString } from '@/lib/attendance'
 import {
   ResponsiveContainer,
   LineChart,
@@ -51,9 +52,9 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ReferenceLine,
 } from 'recharts'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface CalendarViewProps {
   courses: CourseWithStats[]
@@ -130,7 +131,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
     calendarDays.forEach((day) => {
       const dateStr = toDateString(day)
-      // Exclude declared holidays from planning
       if (holidays.some((h) => h.date === dateStr)) return
 
       const isTargetDay =
@@ -224,123 +224,80 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }
 
   // Projected trajectory calculations
-  const { overallActualPct, overallProjectedPct, projectedByCourse, trajectoryData } =
-    useMemo(() => {
-      // 1. Calculate actual numbers
-      let actPresent = 0
-      let actAbsent = 0
+  const { overallActualPct, overallProjectedPct, trajectoryData } = useMemo(() => {
+    let actPresent = 0
+    let actAbsent = 0
 
-      courses.forEach((c) => {
-        if (selectedCourseFilter === 'all' || c.id === selectedCourseFilter) {
-          actPresent += c.stats.present
-          actAbsent += c.stats.absent
-        }
-      })
+    courses.forEach((c) => {
+      if (selectedCourseFilter === 'all' || c.id === selectedCourseFilter) {
+        actPresent += c.stats.present
+        actAbsent += c.stats.absent
+      }
+    })
 
-      const actTotal = actPresent + actAbsent
-      const actualPct = actTotal > 0 ? Number(((actPresent / actTotal) * 100).toFixed(1)) : 100
+    const actTotal = actPresent + actAbsent
+    const actualPct = actTotal > 0 ? Number(((actPresent / actTotal) * 100).toFixed(1)) : 100
 
-      // 2. Count planned future attendances / skips (excluding holidays)
-      let planPresent = 0
-      let planAbsent = 0
-      const plannedCourseMap: Record<string, { present: number; absent: number }> = {}
+    let planPresent = 0
+    let planAbsent = 0
 
-      courses.forEach((c) => {
-        plannedCourseMap[c.id] = { present: 0, absent: 0 }
-      })
+    Object.entries(plannedSlots).forEach(([key, plan]) => {
+      const [dateStr, slotId] = key.split('_')
+      if (holidays.some((h) => h.date === dateStr)) return
 
-      Object.entries(plannedSlots).forEach(([key, plan]) => {
-        const [dateStr, slotId] = key.split('_')
-        if (holidays.some((h) => h.date === dateStr)) return
+      const slot = allSlots.find((s) => s.id === slotId)
+      if (!slot) return
 
-        const slot = allSlots.find((s) => s.id === slotId)
-        if (!slot) return
+      if (selectedCourseFilter === 'all' || slot.courseId === selectedCourseFilter) {
+        if (plan === 'attend') planPresent++
+        if (plan === 'skip') planAbsent++
+      }
+    })
 
-        if (selectedCourseFilter === 'all' || slot.courseId === selectedCourseFilter) {
-          if (plan === 'attend') planPresent++
-          if (plan === 'skip') planAbsent++
-        }
+    const projTotal = actTotal + planPresent + planAbsent
+    const projPresent = actPresent + planPresent
+    const projectedPct =
+      projTotal > 0 ? Number(((projPresent / projTotal) * 100).toFixed(1)) : actualPct
 
-        if (plannedCourseMap[slot.courseId]) {
-          if (plan === 'attend') plannedCourseMap[slot.courseId].present++
-          if (plan === 'skip') plannedCourseMap[slot.courseId].absent++
-        }
-      })
+    const trajectory: { name: string; actual?: number; projected?: number }[] = [
+      { name: 'Current', actual: actualPct, projected: actualPct },
+    ]
 
-      const projTotal = actTotal + planPresent + planAbsent
-      const projPresent = actPresent + planPresent
-      const projectedPct =
-        projTotal > 0 ? Number(((projPresent / projTotal) * 100).toFixed(1)) : actualPct
-
-      // Course-by-course projections
-      const courseProjections = courses.map((course) => {
-        const pCounts = plannedCourseMap[course.id] || { present: 0, absent: 0 }
-        const totPresent = course.stats.present + pCounts.present
-        const totAbsent = course.stats.absent + pCounts.absent
-        const tot = totPresent + totAbsent
-        const projCoursePct = tot > 0 ? Number(((totPresent / tot) * 100).toFixed(1)) : 100
-        const delta = Number((projCoursePct - course.stats.percentage).toFixed(1))
-
-        return {
-          id: course.id,
-          name: course.name,
-          code: course.code,
-          actualPct: course.stats.percentage,
-          projectedPct: projCoursePct,
-          delta,
-          plannedPresent: pCounts.present,
-          plannedAbsent: pCounts.absent,
-          isSafe: projCoursePct >= course.requiredPercent,
-        }
-      })
-
-      // Generate Trajectory Points (past actual trend + future projection)
-      const trajectory: { name: string; actual?: number; projected?: number }[] = []
-
-      // Add baseline actual point
+    if (planPresent + planAbsent > 0) {
       trajectory.push({
-        name: 'Current Actual',
-        actual: actualPct,
-        projected: actualPct,
+        name: '+1 Wk',
+        projected: Number(
+          (
+            ((actPresent + planPresent * 0.25) /
+              Math.max(1, actTotal + (planPresent + planAbsent) * 0.25)) *
+            100
+          ).toFixed(1)
+        ),
       })
+      trajectory.push({
+        name: '+2 Wks',
+        projected: Number(
+          (
+            ((actPresent + planPresent * 0.5) /
+              Math.max(1, actTotal + (planPresent + planAbsent) * 0.5)) *
+            100
+          ).toFixed(1)
+        ),
+      })
+      trajectory.push({
+        name: 'Target Date',
+        projected: projectedPct,
+      })
+    }
 
-      // Project next 4 weeks in increments based on plan
-      if (planPresent + planAbsent > 0) {
-        trajectory.push({
-          name: '+1 Week',
-          projected: Number(
-            (
-              ((actPresent + planPresent * 0.25) /
-                Math.max(1, actTotal + (planPresent + planAbsent) * 0.25)) *
-              100
-            ).toFixed(1)
-          ),
-        })
-        trajectory.push({
-          name: '+2 Weeks',
-          projected: Number(
-            (
-              ((actPresent + planPresent * 0.5) /
-                Math.max(1, actTotal + (planPresent + planAbsent) * 0.5)) *
-              100
-            ).toFixed(1)
-          ),
-        })
-        trajectory.push({
-          name: 'End of Plan',
-          projected: projectedPct,
-        })
-      }
+    return {
+      overallActualPct: actualPct,
+      overallProjectedPct: projectedPct,
+      trajectoryData: trajectory,
+    }
+  }, [courses, allSlots, plannedSlots, selectedCourseFilter, holidays])
 
-      return {
-        overallActualPct: actualPct,
-        overallProjectedPct: projectedPct,
-        projectedByCourse: courseProjections,
-        trajectoryData: trajectory,
-      }
-    }, [courses, allSlots, plannedSlots, selectedCourseFilter, holidays])
-
-  // Get records and slots for selected inspector day
+  // Selected Day Inspector properties
   const selectedDayStr = selectedDay ? toDateString(selectedDay) : todayStr
   const selectedDayHoliday = holidays.find((h) => h.date === selectedDayStr)
   const selectedDayIsFuture = selectedDay
@@ -355,12 +312,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       {/* Header & Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2.5">
-            <CalendarIcon className="w-7 h-7 text-blue-400" />
-            Calendar & Trajectory Planner
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2.5 font-sans">
+            <CalendarIcon className="w-7 h-7 text-cyan-400" />
+            Trajectory Lab & Flight Calendar
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Solid badges represent confirmed actuals; dashed outlines project future scenarios; amber/purple tags indicate holidays and exams.
+            Solid badges denote confirmed history; dashed outlines project future plans.
           </p>
         </div>
 
@@ -369,9 +326,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <select
             value={selectedCourseFilter}
             onChange={(e) => setSelectedCourseFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-blue-500"
+            className="bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-500 font-mono"
           >
-            <option value="all">All Subjects (Aggregated)</option>
+            <option value="all">All Subjects (Aggregate)</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.code} — {c.name}
@@ -381,81 +338,91 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
       </div>
 
-      {/* Trajectory Simulation Banner */}
-      <div className="bg-gradient-to-r from-[#131b2e] via-[#11192b] to-[#0e1422] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+      {/* Trajectory Simulation HUD Banner */}
+      <div className="bg-gradient-to-r from-[#0c121e] via-[#090e18] to-[#070a12] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100">
-                Live Attendance Projection Matrix
+              <h2 className="text-base font-bold text-slate-100 font-sans">
+                Predictive Planning Engine
               </h2>
               <p className="text-xs text-slate-400">
-                Toggling upcoming classes simulates the impact without altering real data.
+                Simulate Plan Attend or Skip into the future to see your projected trajectory.
               </p>
             </div>
           </div>
 
           {/* Preset Actions Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handlePlanAll('attend')}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 text-xs font-semibold transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" /> Plan Attend All
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handlePlanAll('skip')}
-              className="px-3 py-1.5 rounded-xl bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/30 text-amber-400 text-xs font-semibold transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
             >
               <X className="w-3.5 h-3.5" /> Plan Skip All
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handlePlanAll('attend', 14)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors hidden sm:flex items-center gap-1"
             >
               +2 Wks Attend
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => handlePlanAll('skip', 14)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors hidden sm:flex items-center gap-1"
             >
               +2 Wks Skip
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={handleResetPlans}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-100 bg-slate-900 border border-slate-800 transition-colors"
               title="Reset planning simulation"
             >
               <RotateCcw className="w-4 h-4" />
-            </button>
+            </motion.button>
           </div>
         </div>
 
         {/* Projection KPI comparison */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Current Actual
+            <div className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-400">
+              Current Standing
             </div>
-            <div className="text-2xl font-bold text-slate-100 mt-1">
+            <div className="text-2xl font-black font-mono text-slate-100 mt-1">
               {overallActualPct}%
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">Based on verified records</div>
+            <div className="text-xs text-slate-500 mt-0.5">Confirmed actuals</div>
           </div>
 
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 relative overflow-hidden">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-400 flex items-center gap-1">
+            <div className="text-[11px] font-mono font-medium uppercase tracking-wider text-cyan-400 flex items-center gap-1">
               <TrendingUp className="w-3.5 h-3.5" /> Projected Trajectory
             </div>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-bold text-blue-400">
+              <span className="text-2xl font-black font-mono text-cyan-400">
                 {overallProjectedPct}%
               </span>
               <span
-                className={`text-xs font-bold ${
+                className={`text-xs font-bold font-mono ${
                   overallProjectedPct >= overallActualPct
                     ? 'text-emerald-400'
                     : 'text-rose-400'
@@ -465,33 +432,33 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 {(overallProjectedPct - overallActualPct).toFixed(1)}%
               </span>
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">
-              {Object.keys(plannedSlots).length} future classes planned
+            <div className="text-xs text-slate-500 mt-0.5 font-mono">
+              {Object.keys(plannedSlots).length} planned classes
             </div>
           </div>
 
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <div className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-400">
               Compliance Status
             </div>
             <div
-              className={`text-base font-bold mt-1 ${
+              className={`text-base font-bold mt-1 font-sans ${
                 overallProjectedPct >= 75 ? 'text-emerald-400' : 'text-rose-400'
               }`}
             >
               {overallProjectedPct >= 75
-                ? 'Target Maintained (≥75%)'
-                : 'Projected Below 75% Target'}
+                ? 'Target Secured (≥75%)'
+                : 'Projected Under 75%'}
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">Minimum 75% requirement</div>
+            <div className="text-xs text-slate-500 mt-0.5">Minimum 75% threshold</div>
           </div>
         </div>
 
         {/* Trajectory Recharts Line Graph */}
         {trajectoryData.length > 1 && (
           <div className="space-y-2 pt-2">
-            <div className="text-xs font-semibold text-slate-400 flex items-center justify-between">
-              <span>Projection Curve</span>
+            <div className="text-xs font-semibold text-slate-400 flex items-center justify-between font-mono">
+              <span>Trajectory Projection Curve</span>
               <span className="text-slate-500">Solid: Actual / Dashed: Simulation</span>
             </div>
             <div className="h-44 w-full">
@@ -501,19 +468,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <YAxis domain={[50, 100]} stroke="#64748b" fontSize={11} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0f172a',
-                      borderColor: '#334155',
+                      backgroundColor: '#0c121e',
+                      borderColor: '#1e293b',
                       borderRadius: '0.75rem',
                       fontSize: '12px',
+                      fontFamily: 'monospace',
                     }}
                   />
                   <ReferenceLine y={75} stroke="#ef4444" strokeDasharray="3 3" label="75% Target" />
                   <Line
                     type="monotone"
                     dataKey="actual"
-                    stroke="#3b82f6"
+                    stroke="#06b6d4"
                     strokeWidth={3}
-                    dot={{ r: 4, fill: '#3b82f6' }}
+                    dot={{ r: 4, fill: '#06b6d4' }}
                   />
                   <Line
                     type="monotone"
@@ -531,16 +499,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Month Navigation & Grid */}
-      <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+      <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-6">
         {/* Month Navigation Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-slate-100">
+            <h2 className="text-xl font-bold text-slate-100 font-sans">
               {format(currentMonth, 'MMMM yyyy')}
             </h2>
             <button
               onClick={() => setCurrentMonth(new Date())}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors"
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors font-mono"
             >
               Today
             </button>
@@ -563,83 +531,77 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1 border-t border-slate-800/60">
+        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1 border-t border-slate-800/60 font-mono">
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
             <span>Actual Present</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
             <span>Actual Absent</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full border border-dashed border-emerald-400 bg-emerald-500/20" />
-            <span>Planned Attend</span>
+            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-emerald-400 bg-emerald-500/20" />
+            <span>Plan Attend</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full border border-dashed border-rose-400 bg-rose-500/20" />
-            <span>Planned Skip</span>
+            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-rose-400 bg-rose-500/20" />
+            <span>Plan Skip</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-amber-500/40 border border-amber-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500/40 border border-amber-500" />
             <span>Holiday / Exam</span>
           </div>
         </div>
 
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-          {/* Weekday Headers (Mon - Sun) */}
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div
               key={day}
-              className="text-center py-2 text-xs font-bold uppercase tracking-wider text-slate-500"
+              className="text-center py-2 text-xs font-mono font-bold uppercase tracking-wider text-slate-500"
             >
               {day}
             </div>
           ))}
 
-          {/* Days */}
-          {calendarDays.map((day, idx) => {
+          {calendarDays.map((day) => {
             const dateStr = toDateString(day)
             const isCurrentMonth = isSameMonth(day, currentMonth)
             const isCurrentDay = isToday(day)
             const isSelected = selectedDay && isSameDay(day, selectedDay)
-            const isPast = isBefore(day, today) && !isSameDay(day, today)
             const isFuture = isAfter(day, today) && !isSameDay(day, today)
             const weekday = day.getDay()
 
-            // Holiday check for this date
             const dayHoliday = holidays.find((h) => h.date === dateStr)
-
-            // Scheduled slots for this weekday
             const slotsForDay = allSlots.filter((s) => s.weekday === weekday)
-            // Actual confirmed attendance for this day
             const recordsForDay = allAttendance.filter((a) => a.date === dateStr)
 
             return (
-              <div
+              <motion.div
                 key={dateStr}
+                whileHover={{ scale: 1.01 }}
                 onClick={() => setSelectedDay(day)}
                 className={`min-h-[90px] sm:min-h-[110px] p-2 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                   !isCurrentMonth
                     ? 'opacity-30 bg-slate-950/20 border-slate-900'
                     : isSelected
-                    ? 'bg-slate-800/90 border-blue-500 shadow-md ring-1 ring-blue-500/40'
+                    ? 'bg-slate-800/90 border-cyan-500 shadow-md ring-1 ring-cyan-500/40'
                     : dayHoliday
                     ? 'bg-amber-950/15 border-amber-500/30'
                     : isCurrentDay
-                    ? 'bg-slate-900 border-blue-500/50'
+                    ? 'bg-slate-900 border-cyan-500/50'
                     : 'bg-slate-900/50 border-slate-800/80 hover:border-slate-700'
                 }`}
               >
                 {/* Day Header */}
                 <div className="flex items-center justify-between">
                   <span
-                    className={`text-xs font-bold rounded-lg px-1.5 py-0.5 ${
+                    className={`text-xs font-bold font-mono rounded-lg px-1.5 py-0.5 ${
                       isCurrentDay
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-cyan-600 text-white'
                         : isSelected
-                        ? 'text-blue-400'
+                        ? 'text-cyan-400'
                         : 'text-slate-400'
                     }`}
                   >
@@ -655,7 +617,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                 {/* Slots & Status Badges */}
                 <div className="space-y-1 my-1 overflow-hidden">
-                  {/* Holiday Banner Tag */}
                   {dayHoliday && (
                     <div
                       className={`text-[10px] font-bold p-1 rounded-md truncate flex items-center gap-1 ${
@@ -669,14 +630,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     </div>
                   )}
 
-                  {/* Actual confirmed records (Past & Today) */}
                   {!dayHoliday &&
                     recordsForDay.map((rec) => {
                       const course = courses.find((c) => c.id === rec.courseId)
                       return (
                         <div
                           key={rec.id}
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-sm ${
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-sm font-mono ${
                             rec.status === 'present'
                               ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
                               : 'bg-rose-600/30 text-rose-300 border border-rose-500/40'
@@ -684,14 +644,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         >
                           <span
                             className="w-1.5 h-1.5 rounded-full shrink-0"
-                            style={{ backgroundColor: course?.color || '#3b82f6' }}
+                            style={{ backgroundColor: course?.color || '#06b6d4' }}
                           />
                           <span className="truncate">{course?.code || 'Class'}</span>
                         </div>
                       )
                     })}
 
-                  {/* Future Planning Slots (only if not a holiday) */}
                   {!dayHoliday &&
                     (isFuture || (isToday(day) && recordsForDay.length === 0)) &&
                     slotsForDay.map((slot) => {
@@ -706,7 +665,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             e.stopPropagation()
                             handleTogglePlan(dateStr, slot.id, slot.courseId)
                           }}
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center justify-between gap-1 border border-dashed transition-all hover:scale-[1.02] ${
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center justify-between gap-1 border border-dashed transition-all hover:scale-[1.02] font-mono ${
                             planStatus === 'attend'
                               ? 'bg-emerald-500/15 border-emerald-400 text-emerald-300'
                               : planStatus === 'skip'
@@ -728,13 +687,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     })}
                 </div>
 
-                {/* Footer indicator if day has no slots and not a holiday */}
                 {!dayHoliday && slotsForDay.length === 0 && recordsForDay.length === 0 && (
-                  <div className="text-[10px] text-slate-700 text-center py-1">
+                  <div className="text-[10px] text-slate-700 text-center py-1 font-mono">
                     Off
                   </div>
                 )}
-              </div>
+              </motion.div>
             )
           })}
         </div>
@@ -742,11 +700,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* Selected Day Inspector */}
       {selectedDay && (
-        <div className="bg-[#131b2e] border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+        <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-blue-400" />
+              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2 font-sans">
+                <CalendarIcon className="w-5 h-5 text-cyan-400" />
                 Day Inspector: {format(selectedDay, 'EEEE, MMMM d, yyyy')}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -846,7 +804,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Scheduled slots for this weekday */}
             <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
                 Timetable Slots ({selectedDaySlots.length})
               </div>
 
@@ -866,7 +824,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   return (
                     <div
                       key={slot.id}
-                      className="bg-slate-900/70 border border-slate-800 rounded-xl p-3.5 space-y-2.5"
+                      className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-2.5"
                     >
                       <div className="flex items-start justify-between">
                         <div>
@@ -880,7 +838,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             {slot.room && (
                               <>
                                 <span>•</span>
-                                <span className="text-slate-300">{slot.room}</span>
+                                <span className="text-slate-300 font-mono">{slot.room}</span>
                               </>
                             )}
                           </div>
@@ -888,7 +846,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                         {actualRec && (
                           <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase ${
                               actualRec.status === 'present'
                                 ? 'bg-emerald-500/20 text-emerald-400'
                                 : 'bg-rose-500/20 text-rose-400'
@@ -899,7 +857,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         )}
                       </div>
 
-                      {/* Action buttons depending on whether day is future or past */}
+                      {/* Action buttons */}
                       {!selectedDayHoliday && (
                         <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
                           {selectedDayIsFuture ? (
@@ -968,7 +926,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
             {/* Confirmed actual records on this day */}
             <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
                 Confirmed Records on this Date ({selectedDayAttendance.length})
               </div>
 
@@ -986,7 +944,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     >
                       <div className="flex items-center gap-2.5">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                             rec.status === 'present'
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                               : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
