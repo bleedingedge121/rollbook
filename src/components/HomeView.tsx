@@ -75,19 +75,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
     const scheduled = allSlots.filter((s) => s.weekday === pastWeekday)
     for (const slot of scheduled) {
+      const course = courses.find((c) => c.id === slot.courseId)
+      if (!course) continue
+
+      // If course has a synced snapshot and the past date is on or before syncedAt date,
+      // it's already accounted for in the baseline count — skip it
+      if (course.syncedAt) {
+        const syncedDateStr = toDateString(new Date(course.syncedAt))
+        if (pastDateStr <= syncedDateStr) {
+          continue
+        }
+      }
+
       const isLogged = allAttendance.some(
         (a) => a.courseId === slot.courseId && a.date === pastDateStr
       )
       if (!isLogged) {
-        const course = courses.find((c) => c.id === slot.courseId)
-        if (course) {
-          unloggedPastItems.push({
-            date: pastDateStr,
-            slot,
-            courseName: course.name,
-            courseCode: course.code,
-          })
-        }
+        unloggedPastItems.push({
+          date: pastDateStr,
+          slot,
+          courseName: course.name,
+          courseCode: course.code,
+        })
       }
     }
   }
