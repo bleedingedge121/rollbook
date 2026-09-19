@@ -72,7 +72,7 @@ If you prefer offline manual import:
 4. Click **Load Synced Data (JSON)**, choose `scraper/sync-output.json`, and confirm the reconciliation diff.
 
 > [!NOTE]
-> **Desktop-Only Utility**: The SLCM scraper bridge requires local terminal execution with Node.js and Playwright. When accessing Roll Book on a mobile device (iPhone or Android), the SLCM Sync Bridge tab and manual JSON file restore are automatically hidden to keep the mobile experience streamlined. Always run synchronization from your laptop or PC.
+> **Scraper Execution Context**: Running the local Playwright scraper script requires a computer or terminal environment with Node.js to handle Microsoft MFA. However, the **Sync & Import** tab in Settings is accessible from both desktop and mobile devices, allowing students to view sync tokens, import department section timetables, or review portal reconciliation diffs from their phones.
 
 ---
 

@@ -59,7 +59,7 @@ This guide details how to host Roll Book on Vercel with a free-tier PostgreSQL d
   ```bash
   npx tsx scripts/set-password.ts <username> <new_password>
   ```
-- **Mobile Smartphone Experience**: Roll Book is optimized for iPhone (iOS Safari) and Android mobile browsers with a docked bottom navigation bar, safe-area inset handling (`env(safe-area-inset-bottom)`), responsive SVG dials, and standardized 12-hour AM/PM and DD/MM/YYYY formatting. Desktop-only features (running the local Playwright scraper and manual JSON file restores) are automatically hidden on mobile viewports.
+- **Mobile Smartphone Experience**: Roll Book is optimized for iPhone (iOS Safari) and Android mobile browsers with a docked bottom navigation bar, safe-area inset handling (`env(safe-area-inset-bottom)`), responsive SVG dials, standardized 12-hour AM/PM and DD/MM/YYYY formatting, and full mobile access to the Sync & Import section (allowing section timetable imports, sync token management, and backups directly from mobile devices).
 - **Gemini AI Rate Limiting**: The Gemini free tier provides ~1,500 requests/day for the whole deployment. To ensure fair access across all users, each account has a built-in daily limit of 50 AI requests before returning a friendly wait message.
 
 ---

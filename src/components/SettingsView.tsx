@@ -35,7 +35,6 @@ import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
 import { SectionImportModal } from './SectionImportModal'
-import { useIsMobile } from '@/lib/useIsMobile'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 
 interface SettingsViewProps {
@@ -75,16 +74,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteHoliday,
   onRefreshAll,
 }) => {
-  const isMobile = useIsMobile()
-  const [activeSubTab, setActiveSubTab] = useState<'sync' | 'courses' | 'timetable' | 'holidays' | 'backup'>('courses')
+  const [activeSubTab, setActiveSubTab] = useState<'sync' | 'courses' | 'timetable' | 'holidays' | 'backup'>('sync')
   const prefersReducedMotion = useReducedMotion()
-
-  // On phone / mobile screens, automatically redirect away from desktop-only sync tab
-  useEffect(() => {
-    if (isMobile && activeSubTab === 'sync') {
-      setActiveSubTab('courses')
-    }
-  }, [isMobile, activeSubTab])
 
   // Modals state
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false)
@@ -424,25 +415,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Sub Tabs Bar */}
       <div className="flex items-center p-1 rounded-2xl sm:rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] overflow-x-auto gap-1 no-scrollbar">
-        {/* Only show SLCM Sync & Timetable on Desktop */}
-        {!isMobile && (
-          <button
-            onClick={() => setActiveSubTab('sync')}
-            className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
-              activeSubTab === 'sync' ? 'text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
-            }`}
-          >
-            {activeSubTab === 'sync' && (
-              <motion.div
-                layoutId="activeSettingsSubTab"
-                className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
-                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-              />
-            )}
-            <RefreshCw className="w-3.5 h-3.5 relative z-10" />
-            <span className="relative z-10">SLCM Sync Bridge</span>
-          </button>
-        )}
+        <button
+          onClick={() => setActiveSubTab('sync')}
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
+            activeSubTab === 'sync' ? 'text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+          }`}
+        >
+          {activeSubTab === 'sync' && (
+            <motion.div
+              layoutId="activeSettingsSubTab"
+              className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
+          <RefreshCw className="w-3.5 h-3.5 relative z-10" />
+          <span className="relative z-10">Sync & Import</span>
+        </button>
 
         <button
           onClick={() => setActiveSubTab('courses')}
@@ -513,15 +501,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </button>
       </div>
 
-      {/* SUB TAB 1: SLCM Sync Bridge (Desktop Only) */}
-      {!isMobile && activeSubTab === 'sync' && (
+      {/* SUB TAB 1: Sync & Import */}
+      {activeSubTab === 'sync' && (
         <div className="space-y-6">
           {/* 1. Official Department Timetable Import */}
-          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-2xl bg-indigo-500/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-indigo-600 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-2xl bg-indigo-500/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-indigo-600 flex items-center justify-center shrink-0">
                     <GraduationCap className="w-5 h-5" />
                   </div>
                   <h2 className="text-base font-heading font-black text-[var(--foreground)]">
@@ -537,7 +525,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
                 onClick={() => setIsSectionModalOpen(true)}
-                className="pill-btn flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-transform shrink-0 font-mono"
+                className="pill-btn flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-transform shrink-0 font-mono w-full sm:w-auto"
               >
                 <GraduationCap className="w-4 h-4" />
                 Select My Section
@@ -546,12 +534,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
 
           {/* 2. Live SLCM Attendance Push Hub */}
-          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b-2 border-[var(--border)] pb-4">
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5 sm:space-y-6 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 border-b-2 border-[var(--border)] pb-4">
               <div>
                 <h2 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2.5">
-                  <RefreshCw className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                  Live SLCM Attendance Sync (Desktop Pusher)
+                  <RefreshCw className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <span>Live SLCM Attendance Sync</span>
                 </h2>
                 <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
                   Run the scraper on your computer to log in with Microsoft MFA and securely push live attendance directly to your account.
@@ -559,12 +547,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
 
               {latestSyncedAt ? (
-                <div className="px-3 py-1.5 rounded-full bg-emerald-400/20 border-2 border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 shadow-[2px_2px_0px_var(--shadow-color)]">
+                <div className="px-3 py-1.5 rounded-full bg-emerald-400/20 border-2 border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 shadow-[2px_2px_0px_var(--shadow-color)] self-start sm:self-auto">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Synced {formatDateTime(latestSyncedAt)}</span>
                 </div>
               ) : (
-                <div className="px-3 py-1.5 rounded-full bg-amber-400/20 border-2 border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 shadow-[2px_2px_0px_var(--shadow-color)]">
+                <div className="px-3 py-1.5 rounded-full bg-amber-400/20 border-2 border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 shadow-[2px_2px_0px_var(--shadow-color)] self-start sm:self-auto">
                   <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
                   <span>No SLCM sync recorded yet</span>
                 </div>
@@ -1189,33 +1177,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
 
-              {/* Restore Backup (Desktop Only) */}
-              {!isMobile && (
-                <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-[3px_3px_0px_var(--shadow-color)]">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 font-heading font-bold text-[var(--foreground)] text-sm">
-                      <Upload className="w-4 h-4 text-amber-500" />
-                      Restore Backup
-                    </div>
-                    <p className="text-xs text-[var(--muted-foreground)]">
-                      Restore database state from a previously saved JSON backup file.
-                    </p>
+              {/* Restore Backup */}
+              <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-[3px_3px_0px_var(--shadow-color)]">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 font-heading font-bold text-[var(--foreground)] text-sm">
+                    <Upload className="w-4 h-4 text-amber-500" />
+                    Restore Backup
                   </div>
-                  <input
-                    type="file"
-                    ref={backupInputRef}
-                    accept=".json"
-                    onChange={handleImportBackup}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => backupInputRef.current?.click()}
-                    className="pill-btn w-full py-2.5 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold flex items-center justify-center gap-2 transition-colors font-mono"
-                  >
-                    <Upload className="w-3.5 h-3.5" /> Restore Backup
-                  </button>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Restore database state from a previously saved JSON backup file.
+                  </p>
                 </div>
-              )}
+                <input
+                  type="file"
+                  ref={backupInputRef}
+                  accept=".json"
+                  onChange={handleImportBackup}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => backupInputRef.current?.click()}
+                  className="pill-btn w-full py-2.5 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold flex items-center justify-center gap-2 transition-colors font-mono"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Restore Backup
+                </button>
+              </div>
             </div>
           </div>
 

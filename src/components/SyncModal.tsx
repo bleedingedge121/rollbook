@@ -133,29 +133,29 @@ export const SyncModal: React.FC<SyncModalProps> = ({
         className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-[8px_8px_0px_var(--shadow-color)] overflow-hidden"
       >
         {/* Header */}
-        <div className="p-6 border-b-2 border-[var(--border)] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-teal-600/20 text-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center">
+        <div className="p-4 sm:p-6 border-b-2 border-[var(--border)] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-teal-600/20 text-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center shrink-0">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="text-lg font-heading font-black text-[var(--foreground)]">
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)] truncate">
                 SLCM Sync & Reconciliation
               </h3>
-              <p className="text-xs text-[var(--muted-foreground)] mt-0.5 font-mono">
+              <p className="text-[11px] sm:text-xs text-[var(--muted-foreground)] mt-0.5 font-mono truncate sm:whitespace-normal">
                 {syncedAt
                   ? `Portal data from ${formatDateTime(syncedAt)}`
                   : 'Portal Snapshot'}
                 {' • '}
                 <span className="font-bold text-teal-600 dark:text-teal-400">
-                  {diff.length} course(s) in sync file
+                  {diff.length} course(s)
                 </span>
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] border border-[var(--border)] transition-colors font-mono"
+            className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] border border-[var(--border)] transition-colors font-mono shrink-0 ml-1"
           >
             ✕
           </button>

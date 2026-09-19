@@ -255,8 +255,10 @@ Roll Book is engineered for a seamless mobile experience across modern smartphon
 - **Floating Chat Positioning**: The Gemini AI advisor launcher floats at `bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]`, avoiding collision with the navigation dock.
 - **Scroll Clearance**: Main page containers apply `pb-36 md:pb-8` clearance, ensuring the lowest content cards and action buttons can be scrolled fully into view without obstruction.
 
-### 4. Contextual Feature Gating
-- Because running the Playwright local scraper requires desktop Node.js and terminal access for Microsoft MFA, the **SLCM Sync Bridge** sub-tab and **JSON Restore** card are automatically hidden when browsing on a mobile device. Mobile users opening Settings default cleanly to course configuration.
+### 4. Responsive Sync & Import Architecture
+- The **Sync & Import** section is accessible on both mobile smartphones and desktop viewports.
+- On mobile devices, users can import department timetables (sections C01–C22), generate and copy their Personal Sync Token for desktop scraper configuration, review SLCM reconciliation diffs, and perform JSON database backups and restores.
+- All modal dialogs (`SectionImportModal`, `SyncModal`) and configuration cards are designed with adaptive paddings (`p-4 sm:p-7`), truncated headers, and touch-friendly buttons (`w-full sm:w-auto`).
 
 ---
 
