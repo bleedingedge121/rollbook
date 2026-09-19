@@ -583,28 +583,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="p-5 rounded-2xl bg-amber-400/15 border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] space-y-3">
                 <div className="flex items-center gap-2 font-heading font-black text-sm text-[var(--foreground)]">
                   <Terminal className="w-4 h-4 text-amber-600" />
-                  Local Scraper Agent Offline
+                  Local Scraper Agent Offline (Optional)
                 </div>
                 <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
-                  Start the local scraper agent once in your terminal to enable 1-Click Sync:
+                  The automated 1-Click Sync is an <strong>optional helper</strong> for desktop users who have the repo cloned locally. If you are using Roll Book on the web, you don't need this—you can track attendance directly on the dashboard or enter your current figures in <strong>Subjects</strong>!
                 </p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-[var(--background)] p-2.5 rounded-xl font-mono text-xs text-[var(--foreground)] border-2 border-[var(--border)] font-bold">
-                    cd scraper && node agent.js
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                    For local desktop users with the scraper installed:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-[var(--background)] p-2.5 rounded-xl font-mono text-xs text-[var(--foreground)] border-2 border-[var(--border)] font-bold truncate" title="cd scraper && node agent.js">
+                      cd scraper && node agent.js
+                    </div>
+                    <button
+                      onClick={copyAgentCommand}
+                      className="pill-btn px-3.5 py-2.5 bg-[var(--card)] hover:bg-[var(--muted)] text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
+                    >
+                      {copiedCmd ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCmd ? 'Copied' : 'Copy'}
+                    </button>
+                    <button
+                      onClick={handleOneClickSync}
+                      className="pill-btn px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform shrink-0"
+                    >
+                      Retry Sync
+                    </button>
                   </div>
-                  <button
-                    onClick={copyAgentCommand}
-                    className="pill-btn px-3.5 py-2.5 bg-[var(--card)] hover:bg-[var(--muted)] text-xs font-bold flex items-center gap-1.5 transition-colors"
-                  >
-                    {copiedCmd ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copiedCmd ? 'Copied' : 'Copy'}
-                  </button>
-                  <button
-                    onClick={handleOneClickSync}
-                    className="pill-btn px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform"
-                  >
-                    Retry Sync
-                  </button>
                 </div>
               </div>
             )}

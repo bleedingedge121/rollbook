@@ -317,21 +317,21 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                 </div>
 
                 {agentOffline && (
-                  <div className="p-4 rounded-2xl bg-amber-400/15 border-2 border-[var(--border)] text-left space-y-2 shadow-[3px_3px_0px_var(--shadow-color)]">
+                  <div className="p-4 rounded-2xl bg-amber-400/15 border-2 border-[var(--border)] text-left space-y-2.5 shadow-[3px_3px_0px_var(--shadow-color)]">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--foreground)]">
                       <Terminal className="w-3.5 h-3.5 text-amber-600" />
-                      Local Scraper Agent Offline
+                      Local Scraper Bridge Offline (Optional)
                     </div>
-                    <p className="text-[11px] text-[var(--muted-foreground)]">
-                      Run this once in a terminal to enable 1-Click Sync:
+                    <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                      The automated scraper is an optional local tool for students running the script on their own computer. If you are using Roll Book on the web, you can skip this and track attendance directly in the app!
                     </p>
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-[var(--background)] p-2 rounded-xl font-mono text-[11px] text-[var(--foreground)] border border-[var(--border)]">
+                      <div className="flex-1 bg-[var(--background)] p-2 rounded-xl font-mono text-[11px] text-[var(--foreground)] border border-[var(--border)] truncate" title="cd scraper && node agent.js">
                         cd scraper && node agent.js
                       </div>
                       <button
                         onClick={copyAgentCommand}
-                        className="pill-btn px-3 py-1.5 bg-[var(--card)] hover:bg-[var(--muted)] text-[10px] font-bold flex items-center gap-1"
+                        className="pill-btn px-3 py-1.5 bg-[var(--card)] hover:bg-[var(--muted)] text-[10px] font-bold flex items-center gap-1 shrink-0"
                       >
                         {copiedCmd ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                         {copiedCmd ? 'Copied' : 'Copy'}
