@@ -98,8 +98,8 @@ export const Navigation: React.FC<NavigationProps> = ({
             </div>
           </div>
 
-          {/* Navigation Pill Bar */}
-          <nav className="flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)]">
+          {/* Navigation Pill Bar (Desktop & Tablet) */}
+          <nav className="hidden md:flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)]">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = activeTab === item.id
@@ -123,18 +123,18 @@ export const Navigation: React.FC<NavigationProps> = ({
                       isActive ? 'text-white' : 'text-[var(--muted-foreground)]'
                     }`}
                   />
-                  <span className="relative z-10 hidden md:inline">{item.label}</span>
+                  <span className="relative z-10">{item.label}</span>
                 </button>
               )
             })}
           </nav>
 
           {/* Right Controls & Theme Toggle */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-[var(--border)] text-xs font-mono font-bold shadow-[2px_2px_0px_var(--shadow-color)] ${
+              className={`flex items-center gap-1 px-2.5 py-1 sm:px-3 rounded-full border-2 border-[var(--border)] text-xs font-mono font-bold shadow-[2px_2px_0px_var(--shadow-color)] ${
                 isSafe
                   ? 'bg-emerald-400/20 text-emerald-700 dark:text-emerald-300'
                   : 'bg-rose-400/20 text-rose-700 dark:text-rose-300'
@@ -150,7 +150,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
               onClick={toggleTheme}
               title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-              className="p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
+              className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
             >
               {mounted ? (
                 isDark ? (
@@ -170,7 +170,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               onClick={onRefresh}
               disabled={isRefreshing}
               title="Refresh attendance records"
-              className="p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all disabled:opacity-50"
+              className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all disabled:opacity-50"
             >
               <RefreshCw
                 className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-teal-600' : ''}`}
@@ -185,7 +185,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
                 title="Admin Management Panel"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-xs font-bold font-mono transition-all"
+                className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-xs font-bold font-mono transition-all"
               >
                 <Shield className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Admin</span>
@@ -211,13 +211,52 @@ export const Navigation: React.FC<NavigationProps> = ({
                 window.location.href = '/login'
               }}
               title="Sign out of Roll Book"
-              className="p-2 rounded-full text-[var(--foreground)] hover:text-rose-500 bg-[var(--card)] hover:bg-rose-500/10 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
+              className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] hover:text-rose-500 bg-[var(--card)] hover:bg-rose-500/10 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
             >
               <LogOut className="w-4 h-4" strokeWidth={2.5} />
             </motion.button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Bottom Navigation Bar (Docked on phones) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--card)]/95 backdrop-blur-xl border-t-2 border-[var(--border)] px-2 py-1.5 shadow-[0_-4px_16px_rgba(0,0,0,0.1)] pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+        <div className="flex items-center justify-around">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = activeTab === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-2xl transition-all relative ${
+                  isActive
+                    ? 'text-teal-600 dark:text-teal-400 font-black'
+                    : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-semibold'
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeMobileNavTab"
+                    className="absolute inset-0 rounded-xl bg-teal-500/15 border border-teal-500/30"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <Icon className={`w-5 h-5 relative z-10 transition-transform ${isActive ? 'scale-110 text-teal-600 dark:text-teal-400' : ''}`} />
+                <span className="text-[10px] font-mono tracking-tight relative z-10 leading-none">
+                  {item.id === 'home'
+                    ? 'Dashboard'
+                    : item.id === 'subjects'
+                    ? 'Subjects'
+                    : item.id === 'calendar'
+                    ? 'Lab'
+                    : 'Settings'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </nav>
     </header>
   )
 }

@@ -87,13 +87,13 @@ export const ChatWidget: React.FC = () => {
   ]
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50">
       {/* Floating Trigger Button */}
       <motion.button
         whileHover={prefersReducedMotion ? {} : { scale: 1.08, rotate: 2 }}
         whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full bg-teal-600 text-white border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] flex items-center justify-center transition-colors hover:bg-teal-500 focus:outline-none"
+        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-teal-600 text-white border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] flex items-center justify-center transition-colors hover:bg-teal-500 focus:outline-none"
         title="Open AI Attendance Advisor"
       >
         <AnimatePresence mode="wait">
@@ -104,7 +104,7 @@ export const ChatWidget: React.FC = () => {
               animate={{ rotate: 0, opacity: 1 }}
               exit={{ rotate: 90, opacity: 0 }}
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </motion.div>
           ) : (
             <motion.div
@@ -114,8 +114,8 @@ export const ChatWidget: React.FC = () => {
               exit={{ scale: 0.8, opacity: 0 }}
               className="relative"
             >
-              <MessageCircle className="w-6 h-6" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-pink-400 border border-white animate-pulse" />
+              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-pink-400 border border-white animate-pulse" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -137,7 +137,7 @@ export const ChatWidget: React.FC = () => {
                 : { opacity: 0, scale: 0.9, y: 20, transformOrigin: 'bottom right' }
             }
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="absolute bottom-16 right-0 w-[90vw] sm:w-[380px] max-h-[580px] h-[520px] bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl shadow-[6px_6px_0px_var(--shadow-color)] flex flex-col overflow-hidden z-50"
+            className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] sm:w-[380px] max-h-[75vh] sm:max-h-[580px] h-[480px] sm:h-[520px] bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl shadow-[6px_6px_0px_var(--shadow-color)] flex flex-col overflow-hidden z-50"
           >
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-teal-600/15 via-pink-500/10 to-amber-500/10 border-b-2 border-[var(--border)] flex items-center justify-between">

@@ -276,12 +276,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* 1. Playful Hero Card (Standing Radar & Buffers) */}
       <motion.div
         variants={itemVariants}
-        className="relative overflow-hidden rounded-3xl bg-[var(--card)] border-2 border-[var(--border)] p-6 sm:p-8 shadow-[6px_6px_0px_var(--shadow-color)]"
+        className="relative overflow-hidden rounded-3xl bg-[var(--card)] border-2 border-[var(--border)] p-4 sm:p-6 lg:p-8 shadow-[6px_6px_0px_var(--shadow-color)]"
       >
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
           {/* Main Standing Display */}
-          <div className="flex items-center gap-6">
-            <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center shrink-0">
               <svg className="w-full h-full transform -rotate-90">
                 <circle
                   cx="56"
@@ -318,8 +318,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <h1 className="text-xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight">
                   Attendance Command
                 </h1>
                 <span
@@ -339,28 +339,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* Quick Metrics Strip */}
-          <div className="grid grid-cols-3 gap-3 w-full lg:w-auto">
-            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-4 py-3 min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 w-full lg:w-auto">
+            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-2.5 sm:px-4 sm:py-3 min-w-[70px] sm:min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
               <div className="text-[10px] font-mono font-bold text-[var(--muted-foreground)] uppercase">
                 Held
               </div>
-              <div className="text-xl font-heading font-black text-[var(--foreground)] mt-0.5">
+              <div className="text-lg sm:text-xl font-heading font-black text-[var(--foreground)] mt-0.5">
                 {totalHeld}
               </div>
             </div>
-            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-4 py-3 min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
+            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-2.5 sm:px-4 sm:py-3 min-w-[70px] sm:min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
               <div className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase">
                 Attended
               </div>
-              <div className="text-xl font-heading font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <div className="text-lg sm:text-xl font-heading font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {totalPresent}
               </div>
             </div>
-            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-4 py-3 min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
+            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-2.5 sm:px-4 sm:py-3 min-w-[70px] sm:min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
               <div className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400 uppercase">
                 Missed
               </div>
-              <div className="text-xl font-heading font-black text-rose-600 dark:text-rose-400 mt-0.5">
+              <div className="text-lg sm:text-xl font-heading font-black text-rose-600 dark:text-rose-400 mt-0.5">
                 {totalAbsent}
               </div>
             </div>
@@ -368,19 +368,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </motion.div>
 
-      {/* 2. Today's Schedule Card */}
+      {/* 2. Today's Flight Schedule & Immediate Actions */}
       <motion.div
         variants={itemVariants}
-        className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5"
+        className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-4 sm:p-6 lg:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-[var(--border)] pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b-2 border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-600 dark:text-amber-400 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center">
-              <Clock className="w-5 h-5" strokeWidth={2.5} />
+            <div className="w-10 h-10 rounded-2xl bg-teal-500/20 text-teal-700 dark:text-teal-300 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center shrink-0">
+              <Zap className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
-                Today’s Flight Schedule
+              <h2 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)] flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span>Today’s Flight Schedule</span>
                 <span className="text-xs font-mono font-normal text-[var(--muted-foreground)]">
                   ({WEEKDAYS[currentWeekday]}, {formatDate(today)})
                 </span>
@@ -393,11 +393,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {/* 1-Click Batch Controls for Today */}
           {todaySlots.length > 0 && !todayHoliday && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
               <button
                 onClick={() => handleBatchMarkToday('present')}
                 disabled={isBatchBusy || loggingId !== null}
-                className="pill-btn px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold flex items-center gap-1.5 transition-transform active:scale-95 disabled:opacity-50"
+                className="pill-btn flex-1 sm:flex-none px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-transform active:scale-95 disabled:opacity-50"
                 title="Mark all today's classes as Present"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
@@ -406,7 +406,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 onClick={() => handleBatchMarkToday('absent')}
                 disabled={isBatchBusy || loggingId !== null}
-                className="pill-btn px-4 py-2 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold flex items-center gap-1.5 transition-transform active:scale-95 disabled:opacity-50"
+                className="pill-btn flex-1 sm:flex-none px-3.5 py-2 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-transform active:scale-95 disabled:opacity-50"
                 title="Mark all today's classes as Absent"
               >
                 <X className="w-3.5 h-3.5" />
@@ -416,7 +416,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <button
                   onClick={handleClearAllToday}
                   disabled={isBatchBusy || loggingId !== null}
-                  className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-colors disabled:opacity-50"
+                  className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-colors disabled:opacity-50 shrink-0"
                   title="Clear today's logs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

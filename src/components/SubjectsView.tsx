@@ -195,12 +195,12 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* Status Filter Pills */}
-          <div className="flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] text-xs">
+          <div className="flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] text-xs overflow-x-auto no-scrollbar">
             <button
               onClick={() => setFilterMode('all')}
-              className={`px-3 py-1 rounded-full font-bold transition-all ${
+              className={`px-3 py-1 rounded-full font-bold transition-all shrink-0 ${
                 filterMode === 'all'
                   ? 'bg-teal-600 text-white shadow-[1px_1px_0px_var(--shadow-color)]'
                   : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
@@ -210,7 +210,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
             </button>
             <button
               onClick={() => setFilterMode('safe')}
-              className={`px-3 py-1 rounded-full font-bold transition-all ${
+              className={`px-3 py-1 rounded-full font-bold transition-all shrink-0 ${
                 filterMode === 'safe'
                   ? 'bg-emerald-500 text-white shadow-[1px_1px_0px_var(--shadow-color)]'
                   : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
@@ -220,7 +220,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
             </button>
             <button
               onClick={() => setFilterMode('critical')}
-              className={`px-3 py-1 rounded-full font-bold transition-all ${
+              className={`px-3 py-1 rounded-full font-bold transition-all shrink-0 ${
                 filterMode === 'critical'
                   ? 'bg-rose-500 text-white shadow-[1px_1px_0px_var(--shadow-color)]'
                   : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
@@ -234,7 +234,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
             whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
             whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
             onClick={onAddCourse}
-            className="pill-btn flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform shrink-0"
+            className="pill-btn flex items-center justify-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform shrink-0"
           >
             <Plus className="w-4 h-4" /> Add Subject
           </motion.button>
@@ -545,17 +545,17 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
               className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-[8px_8px_0px_var(--shadow-color)] overflow-hidden"
             >
               {/* Modal Header */}
-              <div className="p-6 border-b-2 border-[var(--border)] flex items-center justify-between">
+              <div className="p-4 sm:p-6 border-b-2 border-[var(--border)] flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)]">
                       {selectedCourse.code}
                     </span>
-                    <h3 className="text-lg font-heading font-black text-[var(--foreground)]">
+                    <h3 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)]">
                       {selectedCourse.name}
                     </h3>
                   </div>
-                  <p className="text-xs text-[var(--muted-foreground)] mt-1 font-mono">
+                  <p className="text-[11px] sm:text-xs text-[var(--muted-foreground)] mt-1 font-mono">
                     Confirmed Log ({selectedCourse.stats.present} Present /{' '}
                     {selectedCourse.stats.absent} Absent — {selectedCourse.stats.percentage}%)
                   </p>
@@ -569,7 +569,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
               </div>
 
               {/* Modal Content */}
-              <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-dot-grid">
+              <div className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1 bg-dot-grid">
                 {/* Add Manual Entry Form */}
                 <form
                   onSubmit={handleCreateManualLog}
@@ -639,9 +639,9 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                         .map((rec) => (
                           <div
                             key={rec.id}
-                            className="bg-[var(--background)] border-2 border-[var(--border)] rounded-xl p-3 flex items-center justify-between gap-3 text-xs shadow-[2px_2px_0px_var(--shadow-color)]"
+                            className="bg-[var(--background)] border-2 border-[var(--border)] rounded-xl p-3 flex items-center justify-between gap-2 sm:gap-3 text-xs shadow-[2px_2px_0px_var(--shadow-color)]"
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
                               <span
                                 className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border border-[var(--border)] ${
                                   rec.status === 'present'
@@ -655,7 +655,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                                 {formatDate(rec.date)}
                               </span>
                               {rec.note && (
-                                <span className="text-[var(--muted-foreground)] truncate max-w-[200px]">
+                                <span className="text-[var(--muted-foreground)] truncate max-w-[120px] sm:max-w-[200px]">
                                   {rec.note}
                                 </span>
                               )}

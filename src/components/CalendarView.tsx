@@ -593,7 +593,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 key={dateStr}
                 whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                 onClick={() => setSelectedDay(day)}
-                className={`min-h-[90px] sm:min-h-[110px] p-2 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                className={`min-h-[58px] sm:min-h-[110px] p-1 sm:p-2 rounded-xl sm:rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                   !isCurrentMonth
                     ? 'opacity-30 bg-[var(--background)] border-[var(--border)]'
                     : isSelected
@@ -608,7 +608,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 {/* Day Header */}
                 <div className="flex items-center justify-between">
                   <span
-                    className={`text-xs font-bold font-mono rounded-full px-2 py-0.5 border ${
+                    className={`text-[11px] sm:text-xs font-bold font-mono rounded-full px-1.5 sm:px-2 py-0.5 border ${
                       isCurrentDay
                         ? 'bg-teal-600 text-white border-[var(--border)] shadow-[1px_1px_0px_var(--shadow-color)]'
                         : isSelected
@@ -619,15 +619,34 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     {format(day, 'd')}
                   </span>
                   {recordsForDay.length > 0 && (
-                    <span className="text-[10px] font-mono text-[var(--muted-foreground)] font-bold">
-                      {recordsForDay.filter((r) => r.status === 'present').length}P/
-                      {recordsForDay.filter((r) => r.status === 'absent').length}A
+                    <span className="text-[9px] sm:text-[10px] font-mono text-[var(--muted-foreground)] font-bold">
+                      {recordsForDay.filter((r) => r.status === 'present').length}P
+                      <span className="hidden sm:inline">/{recordsForDay.filter((r) => r.status === 'absent').length}A</span>
                     </span>
                   )}
                 </div>
 
-                {/* Slots & Status Badges */}
-                <div className="space-y-1 my-1 overflow-hidden">
+                {/* Mobile indicators (small screen dots) */}
+                <div className="flex sm:hidden items-center justify-center gap-1 my-1 flex-wrap">
+                  {dayHoliday && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title={dayHoliday.label} />
+                  )}
+                  {!dayHoliday &&
+                    recordsForDay.slice(0, 3).map((rec) => (
+                      <span
+                        key={rec.id}
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          rec.status === 'present' ? 'bg-emerald-500' : 'bg-rose-500'
+                        }`}
+                      />
+                    ))}
+                  {!dayHoliday && recordsForDay.length === 0 && slotsForDay.length > 0 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500/40" />
+                  )}
+                </div>
+
+                {/* Desktop & Tablet Slots & Status Badges */}
+                <div className="hidden sm:block space-y-1 my-1 overflow-hidden">
                   {dayHoliday && (
                     <div
                       className={`text-[10px] font-bold p-1 rounded-lg truncate flex items-center gap-1 border ${

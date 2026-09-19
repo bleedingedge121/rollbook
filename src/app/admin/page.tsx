@@ -428,7 +428,7 @@ export default function AdminPage() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-24 sm:pb-12 space-y-6">
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 border-b-2 border-[var(--border)] pb-3 overflow-x-auto">
           <button
