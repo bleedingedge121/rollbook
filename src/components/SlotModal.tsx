@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Course, TimetableSlot } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 interface SlotModalProps {
   isOpen: boolean
@@ -122,7 +122,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
               value={courseId}
               onChange={(e) => setCourseId(e.target.value)}
               required
-              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-bold"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-bold"
             >
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -140,7 +140,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
               value={weekday}
               onChange={(e) => setWeekday(parseInt(e.target.value, 10))}
               required
-              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-bold"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-bold"
             >
               <option value={1}>Monday</option>
               <option value={2}>Tuesday</option>
@@ -163,7 +163,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               required
-              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-mono"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
             />
             <datalist id="time-slot-presets">
               {COMMON_TIME_SLOTS.map((ts) => (
@@ -181,7 +181,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
               placeholder="e.g. AB4 403 or CS Lab"
               value={room}
               onChange={(e) => setRoom(e.target.value)}
-              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500"
             />
           </div>
 
@@ -196,7 +196,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="pill-btn px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
+              className="pill-btn px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
             >
               {isSubmitting ? 'Saving...' : initialData ? 'Update Slot' : 'Add Slot'}
             </button>

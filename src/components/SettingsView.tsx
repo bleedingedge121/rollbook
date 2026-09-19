@@ -23,6 +23,8 @@ import {
   Sparkles,
   ShieldCheck,
   Zap,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
@@ -76,6 +78,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [syncError, setSyncError] = useState<string | null>(null)
   const [isParsingSync, setIsParsingSync] = useState(false)
 
+  // 1-Click Sync Agent State
+  const [isAgentSyncing, setIsAgentSyncing] = useState(false)
+  const [agentOffline, setAgentOffline] = useState(false)
+  const [agentStatusNote, setAgentStatusNote] = useState<string | null>(null)
+  const [copiedCmd, setCopiedCmd] = useState(false)
+
   // Add Holiday Form State
   const [newHolidayDate, setNewHolidayDate] = useState('')
   const [newHolidayLabel, setNewHolidayLabel] = useState('')
@@ -92,7 +100,81 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const backupInputRef = useRef<HTMLInputElement>(null)
 
-  // Handle Sync Output JSON Upload
+  // Process Sync Payload directly
+  const processSyncPayload = async (json: any) => {
+    if (!json.courses || !Array.isArray(json.courses)) {
+      throw new Error('Invalid sync format: "courses" array missing.')
+    }
+
+    const res = await fetch('/api/sync/reconcile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(json),
+    })
+
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to reconcile data')
+
+    setSyncDiff(data.diff)
+    setAvailableDbCourses(data.availableDbCourses || [])
+    setSyncedAtTime(data.syncedAt)
+    setIsSyncModalOpen(true)
+  }
+
+  // 1-Click Sync Trigger
+  const handleOneClickSync = async () => {
+    setIsAgentSyncing(true)
+    setSyncError(null)
+    setAgentOffline(false)
+    setAgentStatusNote('Checking local scraper agent (http://localhost:4747)...')
+
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 2500)
+
+      let statusRes
+      try {
+        statusRes = await fetch('http://localhost:4747/status', {
+          signal: controller.signal,
+        })
+      } catch {
+        setAgentOffline(true)
+        setIsAgentSyncing(false)
+        setAgentStatusNote(null)
+        return
+      } finally {
+        clearTimeout(timeoutId)
+      }
+
+      if (!statusRes.ok) {
+        setAgentOffline(true)
+        setIsAgentSyncing(false)
+        setAgentStatusNote(null)
+        return
+      }
+
+      setAgentStatusNote('Fetching portal attendance (a browser window will open if MFA is required)...')
+      const syncRes = await fetch('http://localhost:4747/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const json = await syncRes.json()
+      if (!syncRes.ok) {
+        throw new Error(json.error || 'Scraper failed to capture portal attendance.')
+      }
+
+      setAgentStatusNote('Reconciling subjects with local database...')
+      await processSyncPayload(json)
+    } catch (err: any) {
+      setSyncError(err.message || 'Sync error')
+    } finally {
+      setIsAgentSyncing(false)
+      setAgentStatusNote(null)
+    }
+  }
+
+  // Handle Sync Output JSON Upload (Fallback)
   const handleSyncFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -103,24 +185,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     try {
       const text = await file.text()
       const json = JSON.parse(text)
-
-      if (!json.courses || !Array.isArray(json.courses)) {
-        throw new Error('Invalid sync-output.json format: "courses" array missing.')
-      }
-
-      const res = await fetch('/api/sync/reconcile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(json),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to reconcile data')
-
-      setSyncDiff(data.diff)
-      setAvailableDbCourses(data.availableDbCourses || [])
-      setSyncedAtTime(data.syncedAt)
-      setIsSyncModalOpen(true)
+      await processSyncPayload(json)
     } catch (err: any) {
       setSyncError(err.message || 'Error parsing file')
     } finally {
@@ -249,6 +314,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }
 
+  const copyAgentCommand = () => {
+    navigator.clipboard.writeText('cd scraper && node agent.js')
+    setCopiedCmd(true)
+    setTimeout(() => setCopiedCmd(false), 2000)
+  }
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header */}
@@ -272,7 +343,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeSubTab === 'sync' && (
             <motion.div
               layoutId="activeSettingsSubTab"
-              className="absolute inset-0 rounded-full bg-violet-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             />
           )}
@@ -289,7 +360,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeSubTab === 'courses' && (
             <motion.div
               layoutId="activeSettingsSubTab"
-              className="absolute inset-0 rounded-full bg-violet-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             />
           )}
@@ -306,7 +377,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeSubTab === 'timetable' && (
             <motion.div
               layoutId="activeSettingsSubTab"
-              className="absolute inset-0 rounded-full bg-violet-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             />
           )}
@@ -323,7 +394,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeSubTab === 'holidays' && (
             <motion.div
               layoutId="activeSettingsSubTab"
-              className="absolute inset-0 rounded-full bg-violet-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             />
           )}
@@ -340,7 +411,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           {activeSubTab === 'backup' && (
             <motion.div
               layoutId="activeSettingsSubTab"
-              className="absolute inset-0 rounded-full bg-violet-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
             />
           )}
@@ -352,7 +423,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* SUB TAB 1: SLCM Sync Bridge */}
       {activeSubTab === 'sync' && (
         <div className="space-y-6">
-          {/* Official Department Timetable Import */}
+          {/* 1. Official Department Timetable Import */}
           <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
@@ -373,7 +444,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
                 onClick={() => setIsSectionModalOpen(true)}
-                className="pill-btn flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-transform shrink-0 font-mono"
+                className="pill-btn flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-transform shrink-0 font-mono"
               >
                 <GraduationCap className="w-4 h-4" />
                 Select My Section
@@ -381,37 +452,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
+          {/* 2. 1-Click SLCM Sync Hub */}
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2.5">
-                  <RefreshCw className="w-5 h-5 text-violet-600" />
-                  Import Synced SLCM Attendance Data
+                  <RefreshCw className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                  1-Click Live SLCM Attendance Sync
                 </h2>
-                <p className="text-xs text-[var(--muted-foreground)] mt-1">
-                  Upload the <code className="text-violet-600 font-mono font-bold">sync-output.json</code> generated by your local headless scraper.
+                <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                  Synchronize your verified portal attendance in one step without managing manual files.
                 </p>
               </div>
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".json"
-                onChange={handleSyncFileUpload}
-                className="hidden"
-              />
 
               <motion.button
                 whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isParsingSync}
-                className="pill-btn flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-transform disabled:opacity-50 font-mono"
+                onClick={handleOneClickSync}
+                disabled={isAgentSyncing}
+                className="pill-btn flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform disabled:opacity-50 font-mono shadow-[3px_3px_0px_var(--shadow-color)]"
               >
-                <Upload className="w-4 h-4" />
-                {isParsingSync ? 'Parsing File...' : 'Load Synced Data (JSON)'}
+                <RefreshCw className={`w-4 h-4 ${isAgentSyncing ? 'animate-spin' : ''}`} />
+                {isAgentSyncing ? 'Syncing...' : 'Sync Now (1-Click)'}
               </motion.button>
             </div>
+
+            {agentStatusNote && (
+              <div className="p-3.5 rounded-2xl bg-teal-500/10 border-2 border-teal-500/40 text-teal-800 dark:text-teal-300 text-xs flex items-center gap-2 font-mono font-bold animate-pulse">
+                <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                <span>{agentStatusNote}</span>
+              </div>
+            )}
 
             {syncError && (
               <div className="p-4 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2 font-bold">
@@ -420,44 +491,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
 
-            {/* Step by Step Scraper Instructions */}
-            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-5 space-y-4 shadow-[3px_3px_0px_var(--shadow-color)]">
-              <div className="flex items-center gap-2 text-xs font-heading font-black uppercase tracking-wider text-[var(--foreground)] font-mono">
-                <Terminal className="w-4 h-4 text-violet-600" />
-                Local SLCM Scraper Instructions
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-4 space-y-2 shadow-[2px_2px_0px_var(--shadow-color)]">
-                  <div className="flex items-center gap-2 font-heading font-bold text-[var(--foreground)]">
-                    <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-[11px] flex items-center justify-center font-mono font-bold">
-                      1
-                    </span>
-                    One-Time Interactive Login
-                  </div>
-                  <p className="text-[var(--muted-foreground)] text-[11px]">
-                    Opens Playwright browser to log into MAHE Microsoft SSO + MFA and saves session to <code>auth.json</code>:
-                  </p>
-                  <div className="bg-[var(--background)] p-2.5 rounded-xl font-mono text-[11px] text-violet-600 dark:text-violet-400 border border-[var(--border)]">
-                    cd scraper && node login.js
-                  </div>
+            {/* Agent Offline Quick Setup Card */}
+            {agentOffline && (
+              <div className="p-5 rounded-2xl bg-amber-400/15 border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] space-y-3">
+                <div className="flex items-center gap-2 font-heading font-black text-sm text-[var(--foreground)]">
+                  <Terminal className="w-4 h-4 text-amber-600" />
+                  Local Scraper Agent Offline
                 </div>
-
-                <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl p-4 space-y-2 shadow-[2px_2px_0px_var(--shadow-color)]">
-                  <div className="flex items-center gap-2 font-heading font-bold text-[var(--foreground)]">
-                    <span className="w-5 h-5 rounded-full bg-violet-600 text-white text-[11px] flex items-center justify-center font-mono font-bold">
-                      2
-                    </span>
-                    Sync Attendance Figures
+                <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
+                  Start the local scraper agent once in your terminal to enable 1-Click Sync:
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 bg-[var(--background)] p-2.5 rounded-xl font-mono text-xs text-[var(--foreground)] border-2 border-[var(--border)] font-bold">
+                    cd scraper && node agent.js
                   </div>
-                  <p className="text-[var(--muted-foreground)] text-[11px]">
-                    Headlessly intercepts the Apex response and writes <code>sync-output.json</code>:
-                  </p>
-                  <div className="bg-[var(--background)] p-2.5 rounded-xl font-mono text-[11px] text-emerald-600 dark:text-emerald-400 border border-[var(--border)]">
-                    node sync.js
-                  </div>
+                  <button
+                    onClick={copyAgentCommand}
+                    className="pill-btn px-3.5 py-2.5 bg-[var(--card)] hover:bg-[var(--muted)] text-xs font-bold flex items-center gap-1.5 transition-colors"
+                  >
+                    {copiedCmd ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedCmd ? 'Copied' : 'Copy'}
+                  </button>
+                  <button
+                    onClick={handleOneClickSync}
+                    className="pill-btn px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform"
+                  >
+                    Retry Sync
+                  </button>
                 </div>
               </div>
+            )}
+
+            {/* Advanced Manual JSON Fallback Link */}
+            <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+              <span>Looking for manual file import?</span>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                onChange={handleSyncFileUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isParsingSync}
+                className="text-teal-600 dark:text-teal-400 font-bold hover:underline font-mono"
+              >
+                {isParsingSync ? 'Parsing...' : 'Advanced: upload sync-output.json manually'}
+              </button>
             </div>
           </div>
         </div>
@@ -481,7 +562,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   setEditingCourse(null)
                   setIsCourseModalOpen(true)
                 }}
-                className="pill-btn flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-transform"
+                className="pill-btn flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform"
               >
                 <Plus className="w-4 h-4" /> Add Subject
               </motion.button>
@@ -496,7 +577,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <div className="flex items-center gap-3">
                     <span
                       className="w-3.5 h-3.5 rounded-full border border-[var(--border)] shrink-0"
-                      style={{ backgroundColor: course.color || '#8B5CF6' }}
+                      style={{ backgroundColor: course.color || '#0D9488' }}
                     />
                     <div>
                       <div className="flex items-center gap-2">
@@ -512,7 +593,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         {' • '}
                         {course.stats.present} Present / {course.stats.absent} Absent ({course.stats.percentage}%)
                         {course.syncedAt && (
-                          <span className="text-violet-600 dark:text-violet-400 ml-2 font-bold">
+                          <span className="text-teal-600 dark:text-teal-400 ml-2 font-bold">
                             [Synced: {course.syncedPresent}P/{course.syncedAbsent}A]
                           </span>
                         )}
@@ -568,7 +649,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   setEditingSlot(null)
                   setIsSlotModalOpen(true)
                 }}
-                className="pill-btn flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-transform"
+                className="pill-btn flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform"
               >
                 <Plus className="w-4 h-4" /> Add Slot
               </motion.button>
@@ -609,7 +690,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <span
                                     className="w-2 h-2 rounded-full shrink-0"
                                     style={{
-                                      backgroundColor: course?.color || '#8B5CF6',
+                                      backgroundColor: course?.color || '#0D9488',
                                     }}
                                   />
                                   <span className="truncate">{course?.name}</span>
@@ -675,7 +756,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4.5 space-y-3.5 shadow-[3px_3px_0px_var(--shadow-color)]"
             >
               <div className="text-xs font-heading font-bold uppercase tracking-wider text-[var(--foreground)] flex items-center gap-1.5 font-mono">
-                <Plus className="w-3.5 h-3.5 text-violet-600" /> Declare Holiday or Exam Date
+                <Plus className="w-3.5 h-3.5 text-teal-600" /> Declare Holiday or Exam Date
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -686,7 +767,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     value={newHolidayDate}
                     onChange={(e) => setNewHolidayDate(e.target.value)}
                     required
-                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-mono"
+                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
                   />
                 </div>
                 <div>
@@ -697,7 +778,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     value={newHolidayLabel}
                     onChange={(e) => setNewHolidayLabel(e.target.value)}
                     required
-                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-violet-500"
+                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500"
                   />
                 </div>
                 <div>
@@ -705,7 +786,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <select
                     value={newHolidayType}
                     onChange={(e) => setNewHolidayType(e.target.value as any)}
-                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-bold"
+                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-bold"
                   >
                     <option value="holiday">🌴 Holiday / Recess</option>
                     <option value="exam">📝 Exam Day / Assessment</option>
@@ -719,7 +800,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
                   type="submit"
                   disabled={isSubmittingHoliday || !newHolidayDate || !newHolidayLabel.trim()}
-                  className="pill-btn px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
+                  className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
                 >
                   {isSubmittingHoliday ? 'Saving...' : 'Add Date'}
                 </motion.button>
@@ -787,7 +868,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5">
             <div>
               <h2 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2.5">
-                <Database className="w-5 h-5 text-violet-600" />
+                <Database className="w-5 h-5 text-teal-600" />
                 Data Portability & Backup
               </h2>
               <p className="text-xs text-[var(--muted-foreground)] mt-1">
@@ -819,7 +900,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-[3px_3px_0px_var(--shadow-color)]">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 font-heading font-bold text-[var(--foreground)] text-sm">
-                    <Download className="w-4 h-4 text-violet-600" />
+                    <Download className="w-4 h-4 text-teal-600" />
                     Full JSON Backup
                   </div>
                   <p className="text-xs text-[var(--muted-foreground)]">
@@ -897,7 +978,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }}
                 className="pill-btn px-5 py-2.5 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold transition-colors flex items-center justify-center gap-2"
               >
-                <RotateCcw className="w-4 h-4 text-violet-600" /> Reset & Reload Sample Subjects
+                <RotateCcw className="w-4 h-4 text-teal-600" /> Reset & Reload Sample Subjects
               </button>
             </div>
           </div>

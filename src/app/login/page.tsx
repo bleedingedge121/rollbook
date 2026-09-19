@@ -59,7 +59,7 @@ function LoginForm() {
         <div className="flex flex-col items-center text-center space-y-2">
           <motion.div
             whileHover={{ scale: 1.08, rotate: -2 }}
-            className="w-14 h-14 rounded-2xl bg-violet-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)]"
+            className="w-14 h-14 rounded-2xl bg-teal-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)]"
           >
             <span className="font-heading font-black text-white text-xl tracking-wider">RB</span>
           </motion.div>
@@ -89,7 +89,7 @@ function LoginForm() {
                 onChange={(e) => setUsername(e.target.value)}
                 autoFocus
                 autoComplete="username"
-                className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-violet-500 transition-colors font-bold"
+                className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-teal-500 transition-colors font-bold"
                 placeholder="admin"
               />
             </div>
@@ -106,7 +106,7 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-violet-500 transition-colors font-bold"
+                className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl pl-10 pr-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-teal-500 transition-colors font-bold"
                 placeholder="••••••••"
               />
             </div>
@@ -127,7 +127,7 @@ function LoginForm() {
             whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={isSubmitting}
-            className="pill-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-all disabled:opacity-50"
+            className="pill-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all disabled:opacity-50"
           >
             {isSubmitting ? 'Authenticating...' : 'Sign In'}
             {!isSubmitting && <ArrowRight className="w-4 h-4" />}

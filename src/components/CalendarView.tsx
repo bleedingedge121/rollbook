@@ -315,7 +315,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight flex items-center gap-2.5">
-            <CalendarIcon className="w-7 h-7 text-violet-600 dark:text-violet-400" />
+            <CalendarIcon className="w-7 h-7 text-teal-600 dark:text-teal-400" />
             Trajectory Lab & Flight Calendar
           </h1>
           <p className="text-xs sm:text-sm text-[var(--muted-foreground)] mt-1">
@@ -328,7 +328,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <select
             value={selectedCourseFilter}
             onChange={(e) => setSelectedCourseFilter(e.target.value)}
-            className="bg-[var(--card)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] rounded-full px-4 py-2 focus:outline-none focus:border-violet-500 font-mono shadow-[2px_2px_0px_var(--shadow-color)]"
+            className="bg-[var(--card)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] rounded-full px-4 py-2 focus:outline-none focus:border-teal-500 font-mono shadow-[2px_2px_0px_var(--shadow-color)]"
           >
             <option value="all">All Subjects (Aggregate)</option>
             {courses.map((c) => (
@@ -344,7 +344,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b-2 border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-violet-600/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center text-violet-600">
+            <div className="w-10 h-10 rounded-2xl bg-teal-600/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center text-teal-600">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
@@ -406,11 +406,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
 
           <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] relative overflow-hidden">
-            <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400 flex items-center gap-1">
+            <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1">
               <TrendingUp className="w-3.5 h-3.5" /> Projected Trajectory
             </div>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-heading font-black text-violet-600 dark:text-violet-400">
+              <span className="text-2xl font-heading font-black text-teal-600 dark:text-teal-400">
                 {overallProjectedPct}%
               </span>
               <span
@@ -474,9 +474,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <Line
                     type="monotone"
                     dataKey="actual"
-                    stroke="#8B5CF6"
+                    stroke="#0D9488"
                     strokeWidth={3}
-                    dot={{ r: 4, fill: '#8B5CF6' }}
+                    dot={{ r: 4, fill: '#0D9488' }}
                   />
                   <Line
                     type="monotone"
@@ -581,12 +581,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   !isCurrentMonth
                     ? 'opacity-30 bg-[var(--background)] border-[var(--border)]'
                     : isSelected
-                    ? 'bg-[var(--card)] border-violet-600 shadow-[4px_4px_0px_var(--shadow-color)] ring-2 ring-violet-500/50'
+                    ? 'bg-[var(--card)] border-teal-600 shadow-[4px_4px_0px_var(--shadow-color)] ring-2 ring-teal-500/50'
                     : dayHoliday
                     ? 'bg-amber-400/15 border-amber-500/50 shadow-[2px_2px_0px_var(--shadow-color)]'
                     : isCurrentDay
-                    ? 'bg-[var(--card)] border-violet-500 shadow-[3px_3px_0px_var(--shadow-color)]'
-                    : 'bg-[var(--background)] border-[var(--border)] hover:border-violet-500/60 shadow-[2px_2px_0px_var(--shadow-color)]'
+                    ? 'bg-[var(--card)] border-teal-500 shadow-[3px_3px_0px_var(--shadow-color)]'
+                    : 'bg-[var(--background)] border-[var(--border)] hover:border-teal-500/60 shadow-[2px_2px_0px_var(--shadow-color)]'
                 }`}
               >
                 {/* Day Header */}
@@ -594,9 +594,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <span
                     className={`text-xs font-bold font-mono rounded-full px-2 py-0.5 border ${
                       isCurrentDay
-                        ? 'bg-violet-600 text-white border-[var(--border)] shadow-[1px_1px_0px_var(--shadow-color)]'
+                        ? 'bg-teal-600 text-white border-[var(--border)] shadow-[1px_1px_0px_var(--shadow-color)]'
                         : isSelected
-                        ? 'bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500'
+                        ? 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500'
                         : 'text-[var(--foreground)] border-transparent'
                     }`}
                   >
@@ -639,7 +639,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         >
                           <span
                             className="w-1.5 h-1.5 rounded-full shrink-0"
-                            style={{ backgroundColor: course?.color || '#8B5CF6' }}
+                            style={{ backgroundColor: course?.color || '#0D9488' }}
                           />
                           <span className="truncate">{course?.code || 'Class'}</span>
                         </div>
@@ -699,7 +699,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border)] pb-4">
             <div>
               <h3 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                <CalendarIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
                 Day Inspector: {format(selectedDay, 'EEEE, MMMM d, yyyy')}
               </h3>
               <p className="text-xs text-[var(--muted-foreground)] mt-0.5 font-medium">

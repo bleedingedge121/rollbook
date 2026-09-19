@@ -29,7 +29,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${outfit.variable} ${plusJakarta.variable}`}>
-      <body className="bg-[var(--background)] text-[var(--foreground)] min-h-screen antialiased transition-colors duration-200 selection:bg-violet-500 selection:text-white font-sans">
+      <body className="bg-[var(--background)] text-[var(--foreground)] min-h-screen antialiased transition-colors duration-200 selection:bg-teal-500 selection:text-white font-sans">
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

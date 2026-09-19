@@ -637,7 +637,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2">
-              <Layers className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <Layers className="w-4 h-4 text-teal-600 dark:text-teal-400" />
               Subjects Overview & Buffers
             </h3>
             <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
@@ -647,7 +647,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           <button
             onClick={onNavigateToSubjects}
-            className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 transition-colors font-mono"
+            className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 transition-colors font-mono"
           >
             All Subjects <ArrowRight className="w-3.5 h-3.5" />
           </button>

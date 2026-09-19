@@ -159,7 +159,7 @@ export const SectionImportModal: React.FC<SectionImportModalProps> = ({
                     key={s.code}
                     disabled={isLoading}
                     onClick={() => handlePreview(s.code)}
-                    className="p-3 rounded-2xl border-2 border-[var(--border)] bg-[var(--background)] hover:border-violet-500 text-left transition-all shadow-[2px_2px_0px_var(--shadow-color)] disabled:opacity-50"
+                    className="p-3 rounded-2xl border-2 border-[var(--border)] bg-[var(--background)] hover:border-teal-500 text-left transition-all shadow-[2px_2px_0px_var(--shadow-color)] disabled:opacity-50"
                   >
                     <div className="font-mono font-black text-sm text-[var(--foreground)]">{s.code}</div>
                     <div className="text-[10px] text-[var(--muted-foreground)] truncate mt-0.5">{s.coordinator}</div>
@@ -172,7 +172,7 @@ export const SectionImportModal: React.FC<SectionImportModalProps> = ({
           {step === 'review' && !result && (
             <div className="space-y-3">
               <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
-                Reviewing section <span className="font-bold text-violet-600 font-mono">{selected}</span>. Existing subjects are merged by code/name match; new ones are created. Weekly timetable slots will be updated for these {diff.length} subjects.
+                Reviewing section <span className="font-bold text-teal-600 dark:text-teal-400 font-mono">{selected}</span>. Existing subjects are merged by code/name match; new ones are created. Weekly timetable slots will be updated for these {diff.length} subjects.
               </p>
               {diff.map((item) => (
                 <div
@@ -194,7 +194,7 @@ export const SectionImportModal: React.FC<SectionImportModalProps> = ({
                     </span>
                   )}
                   {item.matchType === 'none' && (
-                    <span className="shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-violet-400/20 text-violet-700 dark:text-violet-300 border border-violet-500/30">
+                    <span className="shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-teal-400/20 text-teal-700 dark:text-teal-300 border border-teal-500/30">
                       ➕ New subject
                     </span>
                   )}
@@ -216,7 +216,7 @@ export const SectionImportModal: React.FC<SectionImportModalProps> = ({
               <button
                 onClick={handleConfirm}
                 disabled={isApplying}
-                className="pill-btn px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-2 transition-transform"
+                className="pill-btn px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-2 transition-transform"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isApplying ? 'animate-spin' : ''}`} />
                 {isApplying ? 'Applying...' : `Confirm Import for ${selected}`}

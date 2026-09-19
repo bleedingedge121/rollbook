@@ -66,7 +66,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <motion.div
               whileHover={prefersReducedMotion ? {} : { scale: 1.08, rotate: -2 }}
               whileTap={prefersReducedMotion ? {} : { scale: 0.94 }}
-              className="w-10 h-10 rounded-2xl bg-violet-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] font-heading font-black text-white tracking-widest text-base"
+              className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] font-heading font-black text-white tracking-widest text-base"
             >
               RB
             </motion.div>
@@ -75,8 +75,8 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <span className="font-heading font-black text-[var(--foreground)] text-lg tracking-tight">
                   Roll Book
                 </span>
-                <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-violet-500/15 text-violet-600 dark:text-violet-300 font-mono font-bold border border-violet-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 font-mono font-bold border border-teal-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
                   SLCM 2.0
                 </span>
               </div>
@@ -102,7 +102,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   {isActive && (
                     <motion.div
                       layoutId="activeNavTab"
-                      className="absolute inset-0 rounded-full bg-violet-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+                      className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     />
                   )}
@@ -144,7 +144,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 isDark ? (
                   <Sun className="w-4 h-4 text-amber-400" strokeWidth={2.5} />
                 ) : (
-                  <Moon className="w-4 h-4 text-violet-600" strokeWidth={2.5} />
+                  <Moon className="w-4 h-4 text-teal-600" strokeWidth={2.5} />
                 )
               ) : (
                 <div className="w-4 h-4" />
@@ -161,7 +161,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               className="p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all disabled:opacity-50"
             >
               <RefreshCw
-                className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-violet-600' : ''}`}
+                className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-teal-600' : ''}`}
                 strokeWidth={2.5}
               />
             </motion.button>

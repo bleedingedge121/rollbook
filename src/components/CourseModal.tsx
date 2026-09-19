@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Course } from '@/types'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 interface CourseModalProps {
   isOpen: boolean
@@ -18,11 +18,11 @@ interface CourseModalProps {
 }
 
 const COLOR_OPTIONS = [
-  '#8B5CF6', // Violet
+  '#0D9488', // Teal
   '#F472B6', // Pink
   '#FBBF24', // Amber
-  '#34D399', // Emerald
-  '#06B6D4', // Cyan
+  '#34D399', // Mint
+  '#8B5CF6', // Violet
   '#3B82F6', // Blue
   '#F97316', // Orange
 ]
@@ -36,7 +36,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [requiredPercent, setRequiredPercent] = useState<number>(75.0)
-  const [color, setColor] = useState('#8B5CF6')
+  const [color, setColor] = useState('#0D9488')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -45,7 +45,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
       setName(initialData.name)
       setCode(initialData.code)
       setRequiredPercent(initialData.requiredPercent || 75.0)
-      setColor(initialData.color || '#8B5CF6')
+      setColor(initialData.color || '#0D9488')
     } else {
       setName('')
       setCode('')
@@ -119,7 +119,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500"
             />
           </div>
 
@@ -133,7 +133,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required
-              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] focus:outline-none focus:border-violet-500 uppercase"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] focus:outline-none focus:border-teal-500 uppercase"
             />
           </div>
 
@@ -149,7 +149,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               value={requiredPercent}
               onChange={(e) => setRequiredPercent(parseFloat(e.target.value))}
               required
-              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-mono font-bold"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono font-bold"
             />
             <p className="text-[11px] text-[var(--muted-foreground)] mt-1">
               Standard MAHE attendance threshold is 75%.
@@ -167,7 +167,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
                   type="button"
                   onClick={() => setColor(c)}
                   className={`w-7 h-7 rounded-full border-2 border-[var(--border)] transition-transform ${
-                    color === c ? 'scale-125 shadow-[2px_2px_0px_var(--shadow-color)] ring-2 ring-violet-500' : 'hover:scale-110'
+                    color === c ? 'scale-125 shadow-[2px_2px_0px_var(--shadow-color)] ring-2 ring-teal-500' : 'hover:scale-110'
                   }`}
                   style={{ backgroundColor: c }}
                 />
@@ -186,7 +186,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="pill-btn px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
+              className="pill-btn px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
             >
               {isSubmitting ? 'Saving...' : initialData ? 'Update Subject' : 'Add Subject'}
             </button>

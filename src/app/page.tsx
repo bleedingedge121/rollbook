@@ -1,17 +1,23 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { Navigation, TabType } from '@/components/Navigation'
 import { HomeView } from '@/components/HomeView'
 import { SubjectsView } from '@/components/SubjectsView'
 import { CalendarView } from '@/components/CalendarView'
 import { SettingsView } from '@/components/SettingsView'
 import { CourseModal } from '@/components/CourseModal'
-import { ChatWidget } from '@/components/ChatWidget'
-import { Course, CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
+import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { calculateAttendance } from '@/lib/attendance'
 import { Sparkles } from 'lucide-react'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
+
+// Lazy-load ChatWidget on client to optimize First Load JS
+const ChatWidget = dynamic(
+  () => import('@/components/ChatWidget').then((mod) => mod.ChatWidget),
+  { ssr: false }
+)
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home')
@@ -263,7 +269,7 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center space-y-5 bg-dot-grid">
-        <div className="w-14 h-14 rounded-2xl bg-violet-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] animate-bounce">
+        <div className="w-14 h-14 rounded-2xl bg-teal-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] animate-bounce">
           <Sparkles className="w-6 h-6 text-white" />
         </div>
         <div className="space-y-2 w-full max-w-xs px-4 text-center">
@@ -271,7 +277,7 @@ export default function App() {
             Preparing Flight Deck...
           </p>
           <div className="h-3 rounded-full bg-[var(--muted)] border border-[var(--border)] overflow-hidden">
-            <div className="h-full bg-violet-600 w-2/3 animate-pulse" />
+            <div className="h-full bg-teal-600 w-2/3 animate-pulse" />
           </div>
         </div>
       </div>
@@ -365,7 +371,7 @@ export default function App() {
         )}
       </main>
 
-      {/* AI Attendance Chatbot Widget */}
+      {/* AI Attendance Chatbot Widget (dynamic client load) */}
       <ChatWidget />
 
       {/* Subject Modal */}
