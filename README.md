@@ -1,34 +1,45 @@
-# Roll Book 📖
+<div align="center">
+  <img src="public/icons/icon-512x512.png" width="120" height="120" alt="Roll Book Logo" style="border-radius: 28px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);" />
+  
+  # Roll Book 📖
+  
+  **Intelligent University Attendance Platform, Academic Flight Cockpit & Predictive Trajectory Lab**
+  
+  [![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+  [![React](https://img.shields.io/badge/React-19.3-087ea4?style=for-the-badge&logo=react)](https://react.dev/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+  [![Neon Database](https://img.shields.io/badge/Neon-PostgreSQL_16-00e599?style=for-the-badge&logo=postgresql)](https://neon.tech/)
+  [![Google Gemini](https://img.shields.io/badge/Google_Gemini-Vision_&_Tools-4285f4?style=for-the-badge&logo=google)](https://aistudio.google.com/)
+  [![PWA](https://img.shields.io/badge/PWA-iOS_&_Android_Ready-ff6b6b?style=for-the-badge)](https://web.dev/progressive-web-apps/)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-f59e0b.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19.3-blue?style=flat-square&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-5.22-2d3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38bdf8?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+</div>
 
-**Roll Book** is an intelligent university attendance intelligence platform, forecasting lab, and academic trajectory suite designed around a strict foundational principle:
+---
 
-> **Never assume a lecture happened just because the timetable says it should have.**
+**Roll Book** is built around an uncompromising foundational axiom:
 
-Traditional attendance trackers blindly increment class counters every week, corrupting records whenever professors cancel, substitute, or reschedule. Roll Book separates **verified portal baselines** from **future simulated planning**, delivering mathematically exact safe-to-skip buffers and recovery trajectories.
+> **Never assume a lecture took place just because the timetable says it should have.**
+
+Traditional attendance apps blindly increment class numbers on a weekly loop, quietly corrupting records whenever classes are canceled, rescheduled, substituted, or affected by campus holidays. Roll Book bridges **verified institutional portal figures** with a forward-looking **simulated planning engine**, providing mathematically verified safe-to-skip margins and precise recovery streaks.
 
 ---
 
 ## 📑 Table of Contents
 
 - [🌟 Core Highlights](#-core-highlights)
+- [📱 Installing as a Mobile Web App (PWA)](#-installing-as-a-mobile-web-app-pwa)
 - [📖 Step-by-Step User Tutorial](#-step-by-step-user-tutorial)
-  - [1. Account Creation & Initial Setup](#1-account-creation--initial-setup)
+  - [1. Account Creation & Timetable Import](#1-account-creation--timetable-import)
   - [2. Synchronizing Live Attendance from SLCM](#2-synchronizing-live-attendance-from-slcm)
-    - [Option A: Laptop Browser Console (5 Seconds — Recommended)](#option-a-laptop-browser-console-5-seconds--recommended)
-    - [Option B: Mobile Phone Direct Table Copy](#option-b-mobile-phone-direct-table-copy)
-    - [Option C: Automated Desktop Scraper (Node.js)](#option-c-automated-desktop-scraper-nodejs)
-  - [3. Daily Attendance Management & Quick Logging](#3-daily-attendance-management--quick-logging)
+    - [Option A: Multi-Screenshot or Table Paste via AI Advisor (Fastest)](#option-a-multi-screenshot-or-table-paste-via-ai-advisor-fastest)
+    - [Option B: 5-Second Laptop Browser Console](#option-b-5-second-laptop-browser-console)
+    - [Option C: Settings Manual Paste Ingest](#option-c-settings-manual-paste-ingest)
+    - [Option D: Automated Desktop Scraper (Node.js)](#option-d-automated-desktop-scraper-nodejs)
+  - [3. Daily Attendance Logging & Flight Radar](#3-daily-attendance-logging--flight-radar)
   - [4. The Trajectory Lab: Simulation & Buffer Math](#4-the-trajectory-lab-simulation--buffer-math)
-  - [5. AI Attendance Advisor](#5-ai-attendance-advisor)
-- [📐 Mathematical Models & Formulas](#-mathematical-models--formulas)
+  - [5. AI Attendance Advisor & Resilient Multi-Model Engine](#5-ai-attendance-advisor--resilient-multi-model-engine)
+- [📐 Mathematical Formulations & Derivations](#-mathematical-formulations--derivations)
 - [🏛️ System Architecture](#️-system-architecture)
 - [🚀 Local Development Setup](#-local-development-setup)
 - [☁️ 100% Free Production Deployment](#️-100-free-production-deployment)
@@ -40,37 +51,58 @@ Traditional attendance trackers blindly increment class counters every week, cor
 
 ## 🌟 Core Highlights
 
-1. **Strict Multi-Tenant Isolation**: Every user has an independent, private workspace. Courses, timetables, attendance history, and sync sessions are isolated at the database layer. Cross-account mutations are rejected with `403 Forbidden`.
-2. **Frictionless SLCM Sync Pipeline**:
-   - **Laptop**: 5-second Browser Console Script captures Salesforce Aura payloads with zero terminal, cloning, or extension installation.
-   - **Mobile (iPhone / Android)**: Direct copy-paste parser extracts subjects, course codes, attended, and total lectures straight from raw portal text.
-   - **Cloud Sync**: Data synced from any device is persisted to Neon PostgreSQL and immediately available across mobile, tablet, and desktop.
-3. **1-Click Department Timetable Import**: Built-in official schedules for 22 MIT Bengaluru CSE stream sections (`C01`–`C22`). Populates subject names, course codes, and weekly time slots instantly.
-4. **Shared University Academic Calendar**: Centralized management for institution-wide declared holidays, cultural fests, and examination blocks. Maintained by administrators and automatically synced across all student timetables.
-5. **Authentic Actual Mode vs. Trajectory Lab**: Historical statistics are anchored strictly in verified figures. The Trajectory Lab lets you simulate *Plan to Attend* and *Plan to Skip* choices weeks into the future without corrupting your verified records.
-6. **Deterministic Margin Math**: Precise formulas calculate the exact number of consecutive lectures you can safely skip before dropping below 75%, or the mandatory recovery streak needed to escape attendance shortages.
-7. **AI Attendance Advisor**: Real-time natural language assistant powered by Google Gemini. Connected directly to deterministic database tools to answer complex scheduling, buffer, and percentage queries with zero hallucination.
-8. **Neo-Brutalist Design System**: High-contrast geometric interface with Electric Teal primary accents, 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit typography, and instant dark/light theme switching.
-9. **Mobile-First UX**: Responsive bottom navigation dock, dynamic safe-area insets (`env(safe-area-inset-bottom)`), responsive SVG radar rings, and full mobile touch compatibility.
+1. **Multi-Tenant Database Isolation**: Every student account is private and sandboxed. Courses, schedules, historical logs, and sync tokens are isolated at the database schema level. Cross-tenant access is strictly blocked (`403 Forbidden`).
+2. **Multi-Modal SLCM Sync Pipeline**:
+   - **AI Multi-Screenshot Upload**: Take 1, 2, or more screenshots of your SLCM attendance table on your phone or laptop. Gemini Vision extracts, deduplicates, and saves your records directly.
+   - **Direct Table Paste**: Select and copy the attendance text directly from your browser; the smart regex parser extracts subjects, codes, attended, and total lectures automatically.
+   - **5-Second Laptop Console**: Paste an ephemeral script into the browser console (<kbd>F12</kbd>) to capture live network payloads with zero extensions, zero cloning, and zero terminal commands.
+   - **Real-Time Live Auto-Refresh**: Synced data updates your dashboard immediately via CustomEvents without page reloads.
+3. **1-Click Official Timetable Import**: Built-in official schedules for all 22 MIT Bengaluru sections (`C01`–`C22`). Automatically generates subject names, course codes, and weekly recurrence slots.
+4. **Institutional Academic Calendar**: Centralized calendar for university holidays, cultural fests, and exam blocks. Maintained by administrators and automatically applied to all student schedules.
+5. **Verified Baseline vs. Predictive Trajectory Lab**: Historical numbers stay anchored to verified facts. The Trajectory Lab lets you simulate future *Plan to Attend* and *Plan to Skip* choices across weeks without corrupting past records.
+6. **Exact Margin Mathematics**: Closed-form mathematical formulas compute the exact number of classes you can safely skip ($S$) before dropping below 75%, or the mandatory consecutive streak ($M$) needed to recover from attendance shortages.
+7. **Resilient AI Flight Advisor**: Real-time natural language assistant powered by Google Gemini with an automatic multi-model fallback cascade (`gemini-3.6-flash`, `gemini-flash-latest`, `gemini-3.5-flash-lite`). Connected to deterministic database tools for zero hallucinations.
+8. **Neo-Brutalist Visual Design**: High-contrast geometric UI with Electric Teal primary accents, 2px borders, hard offset shadows (`shadow-[4px_4px_0px_var(--shadow-color)]`), Framer Motion micro-interactions, and instant Dark/Light mode toggle.
+9. **Full PWA Native Experience**: Full support for iOS and Android home screen installation, standalone window mode, custom touch icons, and dynamic safe-area insets (`env(safe-area-inset-bottom)`).
+
+---
+
+## 📱 Installing as a Mobile Web App (PWA)
+
+Roll Book is configured as a Progressive Web App (PWA) with custom app icons, standalone windowing, and safe-area support.
+
+### iPhone & iPad (Safari)
+1. Open Roll Book in **Safari**.
+2. Tap the **Share** button in the bottom navigation toolbar (square with upward arrow).
+3. Scroll down and tap **Add to Home Screen**.
+4. Confirm the name (**Roll Book**) and tap **Add**.
+5. The custom **Roll Book 'R' Ledger** icon will appear on your iOS home screen and launch full-screen like a native app.
+
+### Android (Chrome)
+1. Open Roll Book in **Chrome**.
+2. Tap the **three dots menu** ($\dots$) in the top-right corner.
+3. Tap **Add to Home screen** (or **Install app**).
+4. Tap **Install** to confirm.
+5. Launch Roll Book directly from your app drawer or home screen.
 
 ---
 
 ## 📖 Step-by-Step User Tutorial
 
-### 1. Account Creation & Initial Setup
+### 1. Account Creation & Timetable Import
 
 1. Open Roll Book and click **Sign Up**.
-2. Enter your username and password to create your private, isolated account.
-3. Upon first login, open the **Command & Sync** tab (gear icon in the navigation bar).
-4. Click **Select My Section** under *Import Official Department Timetable*.
-5. Choose your section (e.g. `C05`, `C12`, `C18`) from the list of 22 official MIT Bengaluru sections.
-6. Click **Apply Section Timetable**. All your subjects, course codes, and recurring weekly timetable slots will be generated immediately!
+2. Choose your username and password to create an isolated account.
+3. After logging in, tap the **Command & Sync** tab (gear icon in the navigation bar).
+4. Under *Import Official Department Timetable*, click **Select My Section**.
+5. Choose your section (e.g. `C05`, `C12`, `C18`) from the list of 22 official MIT-BLR sections.
+6. Click **Apply Section Timetable**. All your subjects, course codes, and weekly schedule slots will populate immediately!
 
 ---
 
 ### 2. Synchronizing Live Attendance from SLCM
 
-Roll Book offers multiple ways to ingest your live portal attendance figures:
+Roll Book offers 4 ways to ingest your live portal attendance figures:
 
 ```
                   ┌────────────────────────────────────────────────────────┐
@@ -79,9 +111,9 @@ Roll Book offers multiple ways to ingest your live portal attendance figures:
                               │                                │
             [Option A: AI Chatbot / Mobile Copy]     [Option B: Laptop F12]
                               │                                │
-                 Copy table directly from SLCM       Run 5-sec script in Console
+            Capture 1 or more table screenshots      Run 5-sec script in Console
                               │                                │
-                 Paste into AI Chat Advisor          Banner captures 10 courses
+                 Paste/Upload into AI Chat           Banner captures 10 courses
                               │                                │
                               └───────────────┬────────────────┘
                                               │
@@ -94,39 +126,42 @@ Roll Book offers multiple ways to ingest your live portal attendance figures:
                                 Instant Cloud Sync to All Devices
 ```
 
-#### Option A: AI Chatbot Screenshot Upload or Table Paste (Fastest on Mobile & Laptop)
+#### Option A: Multi-Screenshot or Table Paste via AI Advisor (Fastest)
 
-*Zero code, zero scripts, zero extensions. Works right inside mobile Safari, mobile Chrome, or desktop.*
+*Zero installations, zero developer tools. Works directly on your phone or laptop.*
 
-1. Open SLCM in your phone or laptop browser and navigate to the **Attendance** page.
-2. Either **take a screenshot** of the attendance table, or select and copy the table text.
-3. Open Roll Book and tap the **AI Attendance Advisor** floating bubble in the bottom right corner.
-4. Tap the **camera/image icon** to attach the screenshot (or press <kbd>Ctrl+V</kbd> to paste it from your clipboard), or paste the copied text.
-5. Hit **Send** (or click the *📸 Sync from Screenshot* prompt).
-6. Gemini vision automatically reads the table rows, parses attended/total counts, and synchronizes the figures straight into your Neon PostgreSQL database.
-7. Your entire Roll Book dashboard instantly refreshes live with updated percentages, safe skip counts, and recovery targets!
+1. Open your university SLCM portal in Safari or Chrome and navigate to the **Attendance** page.
+2. **If uploading screenshots**:
+   - Take 1 screenshot (or 2+ screenshots if your table needs scrolling to capture all courses).
+   - Open Roll Book and tap the **AI Attendance Advisor** floating bubble in the bottom right corner.
+   - Tap the **camera/image icon** to attach your screenshots (or press <kbd>Ctrl+V</kbd> to paste from clipboard).
+   - Hit **Send** (or tap *📸 Sync from Screenshots*).
+   - Gemini Vision reads the table rows, automatically **deduplicates** any overlapping courses between screenshots, updates your database, and live-refreshes your dashboard.
+3. **If copying text**:
+   - Highlight and copy the attendance table rows from SLCM.
+   - Open the AI chat, paste the text into the box, and press **Send**.
+   - The smart parser extracts all subjects, presents, and absents immediately!
 
-#### Option B: Settings Paste Box (Manual Ingest)
+#### Option B: 5-Second Laptop Browser Console
+
+*Zero installations, zero repo cloning, and zero terminal commands.*
+
+1. In Roll Book, open **Command & Sync** $\rightarrow$ **Browser Sync (Laptop & Desktop)**.
+2. Click **`[ 💻 Copy Console Script (Laptop) ]`** to copy the ready-to-run snippet.
+3. In another tab, log in to your university SLCM portal and open the **Attendance** page.
+4. Press <kbd>F12</kbd> (or right-click $\rightarrow$ **Inspect**), then click the **Console** tab.
+   > *Note: If Chrome displays a warning about pasting, type `allow pasting` into the console and press Enter once.*
+5. Paste the snippet (<kbd>Ctrl+V</kbd>) and press <kbd>Enter</kbd>.
+6. In SLCM, click another tab (like **Home**) and click back to **Attendance** so the network request fires.
+7. An emerald Roll Book banner will appear at the top of SLCM confirming your subjects were captured. Click **Copy JSON**.
+8. Return to Roll Book, paste the copied JSON into the AI chat or the **Paste Attendance Data** box, and click **Apply Attendance Data**.
+
+#### Option C: Settings Manual Paste Ingest
 
 1. Copy your SLCM attendance table or exported JSON.
 2. In Roll Book, open **Command & Sync** $\rightarrow$ **Paste Attendance Data**.
 3. Paste the text into the box and click **Apply Attendance Data**.
 4. The smart regex parser matches each subject and updates your database baseline.
-
-#### Option C: Laptop Browser Console (5 Seconds — 100% Accurate)
-
-*Zero installations, zero repo cloning, and zero terminal commands.*
-
-1. In Roll Book, go to **Command & Sync** $\rightarrow$ **Browser Sync (Laptop & Desktop)**.
-2. Click **`[ 💻 Copy Console Script (Laptop) ]`**. The ready-to-run script is copied to your clipboard.
-3. In another tab, log in to your university SLCM portal and open the **Attendance** page.
-4. Press <kbd>F12</kbd> (or right-click anywhere $\rightarrow$ **Inspect**), then click the **Console** tab.
-   > *Note: If Chrome shows a warning about pasting, type `allow pasting` into the console and press Enter once.*
-5. Paste the script (<kbd>Ctrl+V</kbd> or <kbd>Cmd+V</kbd>) and press <kbd>Enter</kbd>.
-6. In SLCM, click another tab (like **Home**) and click back to **Attendance** to trigger the network request.
-7. An emerald Roll Book banner will appear at the top of SLCM confirming your subjects were captured. Click **Copy JSON**.
-8. Return to Roll Book, paste the copied JSON into the AI chat or the **Paste Attendance Data** box, and click **Apply Attendance Data**.
-9. All your course totals, attended counts, and percentages are now synchronized!
 
 #### Option D: Automated Desktop Scraper (Node.js)
 
@@ -143,7 +178,7 @@ On first run, `agent.js` asks for your hosted Roll Book URL. Log in via the brow
 
 ---
 
-### 3. Daily Attendance Management & Quick Logging
+### 3. Daily Attendance Logging & Flight Radar
 
 1. **Dashboard Flight View**:
    - Shows today's scheduled lectures according to your section timetable.
@@ -175,7 +210,7 @@ The **Trajectory Lab** (`CalendarView`) allows you to test hypothetical attendan
 
 ---
 
-### 5. AI Attendance Advisor
+### 5. AI Attendance Advisor & Resilient Multi-Model Engine
 
 Click the floating chat bubble on any page to open your personal AI advisor:
 
@@ -185,12 +220,15 @@ Click the floating chat bubble on any page to open your personal AI advisor:
   - *"What is my schedule for tomorrow morning?"*
   - *"Do I have any unlogged classes from this week?"*
   - *"If I miss both math lectures on Thursday, will I drop below 75%?"*
+  - *"Add a holiday on 25 Dec for Christmas"* (Administrators)
 - **Deterministic Grounding**:
-  - The AI does not guess or hallucinate. It executes database tools (`getUserAttendanceSummary`, `getCourseDetails`, `getUpcomingSchedule`, `getUnloggedClasses`) to calculate exact answers based on your verified database records.
+  - The AI does not guess or hallucinate. It executes database tools (`get_attendance_summary`, `get_course_detail`, `get_upcoming_classes`, `get_unlogged_sessions`, `sync_attendance_data`, `add_holiday`, `list_holidays`) to calculate exact answers based on verified database records.
+- **Resilient Multi-Model Cascades**:
+  - If Google AI Studio experiences a demand spike, the engine automatically retries with backoff and cascades through `gemini-3.6-flash` $\rightarrow$ `gemini-flash-latest` $\rightarrow$ `gemini-3.5-flash-lite`.
 
 ---
 
-## 📐 Mathematical Models & Formulas
+## 📐 Mathematical Formulations & Derivations
 
 All percentage and threshold calculations adhere strictly to these formulations:
 
@@ -202,15 +240,19 @@ Where:
 
 ### 1. Safe Zone ($\text{Percentage} \ge R$)
 
-When your current standing is at or above the threshold $R = 0.75$ ($75\%$), the maximum number of consecutive future lectures you can safely skip ($S$) is:
+When your current standing is at or above the required threshold $R = 0.75$ ($75\%$), the maximum number of consecutive future lectures you can safely skip ($S$) without falling below $R$ is:
 
 $$S = \left\lfloor \frac{P}{R} - (P + A) \right\rfloor$$
+
+*Proof*: We require $\frac{P}{(P + A) + S} \ge R \iff P \ge R(P + A + S) \iff S \le \frac{P}{R} - (P + A)$. Taking the floor yields $S$.
 
 ### 2. Recovery Zone ($\text{Percentage} < R$)
 
 When your current standing is below the required threshold $R$, the minimum number of consecutive future lectures you must attend ($M$) to restore compliance is:
 
 $$M = \left\lceil \frac{R \times (P + A) - P}{1 - R} \right\rceil$$
+
+*Proof*: We require $\frac{P + M}{(P + A) + M} \ge R \iff P + M \ge R(P + A) + RM \iff M(1 - R) \ge R(P + A) - P$. Taking the ceiling yields $M$.
 
 ---
 
@@ -225,7 +267,7 @@ $$M = \left\lceil \frac{R \times (P + A) - P}{1 - R} \right\rceil$$
 │  │   - CalendarView      │  │   - /api/courses (Scoped Management)  │  │
 │  │   - SettingsView      │  │   - /api/sync/paste (Session Reconcile)│ │
 │  │   - ChatWidget (AI)   │  │   - /api/sync/push (Reverse-Push)     │  │
-│  │   - AdminView         │  │   - /api/chat (Gemini Tools)          │  │
+│  │   - AdminView         │  │   - /api/chat (Gemini Tools & Vision) │  │
 │  └───────────┬───────────┘  └───────────────────┬───────────────────┘  │
 └──────────────┼──────────────────────────────────┼──────────────────────┘
                │                                  │
@@ -300,7 +342,7 @@ Roll Book is architected to run permanently with zero hosting costs:
 | :--- | :--- | :--- |
 | **App Hosting** | [Vercel](https://vercel.com) | Unlimited Hobby deployments, Edge middleware |
 | **PostgreSQL Database** | [Neon](https://neon.tech) | 512 MB storage, autoscaling serverless compute |
-| **AI Advisor** | [Google AI Studio](https://aistudio.google.com) | Free Gemini 2.0 / Flash quota |
+| **AI Advisor** | [Google AI Studio](https://aistudio.google.com) | Free Gemini quota with no credit card required |
 
 👉 Follow the complete step-by-step walkthrough in **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
@@ -335,6 +377,11 @@ RollBook/
 ├── prisma/
 │   ├── schema.prisma         # Multi-tenant PostgreSQL database models
 │   └── seed.js               # Database seeding utilities
+├── public/
+│   ├── apple-touch-icon.png  # iOS Home Screen PWA icon (180x180)
+│   ├── favicon.ico           # Multi-resolution browser tab icon
+│   ├── manifest.json         # PWA Web App manifest configuration
+│   └── icons/                # Android 192px, 512px & maskable launcher icons
 ├── scripts/                  # CLI administration and automated test scripts
 ├── scraper/                  # Headless Playwright SLCM reverse-push runner
 ├── src/
@@ -343,9 +390,9 @@ RollBook/
 │   │   ├── api/              # Scoped REST API route handlers
 │   │   ├── login/            # Authentication view (Sign In / Sign Up)
 │   │   ├── globals.css       # Neo-brutalist theme tokens & styles
-│   │   ├── layout.tsx        # HTML root shell & typography
-│   │   └── page.tsx          # Main view orchestrator
-│   ├── components/           # Modular React views, modals, bottom nav dock
+│   │   ├── layout.tsx        # HTML root shell, metadata & typography
+│   │   └── page.tsx          # Main view orchestrator & sync listeners
+│   ├── components/           # Modular React views, ChatWidget, bottom nav dock
 │   ├── lib/                  # Math formulas, session security, timetable templates
 │   └── types/                # Shared TypeScript definitions
 ├── DEPLOYMENT.md             # Free Vercel & Neon deployment guide
