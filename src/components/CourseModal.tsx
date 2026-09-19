@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Course } from '@/types'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface CourseModalProps {
   isOpen: boolean
@@ -17,14 +18,13 @@ interface CourseModalProps {
 }
 
 const COLOR_OPTIONS = [
-  '#3b82f6', // Blue
-  '#8b5cf6', // Violet
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#ec4899', // Pink
-  '#06b6d4', // Cyan
-  '#f97316', // Orange
-  '#6366f1', // Indigo
+  '#8B5CF6', // Violet
+  '#F472B6', // Pink
+  '#FBBF24', // Amber
+  '#34D399', // Emerald
+  '#06B6D4', // Cyan
+  '#3B82F6', // Blue
+  '#F97316', // Orange
 ]
 
 export const CourseModal: React.FC<CourseModalProps> = ({
@@ -36,7 +36,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [requiredPercent, setRequiredPercent] = useState<number>(75.0)
-  const [color, setColor] = useState('#3b82f6')
+  const [color, setColor] = useState('#8B5CF6')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -45,7 +45,7 @@ export const CourseModal: React.FC<CourseModalProps> = ({
       setName(initialData.name)
       setCode(initialData.code)
       setRequiredPercent(initialData.requiredPercent || 75.0)
-      setColor(initialData.color || '#3b82f6')
+      setColor(initialData.color || '#8B5CF6')
     } else {
       setName('')
       setCode('')
@@ -83,15 +83,20 @@ export const CourseModal: React.FC<CourseModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#131b2e] border border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scaleUp">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-100">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl w-full max-w-md shadow-[8px_8px_0px_var(--shadow-color)] overflow-hidden"
+      >
+        <div className="p-6 border-b-2 border-[var(--border)] flex items-center justify-between">
+          <h3 className="text-lg font-heading font-black text-[var(--foreground)]">
             {initialData ? 'Edit Subject' : 'Add New Subject'}
           </h3>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] border border-[var(--border)] transition-colors font-mono"
           >
             ✕
           </button>
@@ -99,13 +104,13 @@ export const CourseModal: React.FC<CourseModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+            <div className="p-3 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-600 dark:text-rose-300 text-xs font-bold">
               {error}
             </div>
           )}
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Subject Name
             </label>
             <input
@@ -114,12 +119,12 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Subject Code
             </label>
             <input
@@ -128,12 +133,12 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               value={code}
               onChange={(e) => setCode(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm font-mono text-slate-100 focus:outline-none focus:border-blue-500 uppercase"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] focus:outline-none focus:border-violet-500 uppercase"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Minimum Required Attendance (%)
             </label>
             <input
@@ -144,15 +149,15 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               value={requiredPercent}
               onChange={(e) => setRequiredPercent(parseFloat(e.target.value))}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-mono font-bold"
             />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Standard MAHE attendance requirement is 75%.
+            <p className="text-[11px] text-[var(--muted-foreground)] mt-1">
+              Standard MAHE attendance threshold is 75%.
             </p>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Accent Color
             </label>
             <div className="flex items-center gap-2.5">
@@ -161,8 +166,8 @@ export const CourseModal: React.FC<CourseModalProps> = ({
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full transition-transform ${
-                    color === c ? 'scale-125 ring-2 ring-white shadow-lg' : 'hover:scale-110'
+                  className={`w-7 h-7 rounded-full border-2 border-[var(--border)] transition-transform ${
+                    color === c ? 'scale-125 shadow-[2px_2px_0px_var(--shadow-color)] ring-2 ring-violet-500' : 'hover:scale-110'
                   }`}
                   style={{ backgroundColor: c }}
                 />
@@ -170,24 +175,24 @@ export const CourseModal: React.FC<CourseModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t-2 border-[var(--border)]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition-colors"
+              className="pill-btn px-4 py-2 bg-[var(--background)] text-[var(--foreground)] text-xs font-bold hover:bg-[var(--muted)] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-colors"
+              className="pill-btn px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
             >
               {isSubmitting ? 'Saving...' : initialData ? 'Update Subject' : 'Add Subject'}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }

@@ -1,9 +1,25 @@
 import type { Metadata } from 'next'
+import { Outfit, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from '@/components/ThemeProvider'
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+  display: 'swap',
+  weight: ['400', '500', '600', '700', '800', '900'],
+})
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+  display: 'swap',
+  weight: ['400', '500', '600', '700', '800'],
+})
 
 export const metadata: Metadata = {
-  title: 'Roll Book — Attendance & Planning',
-  description: 'Verified actual attendance tracker with honest planning and SLCM sync.',
+  title: 'Roll Book — Playful Attendance & Planning',
+  description: 'Verified attendance tracker with honest flight planning and AI advisor.',
 }
 
 export default function RootLayout({
@@ -12,9 +28,16 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-[#0b0f17] text-slate-100 min-h-screen antialiased selection:bg-blue-600 selection:text-white">
-        {children}
+    <html lang="en" suppressHydrationWarning className={`${outfit.variable} ${plusJakarta.variable}`}>
+      <body className="bg-[var(--background)] text-[var(--foreground)] min-h-screen antialiased transition-colors duration-200 selection:bg-violet-500 selection:text-white font-sans">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange={false}
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )

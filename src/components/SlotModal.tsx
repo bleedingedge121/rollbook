@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Course, TimetableSlot } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SlotModalProps {
   isOpen: boolean
@@ -87,15 +88,20 @@ export const SlotModal: React.FC<SlotModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#131b2e] border border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-scaleUp">
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-100">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl w-full max-w-md shadow-[8px_8px_0px_var(--shadow-color)] overflow-hidden"
+      >
+        <div className="p-6 border-b-2 border-[var(--border)] flex items-center justify-between">
+          <h3 className="text-lg font-heading font-black text-[var(--foreground)]">
             {initialData ? 'Edit Timetable Slot' : 'Add Timetable Slot'}
           </h3>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] border border-[var(--border)] transition-colors font-mono"
           >
             ✕
           </button>
@@ -103,20 +109,20 @@ export const SlotModal: React.FC<SlotModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+            <div className="p-3 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-600 dark:text-rose-300 text-xs font-bold">
               {error}
             </div>
           )}
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Subject
             </label>
             <select
               value={courseId}
               onChange={(e) => setCourseId(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-bold"
             >
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -127,14 +133,14 @@ export const SlotModal: React.FC<SlotModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Day of Week
             </label>
             <select
               value={weekday}
               onChange={(e) => setWeekday(parseInt(e.target.value, 10))}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-bold"
             >
               <option value={1}>Monday</option>
               <option value={2}>Tuesday</option>
@@ -147,7 +153,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Time / Session Label
             </label>
             <input
@@ -157,7 +163,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-mono"
             />
             <datalist id="time-slot-presets">
               {COMMON_TIME_SLOTS.map((ts) => (
@@ -167,7 +173,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+            <label className="text-xs font-bold text-[var(--foreground)] block mb-1.5 font-mono">
               Room / Location (Optional)
             </label>
             <input
@@ -175,28 +181,28 @@ export const SlotModal: React.FC<SlotModalProps> = ({
               placeholder="e.g. AB4 403 or CS Lab"
               value={room}
               onChange={(e) => setRoom(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+              className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-violet-500"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t-2 border-[var(--border)]">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition-colors"
+              className="pill-btn px-4 py-2 bg-[var(--background)] text-[var(--foreground)] text-xs font-bold hover:bg-[var(--muted)] transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-colors"
+              className="pill-btn px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
             >
               {isSubmitting ? 'Saving...' : initialData ? 'Update Slot' : 'Add Slot'}
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }

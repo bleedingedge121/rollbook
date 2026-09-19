@@ -1,15 +1,16 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Navigation, TabType } from '@/components/Navigation'
 import { HomeView } from '@/components/HomeView'
 import { SubjectsView } from '@/components/SubjectsView'
 import { CalendarView } from '@/components/CalendarView'
 import { SettingsView } from '@/components/SettingsView'
 import { CourseModal } from '@/components/CourseModal'
+import { ChatWidget } from '@/components/ChatWidget'
 import { Course, CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { calculateAttendance } from '@/lib/attendance'
-import { Loader2 } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false)
   const [editingSubject, setEditingSubject] = useState<CourseWithStats | null>(null)
 
-  // Fetch all core data
+  // Fetch all core data in parallel
   const fetchData = useCallback(async () => {
     try {
       const [coursesRes, slotsRes, attendanceRes, holidaysRes] = await Promise.all([
@@ -243,28 +244,35 @@ export default function App() {
     await fetchData()
   }
 
-  // Calculate top-level stats for navigation
-  let totalPresent = 0
-  let totalAbsent = 0
-  courses.forEach((c) => {
-    totalPresent += c.stats.present
-    totalAbsent += c.stats.absent
-  })
-  const totalHeld = totalPresent + totalAbsent
-  const overallPct = totalHeld > 0 ? Number(((totalPresent / totalHeld) * 100).toFixed(1)) : 100
-  const isSafe = overallPct >= 75
+  // Top-level stats calculation (memoized)
+  const { overallPct, isSafe } = useMemo(() => {
+    let present = 0
+    let absent = 0
+    courses.forEach((c) => {
+      present += c.stats.present
+      absent += c.stats.absent
+    })
+    const held = present + absent
+    const pct = held > 0 ? Number(((present / held) * 100).toFixed(1)) : 100
+    return {
+      overallPct: pct,
+      isSafe: pct >= 75,
+    }
+  }, [courses])
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0b0f17] flex flex-col items-center justify-center space-y-5">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/30 animate-pulse">
-          <Loader2 className="w-6 h-6 text-white animate-spin" />
+      <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center space-y-5 bg-dot-grid">
+        <div className="w-14 h-14 rounded-2xl bg-violet-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] animate-bounce">
+          <Sparkles className="w-6 h-6 text-white" />
         </div>
-        <div className="space-y-2 w-full max-w-xs px-4">
-          <p className="text-sm font-semibold text-slate-400 text-center mb-4">Loading Roll Book...</p>
-          <div className="h-3 rounded-full bg-slate-800/80 animate-pulse" />
-          <div className="h-3 rounded-full bg-slate-800/60 animate-pulse w-4/5 mx-auto" />
-          <div className="h-3 rounded-full bg-slate-800/40 animate-pulse w-3/5 mx-auto" />
+        <div className="space-y-2 w-full max-w-xs px-4 text-center">
+          <p className="text-sm font-heading font-black text-[var(--foreground)] tracking-tight">
+            Preparing Flight Deck...
+          </p>
+          <div className="h-3 rounded-full bg-[var(--muted)] border border-[var(--border)] overflow-hidden">
+            <div className="h-full bg-violet-600 w-2/3 animate-pulse" />
+          </div>
         </div>
       </div>
     )
@@ -280,7 +288,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0f17] flex flex-col">
+    <div className="min-h-screen bg-[var(--background)] flex flex-col transition-colors duration-200 bg-dot-grid">
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
@@ -356,6 +364,9 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* AI Attendance Chatbot Widget */}
+      <ChatWidget />
 
       {/* Subject Modal */}
       <CourseModal

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   CheckCircle2,
   XCircle,
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { toDateString, WEEKDAYS } from '@/lib/attendance'
-import { motion, AnimatePresence, Variants } from 'framer-motion'
+import { motion, AnimatePresence, Variants, useReducedMotion } from 'framer-motion'
 
 interface HomeViewProps {
   courses: CourseWithStats[]
@@ -56,78 +56,91 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   const [loggingId, setLoggingId] = useState<string | null>(null)
   const [isBatchBusy, setIsBatchBusy] = useState(false)
+  const prefersReducedMotion = useReducedMotion()
 
-  const today = new Date()
-  const todayStr = toDateString(today)
+  const today = useMemo(() => new Date(), [])
+  const todayStr = useMemo(() => toDateString(today), [today])
   const currentWeekday = today.getDay() // 0 = Sun, 1 = Mon ...
 
   // Check if today is a declared holiday or exam
-  const todayHoliday = holidays.find((h) => h.date === todayStr)
+  const todayHoliday = useMemo(
+    () => holidays.find((h) => h.date === todayStr),
+    [holidays, todayStr]
+  )
 
-  // Today's scheduled slots
-  const todaySlots = allSlots.filter((s) => s.weekday === currentWeekday)
+  // Today's scheduled slots (memoized)
+  const todaySlots = useMemo(
+    () => allSlots.filter((s) => s.weekday === currentWeekday),
+    [allSlots, currentWeekday]
+  )
 
-  // Calculate overall actual attendance
-  let totalPresent = 0
-  let totalAbsent = 0
-  let totalCoursesSafe = 0
-
-  courses.forEach((c) => {
-    totalPresent += c.stats.present
-    totalAbsent += c.stats.absent
-    if (c.stats.isSafe) totalCoursesSafe++
-  })
-
-  const totalHeld = totalPresent + totalAbsent
-  const overallPct = totalHeld > 0 ? Number(((totalPresent / totalHeld) * 100).toFixed(1)) : 100
-  const isOverallSafe = overallPct >= 75
-
-  // Find unlogged past classes from the last 7 days
-  const unloggedPastItems: {
-    date: string
-    slot: TimetableSlot
-    courseName: string
-    courseCode: string
-  }[] = []
-
-  for (let i = 1; i <= 7; i++) {
-    const pastDate = new Date()
-    pastDate.setDate(today.getDate() - i)
-    const pastDateStr = toDateString(pastDate)
-    const pastWeekday = pastDate.getDay()
-
-    // Skip if date was marked as a declared Holiday or Exam day
-    if (holidays.some((h) => h.date === pastDateStr)) {
-      continue
+  // Calculate overall actual attendance (memoized)
+  const { totalPresent, totalAbsent, totalHeld, overallPct, isOverallSafe } = useMemo(() => {
+    let present = 0
+    let absent = 0
+    courses.forEach((c) => {
+      present += c.stats.present
+      absent += c.stats.absent
+    })
+    const held = present + absent
+    const pct = held > 0 ? Number(((present / held) * 100).toFixed(1)) : 100
+    return {
+      totalPresent: present,
+      totalAbsent: absent,
+      totalHeld: held,
+      overallPct: pct,
+      isOverallSafe: pct >= 75,
     }
+  }, [courses])
 
-    const scheduled = allSlots.filter((s) => s.weekday === pastWeekday)
-    for (const slot of scheduled) {
-      const course = courses.find((c) => c.id === slot.courseId)
-      if (!course) continue
+  // Find unlogged past classes from the last 7 days (memoized)
+  const unloggedPastItems = useMemo(() => {
+    const items: {
+      date: string
+      slot: TimetableSlot
+      courseName: string
+      courseCode: string
+    }[] = []
 
-      // If course has a synced snapshot and the past date is on or before syncedAt date,
-      // it's already accounted for in the baseline count — skip it
-      if (course.syncedAt) {
-        const syncedDateStr = toDateString(new Date(course.syncedAt))
-        if (pastDateStr <= syncedDateStr) {
-          continue
+    for (let i = 1; i <= 7; i++) {
+      const pastDate = new Date()
+      pastDate.setDate(today.getDate() - i)
+      const pastDateStr = toDateString(pastDate)
+      const pastWeekday = pastDate.getDay()
+
+      // Skip if date was marked as a declared Holiday or Exam day
+      if (holidays.some((h) => h.date === pastDateStr)) {
+        continue
+      }
+
+      const scheduled = allSlots.filter((s) => s.weekday === pastWeekday)
+      for (const slot of scheduled) {
+        const course = courses.find((c) => c.id === slot.courseId)
+        if (!course) continue
+
+        // If course has a synced snapshot and the past date is on or before syncedAt date, skip it
+        if (course.syncedAt) {
+          const syncedDateStr = toDateString(new Date(course.syncedAt))
+          if (pastDateStr <= syncedDateStr) {
+            continue
+          }
+        }
+
+        const isLogged = allAttendance.some(
+          (a) => a.courseId === slot.courseId && a.date === pastDateStr
+        )
+        if (!isLogged) {
+          items.push({
+            date: pastDateStr,
+            slot,
+            courseName: course.name,
+            courseCode: course.code,
+          })
         }
       }
-
-      const isLogged = allAttendance.some(
-        (a) => a.courseId === slot.courseId && a.date === pastDateStr
-      )
-      if (!isLogged) {
-        unloggedPastItems.push({
-          date: pastDateStr,
-          slot,
-          courseName: course.name,
-          courseCode: course.code,
-        })
-      }
     }
-  }
+    return items
+  }, [today, holidays, allSlots, courses, allAttendance])
 
   // Find today's existing records per course
   const getTodayRecord = (courseId: string) => {
@@ -242,14 +255,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08,
+        staggerChildren: prefersReducedMotion ? 0 : 0.07,
       },
     },
   }
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+    hidden: { opacity: 0, y: prefersReducedMotion ? 0 : 12 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
   }
 
   return (
@@ -259,120 +272,119 @@ export const HomeView: React.FC<HomeViewProps> = ({
       animate="show"
       className="space-y-8"
     >
-      {/* 1. Tactical Flight Deck (Hero KPI Hub) */}
+      {/* 1. Playful Hero Card (Standing Radar & Buffers) */}
       <motion.div
         variants={itemVariants}
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c121e] via-[#090e18] to-[#070a12] border border-slate-800/80 p-6 sm:p-8 shadow-2xl"
+        className="relative overflow-hidden rounded-3xl bg-[var(--card)] border-2 border-[var(--border)] p-6 sm:p-8 shadow-[6px_6px_0px_var(--shadow-color)]"
       >
-        {/* Ambient background aura */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-          {/* Main Status & Gauge */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+          {/* Main Standing Display */}
           <div className="flex items-center gap-6">
-            {/* Radial Attendance Meter */}
             <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
               <svg className="w-full h-full transform -rotate-90">
                 <circle
                   cx="56"
                   cy="56"
-                  r="46"
-                  className="stroke-slate-800/80"
-                  strokeWidth="8"
+                  r="45"
+                  className="stroke-[var(--muted)]"
+                  strokeWidth="10"
                   fill="transparent"
                 />
                 <motion.circle
                   cx="56"
                   cy="56"
-                  r="46"
-                  stroke={isOverallSafe ? '#10b981' : '#f43f5e'}
-                  strokeWidth="8"
-                  strokeDasharray={289}
-                  initial={{ strokeDashoffset: 289 }}
+                  r="45"
+                  stroke={isOverallSafe ? '#10B981' : '#F43F5E'}
+                  strokeWidth="10"
+                  strokeDasharray={282.7}
+                  initial={{ strokeDashoffset: 282.7 }}
                   animate={{
-                    strokeDashoffset: 289 - (289 * Math.min(overallPct, 100)) / 100,
+                    strokeDashoffset: 282.7 - (282.7 * Math.min(overallPct, 100)) / 100,
                   }}
-                  transition={{ duration: 1.2, ease: 'easeOut' }}
+                  transition={{ duration: 1, ease: 'easeOut' }}
                   strokeLinecap="round"
                   fill="transparent"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="font-mono font-black text-2xl text-slate-100 tracking-tight">
+                <span className="font-heading font-black text-2xl text-[var(--foreground)] tracking-tight">
                   {overallPct}%
                 </span>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--muted-foreground)]">
                   Standing
                 </span>
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-100 tracking-tight font-sans">
-                  Attendance Command Deck
+                <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight">
+                  Attendance Command
                 </h1>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold tracking-wide uppercase border ${
+                  className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] ${
                     isOverallSafe
-                      ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
-                      : 'bg-rose-950/40 text-rose-300 border-rose-500/30'
+                      ? 'bg-emerald-400/25 text-emerald-800 dark:text-emerald-300'
+                      : 'bg-rose-400/25 text-rose-800 dark:text-rose-300'
                   }`}
                 >
-                  {isOverallSafe ? 'Target Secured' : 'Critical Deficit'}
+                  {isOverallSafe ? 'Target Maintained' : 'Attention Required'}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 max-w-md">
-                Strictly confirmed actual records. No theoretical assumptions.
+              <p className="text-xs text-[var(--muted-foreground)] max-w-md leading-relaxed">
+                Strictly confirmed actual records. No hypothetical assumptions or fake attendance stamps.
               </p>
             </div>
           </div>
 
           {/* Quick Metrics Strip */}
           <div className="grid grid-cols-3 gap-3 w-full lg:w-auto">
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl px-4 py-3 min-w-[110px]">
-              <div className="text-[11px] font-mono font-medium text-slate-400 uppercase tracking-wider">
+            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-4 py-3 min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
+              <div className="text-[10px] font-mono font-bold text-[var(--muted-foreground)] uppercase">
                 Held
               </div>
-              <div className="text-xl font-bold font-mono text-slate-100 mt-0.5">{totalHeld}</div>
+              <div className="text-xl font-heading font-black text-[var(--foreground)] mt-0.5">
+                {totalHeld}
+              </div>
             </div>
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl px-4 py-3 min-w-[110px]">
-              <div className="text-[11px] font-mono font-medium text-emerald-400 uppercase tracking-wider">
+            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-4 py-3 min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
+              <div className="text-[10px] font-mono font-bold text-emerald-600 dark:text-emerald-400 uppercase">
                 Attended
               </div>
-              <div className="text-xl font-bold font-mono text-emerald-400 mt-0.5">
+              <div className="text-xl font-heading font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
                 {totalPresent}
               </div>
             </div>
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl px-4 py-3 min-w-[110px]">
-              <div className="text-[11px] font-mono font-medium text-rose-400 uppercase tracking-wider">
+            <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-4 py-3 min-w-[100px] shadow-[3px_3px_0px_var(--shadow-color)] text-center">
+              <div className="text-[10px] font-mono font-bold text-rose-600 dark:text-rose-400 uppercase">
                 Missed
               </div>
-              <div className="text-xl font-bold font-mono text-rose-400 mt-0.5">{totalAbsent}</div>
+              <div className="text-xl font-heading font-black text-rose-600 dark:text-rose-400 mt-0.5">
+                {totalAbsent}
+              </div>
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* 2. Today's Flight Schedule */}
+      {/* 2. Today's Schedule Card */}
       <motion.div
         variants={itemVariants}
-        className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5"
+        className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-              <Clock className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-600 dark:text-amber-400 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center">
+              <Clock className="w-5 h-5" strokeWidth={2.5} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                Today’s Schedule
-                <span className="text-xs font-mono font-normal text-slate-400">
+              <h2 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
+                Today’s Flight Schedule
+                <span className="text-xs font-mono font-normal text-[var(--muted-foreground)]">
                   ({WEEKDAYS[currentWeekday]}, {today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-[var(--muted-foreground)]">
                 {todaySlots.length} lecture{todaySlots.length === 1 ? '' : 's'} scheduled for today
               </p>
             </div>
@@ -381,39 +393,33 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* 1-Click Batch Controls for Today */}
           {todaySlots.length > 0 && !todayHoliday && (
             <div className="flex items-center gap-2">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <button
                 onClick={() => handleBatchMarkToday('present')}
                 disabled={isBatchBusy || loggingId !== null}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
-                title="Mark all of today's classes as Present in 1 click"
+                className="pill-btn px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold flex items-center gap-1.5 transition-transform active:scale-95 disabled:opacity-50"
+                title="Mark all today's classes as Present"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 All Present
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              </button>
+              <button
                 onClick={() => handleBatchMarkToday('absent')}
                 disabled={isBatchBusy || loggingId !== null}
-                className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
-                title="Mark all of today's classes as Absent in 1 click"
+                className="pill-btn px-4 py-2 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold flex items-center gap-1.5 transition-transform active:scale-95 disabled:opacity-50"
+                title="Mark all today's classes as Absent"
               >
                 <X className="w-3.5 h-3.5" />
                 All Absent
-              </motion.button>
+              </button>
               {todayLoggedCount > 0 && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={handleClearAllToday}
                   disabled={isBatchBusy || loggingId !== null}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 bg-slate-900 border border-slate-800 transition-colors disabled:opacity-50"
+                  className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-colors disabled:opacity-50"
                   title="Clear today's logs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                </motion.button>
+                </button>
               )}
             </div>
           )}
@@ -421,22 +427,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
         {/* Holiday Banner if Today is Holiday */}
         {todayHoliday ? (
-          <div className="p-5 bg-amber-950/20 border border-amber-500/30 rounded-2xl flex items-center gap-3">
-            <Palmtree className="w-6 h-6 text-amber-400 shrink-0" />
+          <div className="p-5 bg-amber-400/15 border-2 border-[var(--border)] rounded-2xl shadow-[3px_3px_0px_var(--shadow-color)] flex items-center gap-3">
+            <Palmtree className="w-6 h-6 text-amber-500 shrink-0" />
             <div>
-              <div className="font-bold text-sm text-amber-300">
+              <div className="font-heading font-black text-sm text-[var(--foreground)]">
                 Today is a Declared {todayHoliday.type === 'exam' ? 'Exam Day' : 'Holiday'}
               </div>
-              <div className="text-xs text-slate-400 mt-0.5">
-                {todayHoliday.label} — no regular lectures scheduled for attendance tracking.
+              <div className="text-xs text-[var(--muted-foreground)] mt-0.5 font-medium">
+                {todayHoliday.label} — no lectures scheduled for attendance tracking.
               </div>
             </div>
           </div>
         ) : todaySlots.length === 0 ? (
-          <div className="text-center py-8 text-slate-500 bg-slate-900/40 rounded-2xl border border-dashed border-slate-800">
-            <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-50 text-slate-600" />
-            <p className="text-sm font-medium">No classes scheduled for today.</p>
-            <p className="text-xs text-slate-600 mt-1">Enjoy your free day!</p>
+          <div className="text-center py-8 text-[var(--muted-foreground)] bg-[var(--background)] rounded-2xl border-2 border-dashed border-[var(--border)]">
+            <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm font-bold text-[var(--foreground)]">No classes scheduled for today.</p>
+            <p className="text-xs mt-1">Enjoy your day off!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -446,32 +452,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
               const isBusy = loggingId !== null || isBatchBusy
 
               return (
-                <motion.div
+                <div
                   key={slot.id}
-                  whileHover={{ y: -2 }}
-                  className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between space-y-3 transition-all"
+                  className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-[3px_3px_0px_var(--shadow-color)] transition-transform hover:translate-y-[-1px]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: course?.color || '#06b6d4' }}
+                          className="w-3 h-3 rounded-full border border-[var(--border)] shrink-0"
+                          style={{ backgroundColor: course?.color || '#8B5CF6' }}
                         />
-                        <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)]">
                           {course?.code}
                         </span>
-                        <span className="font-bold text-sm text-slate-100 truncate">
+                        <span className="font-heading font-bold text-sm text-[var(--foreground)] truncate">
                           {course?.name || 'Unknown Course'}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-400 flex items-center gap-2 pl-4">
-                        <Clock className="w-3.5 h-3.5 text-slate-500" />
+                      <div className="text-xs text-[var(--muted-foreground)] flex items-center gap-2 pl-5 font-mono">
+                        <Clock className="w-3.5 h-3.5" />
                         <span>{slot.label}</span>
                         {slot.room && (
                           <>
                             <span>•</span>
-                            <span className="text-slate-300 font-mono">{slot.room}</span>
+                            <span className="font-bold text-[var(--foreground)]">{slot.room}</span>
                           </>
                         )}
                       </div>
@@ -479,16 +484,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                     {existing && (
                       <span
-                        className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                        className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider border-2 border-[var(--border)] shadow-[1px_1px_0px_var(--shadow-color)] flex items-center gap-1 ${
                           existing.status === 'present'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                            ? 'bg-emerald-400 text-slate-900'
+                            : 'bg-rose-400 text-slate-900'
                         }`}
                       >
                         {existing.status === 'present' ? (
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
                         ) : (
-                          <X className="w-3.5 h-3.5" />
+                          <X className="w-3.5 h-3.5 stroke-[3]" />
                         )}
                         {existing.status}
                       </span>
@@ -496,14 +501,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </div>
 
                   {/* Logging Action Buttons */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+                  <div className="flex items-center gap-2 pt-2 border-t border-[var(--border)]">
                     <button
                       onClick={() => handleQuickLog(slot.courseId, 'present')}
                       disabled={isBusy}
-                      className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 border-2 border-[var(--border)] ${
                         existing?.status === 'present'
-                          ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20'
-                          : 'bg-emerald-950/30 text-emerald-400 hover:bg-emerald-900/40 border border-emerald-500/20'
+                          ? 'bg-emerald-500 text-white shadow-[2px_2px_0px_var(--shadow-color)]'
+                          : 'bg-[var(--card)] text-emerald-600 hover:bg-emerald-400/20 shadow-[2px_2px_0px_var(--shadow-color)]'
                       }`}
                     >
                       <Check className="w-3.5 h-3.5" />
@@ -512,10 +517,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <button
                       onClick={() => handleQuickLog(slot.courseId, 'absent')}
                       disabled={isBusy}
-                      className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 border-2 border-[var(--border)] ${
                         existing?.status === 'absent'
-                          ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/20'
-                          : 'bg-rose-950/30 text-rose-400 hover:bg-rose-900/40 border border-rose-500/20'
+                          ? 'bg-rose-500 text-white shadow-[2px_2px_0px_var(--shadow-color)]'
+                          : 'bg-[var(--card)] text-rose-600 hover:bg-rose-400/20 shadow-[2px_2px_0px_var(--shadow-color)]'
                       }`}
                     >
                       <X className="w-3.5 h-3.5" />
@@ -525,36 +530,36 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <button
                         onClick={() => handleRemoveLog(existing.id)}
                         disabled={isBusy}
-                        className="p-1.5 rounded-xl text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                        className="p-1.5 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
                         title="Reset status"
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                </motion.div>
+                </div>
               )
             })}
           </div>
         )}
       </motion.div>
 
-      {/* 3. Unlogged Past Classes Backlog Resolver */}
+      {/* 3. Unlogged Past Sessions Backlog Resolver */}
       {unloggedPastItems.length > 0 && (
         <motion.div
           variants={itemVariants}
-          className="bg-[#0c121e] border border-amber-500/30 rounded-3xl p-6 shadow-xl space-y-4"
+          className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border)] pb-3.5">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                <AlertTriangle className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-2xl bg-amber-400/25 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center text-amber-600">
+                <AlertTriangle className="w-5 h-5" strokeWidth={2.5} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <h3 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2">
                   Unlogged Past Sessions ({unloggedPastItems.length})
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--muted-foreground)]">
                   Scheduled classes from the past 7 days needing attendance confirmation.
                 </p>
               </div>
@@ -565,7 +570,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 onClick={() => handleBatchMarkUnlogged('present')}
                 disabled={isBatchBusy}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                className="pill-btn px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Mark All Present ({unloggedPastItems.length})
@@ -573,7 +578,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <button
                 onClick={() => handleBatchMarkUnlogged('absent')}
                 disabled={isBatchBusy}
-                className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                className="pill-btn px-3.5 py-1.5 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
               >
                 <X className="w-3.5 h-3.5" />
                 Mark All Absent ({unloggedPastItems.length})
@@ -585,34 +590,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {unloggedPastItems.slice(0, 9).map((item, idx) => (
               <div
                 key={`${item.slot.id}-${item.date}-${idx}`}
-                className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between space-y-2.5"
+                className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-3.5 flex flex-col justify-between space-y-2.5 shadow-[3px_3px_0px_var(--shadow-color)]"
               >
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="font-mono text-amber-400 font-semibold">{item.date}</span>
-                    <span className="font-mono">{item.slot.label}</span>
+                  <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] font-mono">
+                    <span className="font-bold text-amber-600 dark:text-amber-400">{item.date}</span>
+                    <span>{item.slot.label}</span>
                   </div>
-                  <div className="font-semibold text-xs text-slate-200 truncate">
+                  <div className="font-heading font-bold text-xs text-[var(--foreground)] truncate">
                     {item.courseName} ({item.courseCode})
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 pt-2 border-t border-slate-800/60">
+                <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--border)]">
                   <button
                     onClick={() => handleQuickLog(item.slot.courseId, 'present', item.date)}
-                    className="flex-1 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold text-center transition-colors"
+                    className="flex-1 py-1 rounded-full bg-emerald-500 text-white border-2 border-[var(--border)] text-[11px] font-bold text-center shadow-[1px_1px_0px_var(--shadow-color)]"
                   >
                     Present
                   </button>
                   <button
                     onClick={() => handleQuickLog(item.slot.courseId, 'absent', item.date)}
-                    className="flex-1 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-[11px] font-semibold text-center transition-colors"
+                    className="flex-1 py-1 rounded-full bg-rose-500 text-white border-2 border-[var(--border)] text-[11px] font-bold text-center shadow-[1px_1px_0px_var(--shadow-color)]"
                   >
                     Absent
                   </button>
                   <button
                     onClick={() => handleMarkDateAsHoliday(item.date)}
-                    className="py-1 px-2.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 text-[11px] font-semibold text-center transition-colors flex items-center gap-1"
+                    className="py-1 px-2.5 rounded-full bg-amber-400 text-slate-900 border-2 border-[var(--border)] text-[11px] font-bold text-center shadow-[1px_1px_0px_var(--shadow-color)] flex items-center gap-1"
                     title="Mark entire day as Holiday / No Class"
                   >
                     <Palmtree className="w-3 h-3" /> Holiday
@@ -627,22 +632,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* 4. Subject Standing Matrix */}
       <motion.div
         variants={itemVariants}
-        className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5"
+        className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5"
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2 font-sans">
-              <Layers className="w-4 h-4 text-cyan-400" />
+            <h3 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2">
+              <Layers className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               Subjects Overview & Buffers
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Deterministic calculations for safe-zone skips and recovery requirements.
+            <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+              Exact calculations for safe-zone skips and recovery requirements.
             </p>
           </div>
 
           <button
             onClick={onNavigateToSubjects}
-            className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+            className="text-xs font-bold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 transition-colors font-mono"
           >
             All Subjects <ArrowRight className="w-3.5 h-3.5" />
           </button>
@@ -652,26 +657,25 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {courses.map((course) => {
             const { stats } = course
             return (
-              <motion.div
+              <div
                 key={course.id}
-                whileHover={{ y: -2 }}
                 onClick={onNavigateToSubjects}
-                className="bg-slate-900/50 hover:bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-4 transition-all cursor-pointer space-y-3"
+                className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 transition-all cursor-pointer space-y-3 shadow-[3px_3px_0px_var(--shadow-color)] hover:translate-y-[-2px] hover:rotate-[-0.5deg]"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)]">
                       {course.code}
                     </span>
-                    <h4 className="font-bold text-sm text-slate-100 truncate max-w-[180px]">
+                    <h4 className="font-heading font-black text-sm text-[var(--foreground)] truncate max-w-[180px]">
                       {course.name}
                     </h4>
                   </div>
                   <span
-                    className={`font-mono font-black text-sm px-2.5 py-1 rounded-xl border ${
+                    className={`font-mono font-black text-sm px-2.5 py-1 rounded-full border-2 border-[var(--border)] shadow-[1px_1px_0px_var(--shadow-color)] ${
                       stats.isSafe
-                        ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30'
-                        : 'bg-rose-950/40 text-rose-300 border-rose-500/30'
+                        ? 'bg-emerald-400/25 text-emerald-800 dark:text-emerald-300'
+                        : 'bg-rose-400/25 text-rose-800 dark:text-rose-300'
                     }`}
                   >
                     {stats.percentage}%
@@ -679,7 +683,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
 
                 {/* Progress Bar */}
-                <div className="w-full bg-slate-800/80 rounded-full h-1.5 overflow-hidden">
+                <div className="w-full bg-[var(--muted)] border border-[var(--border)] rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
                       stats.isSafe ? 'bg-emerald-500' : 'bg-rose-500'
@@ -688,11 +692,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60 font-mono">
+                <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] pt-1 border-t border-[var(--border)] font-mono">
                   <span>
                     {stats.present}P / {stats.absent}A ({stats.total} Held)
                   </span>
-                  <span className={stats.isSafe ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
+                  <span className={stats.isSafe ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-600 dark:text-rose-400 font-bold'}>
                     {stats.isSafe
                       ? stats.maxSkippable > 0
                         ? `+${stats.maxSkippable} skippable`
@@ -700,7 +704,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       : `Must attend ${stats.mustAttendNext}`}
                   </span>
                 </div>
-              </motion.div>
+              </div>
             )
           })}
         </div>

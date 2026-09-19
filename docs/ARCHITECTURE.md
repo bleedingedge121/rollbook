@@ -145,7 +145,10 @@ When launching with an empty database, Roll Book automatically presents an onboa
 - `POST /api/holidays` — Declares or updates a holiday `{ date, label, type }`.
 - `DELETE /api/holidays/[id]` — Deletes a holiday declaration.
 
-### 9. Data Portability (`/api/export`)
+### 9. AI Attendance Advisor (`/api/chat`)
+- `POST /api/chat` — Google Gemini (`@google/genai`) AI endpoint with native function/tool calling against Prisma database (`get_attendance_summary`, `get_course_detail`, `get_upcoming_classes`, `get_unlogged_sessions`).
+
+### 10. Data Portability (`/api/export`)
 - `GET /api/export?format=csv` — Downloads complete attendance audit trail as spreadsheet CSV.
 - `GET /api/export?format=json` — Generates a full database backup snapshot.
 - `POST /api/export` — Restores database state from a backup JSON file.

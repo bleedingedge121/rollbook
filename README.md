@@ -15,14 +15,15 @@
 
 1. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
 2. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory (rendered with dashed indicators and trend curves) without corrupting your verified history.
-3. **Tactical Dark UI & Framer Motion**: Aviation/cybernetic telemetry theme with spring transitions, active pill navigation markers, glowing radar gauges, and tactile micro-interactions.
-4. **1-Click Batch Actions**: Fast bulk marking for today's lectures, past backlog audit items, and future planning days with a single tap.
-5. **Holiday & Exam Declaration Engine**: Built-in calendar registry for official university recesses and examination days with automatic exclusion from past unlogged audits and future class simulations.
-6. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
-7. **1-Click Section Onboarding**: Automatically imports all subjects and weekly timetable schedules for 22 MIT Bengaluru CSE Stream sections (`C01`–`C22`).
-8. **MAHE SLCM 2.0 Bridge**: A Playwright-based Salesforce response interceptor that synchronizes verified attendance counts directly from MAHE's portal without hardcoding volatile tokens.
-9. **Local Single-Account Auth**: Protected by Web Crypto HMAC-SHA256 session middleware with out-of-the-box local credentials.
-10. **Local-First & Portable**: Powered by SQLite via Prisma with zero external cloud dependencies. Full CSV exports and JSON backup/restore built in.
+3. **Playful Geometric Design System (Light + Dark Mode)**: Neo-brutalist sticker styling with chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
+4. **AI Attendance Advisor (Google Gemini Free Tier)**: Built-in intelligent chatbot powered by `@google/genai` (Gemini 2.5 Flash) with deterministic function/tool calling directly into SQLite data—never hallucinating numbers.
+5. **1-Click Batch Actions**: Fast bulk marking for today's lectures, past backlog audit items, and future planning days with a single tap.
+6. **Holiday & Exam Declaration Engine**: Built-in calendar registry for official university recesses and examination days with automatic exclusion from past unlogged audits and future class simulations.
+7. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
+8. **1-Click Section Onboarding**: Automatically imports all subjects and weekly timetable schedules for 22 MIT Bengaluru CSE Stream sections (`C01`–`C22`).
+9. **MAHE SLCM 2.0 Bridge**: A Playwright-based Salesforce response interceptor that synchronizes verified attendance counts directly from MAHE's portal without hardcoding volatile tokens.
+10. **Local Single-Account Auth**: Protected by Web Crypto HMAC-SHA256 session middleware with out-of-the-box local credentials.
+11. **Local-First & Portable**: Powered by SQLite via Prisma with zero external cloud dependencies. Full CSV exports and JSON backup/restore built in.
 
 ---
 

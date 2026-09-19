@@ -54,7 +54,7 @@ import {
   Tooltip,
   ReferenceLine,
 } from 'recharts'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 
 interface CalendarViewProps {
   courses: CourseWithStats[]
@@ -93,20 +93,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [plannedSlots, setPlannedSlots] = useState<Record<string, 'attend' | 'skip'>>({})
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>('all')
   const [isDayBatchBusy, setIsDayBatchBusy] = useState(false)
+  const prefersReducedMotion = useReducedMotion()
 
-  const today = new Date()
-  const todayStr = toDateString(today)
+  const today = useMemo(() => new Date(), [])
+  const todayStr = useMemo(() => toDateString(today), [today])
 
-  // Calendar matrix days calculation
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(monthStart)
-  const startDate = startOfWeek(monthStart, { weekStartsOn: 1 }) // Monday start
-  const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 })
-  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate })
+  // Calendar matrix days calculation (memoized)
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth)
+    const monthEnd = endOfMonth(monthStart)
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 })
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 })
+    return eachDayOfInterval({ start: startDate, end: endDate })
+  }, [currentMonth])
 
   // Toggle future plan
   const handleTogglePlan = (dateStr: string, slotId: string, courseId: string) => {
-    // If date is a declared holiday, do not allow toggling
     if (holidays.some((h) => h.date === dateStr)) return
 
     const key = `${dateStr}_${slotId}`
@@ -223,7 +225,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   }
 
-  // Projected trajectory calculations
+  // Projected trajectory calculations (memoized)
   const { overallActualPct, overallProjectedPct, trajectoryData } = useMemo(() => {
     let actPresent = 0
     let actAbsent = 0
@@ -312,12 +314,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       {/* Header & Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2.5 font-sans">
-            <CalendarIcon className="w-7 h-7 text-cyan-400" />
+          <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight flex items-center gap-2.5">
+            <CalendarIcon className="w-7 h-7 text-violet-600 dark:text-violet-400" />
             Trajectory Lab & Flight Calendar
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Solid badges denote confirmed history; dashed outlines project future plans.
+          <p className="text-xs sm:text-sm text-[var(--muted-foreground)] mt-1">
+            Solid badges denote confirmed history; dashed outlines project future scenarios.
           </p>
         </div>
 
@@ -326,7 +328,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <select
             value={selectedCourseFilter}
             onChange={(e) => setSelectedCourseFilter(e.target.value)}
-            className="bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-500 font-mono"
+            className="bg-[var(--card)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] rounded-full px-4 py-2 focus:outline-none focus:border-violet-500 font-mono shadow-[2px_2px_0px_var(--shadow-color)]"
           >
             <option value="all">All Subjects (Aggregate)</option>
             {courses.map((c) => (
@@ -339,157 +341,150 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Trajectory Simulation HUD Banner */}
-      <div className="bg-gradient-to-r from-[#0c121e] via-[#090e18] to-[#070a12] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+      <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b-2 border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <div className="w-10 h-10 rounded-2xl bg-violet-600/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center text-violet-600">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100 font-sans">
+              <h2 className="text-base font-heading font-black text-[var(--foreground)]">
                 Predictive Planning Engine
               </h2>
-              <p className="text-xs text-slate-400">
-                Simulate Plan Attend or Skip into the future to see your projected trajectory.
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Simulate Plan Attend or Skip into the future to visualize projected percentage trajectories.
               </p>
             </div>
           </div>
 
           {/* Preset Actions Toolbar */}
           <div className="flex flex-wrap items-center gap-2">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <button
               onClick={() => handlePlanAll('attend')}
-              className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              className="pill-btn px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-transform active:scale-95 flex items-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" /> Plan Attend All
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            </button>
+            <button
               onClick={() => handlePlanAll('skip')}
-              className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
+              className="pill-btn px-3.5 py-1.5 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold transition-transform active:scale-95 flex items-center gap-1.5"
             >
               <X className="w-3.5 h-3.5" /> Plan Skip All
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            </button>
+            <button
               onClick={() => handlePlanAll('attend', 14)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors hidden sm:flex items-center gap-1"
+              className="pill-btn px-3 py-1.5 bg-[var(--background)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold transition-transform hidden sm:flex items-center gap-1"
             >
               +2 Wks Attend
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            </button>
+            <button
               onClick={() => handlePlanAll('skip', 14)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition-colors hidden sm:flex items-center gap-1"
+              className="pill-btn px-3 py-1.5 bg-[var(--background)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold transition-transform hidden sm:flex items-center gap-1"
             >
               +2 Wks Skip
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            </button>
+            <button
               onClick={handleResetPlans}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-100 bg-slate-900 border border-slate-800 transition-colors"
+              className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
               title="Reset planning simulation"
             >
               <RotateCcw className="w-4 h-4" />
-            </motion.button>
+            </button>
           </div>
         </div>
 
         {/* Projection KPI comparison */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-            <div className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-400">
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)]">
+            <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
               Current Standing
             </div>
-            <div className="text-2xl font-black font-mono text-slate-100 mt-1">
+            <div className="text-2xl font-heading font-black text-[var(--foreground)] mt-1">
               {overallActualPct}%
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">Confirmed actuals</div>
+            <div className="text-xs text-[var(--muted-foreground)] mt-0.5">Confirmed actuals</div>
           </div>
 
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 relative overflow-hidden">
-            <div className="text-[11px] font-mono font-medium uppercase tracking-wider text-cyan-400 flex items-center gap-1">
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] relative overflow-hidden">
+            <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400 flex items-center gap-1">
               <TrendingUp className="w-3.5 h-3.5" /> Projected Trajectory
             </div>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black font-mono text-cyan-400">
+              <span className="text-2xl font-heading font-black text-violet-600 dark:text-violet-400">
                 {overallProjectedPct}%
               </span>
               <span
                 className={`text-xs font-bold font-mono ${
                   overallProjectedPct >= overallActualPct
-                    ? 'text-emerald-400'
-                    : 'text-rose-400'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-rose-600 dark:text-rose-400'
                 }`}
               >
                 {overallProjectedPct >= overallActualPct ? '+' : ''}
                 {(overallProjectedPct - overallActualPct).toFixed(1)}%
               </span>
             </div>
-            <div className="text-xs text-slate-500 mt-0.5 font-mono">
+            <div className="text-xs text-[var(--muted-foreground)] mt-0.5 font-mono">
               {Object.keys(plannedSlots).length} planned classes
             </div>
           </div>
 
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
-            <div className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-400">
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)]">
+            <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
               Compliance Status
             </div>
             <div
-              className={`text-base font-bold mt-1 font-sans ${
-                overallProjectedPct >= 75 ? 'text-emerald-400' : 'text-rose-400'
+              className={`text-base font-heading font-black mt-1 ${
+                overallProjectedPct >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
               }`}
             >
               {overallProjectedPct >= 75
                 ? 'Target Secured (≥75%)'
-                : 'Projected Under 75%'}
+                : 'Projected Below 75%'}
             </div>
-            <div className="text-xs text-slate-500 mt-0.5">Minimum 75% threshold</div>
+            <div className="text-xs text-[var(--muted-foreground)] mt-0.5">Minimum 75% threshold</div>
           </div>
         </div>
 
         {/* Trajectory Recharts Line Graph */}
         {trajectoryData.length > 1 && (
           <div className="space-y-2 pt-2">
-            <div className="text-xs font-semibold text-slate-400 flex items-center justify-between font-mono">
+            <div className="text-xs font-bold text-[var(--foreground)] flex items-center justify-between font-mono">
               <span>Trajectory Projection Curve</span>
-              <span className="text-slate-500">Solid: Actual / Dashed: Simulation</span>
+              <span className="text-[var(--muted-foreground)]">Solid: Actual / Dashed: Simulation</span>
             </div>
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trajectoryData}>
-                  <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
-                  <YAxis domain={[50, 100]} stroke="#64748b" fontSize={11} />
+                  <XAxis dataKey="name" stroke="currentColor" className="text-[var(--muted-foreground)]" fontSize={11} />
+                  <YAxis domain={[50, 100]} stroke="currentColor" className="text-[var(--muted-foreground)]" fontSize={11} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0c121e',
-                      borderColor: '#1e293b',
-                      borderRadius: '0.75rem',
+                      backgroundColor: 'var(--card)',
+                      borderColor: 'var(--border)',
+                      borderWidth: '2px',
+                      borderRadius: '1rem',
                       fontSize: '12px',
                       fontFamily: 'monospace',
+                      boxShadow: '4px 4px 0px var(--shadow-color)',
+                      color: 'var(--foreground)',
                     }}
                   />
-                  <ReferenceLine y={75} stroke="#ef4444" strokeDasharray="3 3" label="75% Target" />
+                  <ReferenceLine y={75} stroke="#ef4444" strokeDasharray="4 4" label="75% Target" />
                   <Line
                     type="monotone"
                     dataKey="actual"
-                    stroke="#06b6d4"
+                    stroke="#8B5CF6"
                     strokeWidth={3}
-                    dot={{ r: 4, fill: '#06b6d4' }}
+                    dot={{ r: 4, fill: '#8B5CF6' }}
                   />
                   <Line
                     type="monotone"
                     dataKey="projected"
-                    stroke="#38bdf8"
-                    strokeWidth={2}
+                    stroke="#F472B6"
+                    strokeWidth={2.5}
                     strokeDasharray="5 5"
-                    dot={{ r: 3, fill: '#38bdf8' }}
+                    dot={{ r: 4, fill: '#F472B6' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -499,16 +494,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Month Navigation & Grid */}
-      <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-6">
+      <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
         {/* Month Navigation Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-slate-100 font-sans">
+            <h2 className="text-xl font-heading font-black text-[var(--foreground)]">
               {format(currentMonth, 'MMMM yyyy')}
             </h2>
             <button
               onClick={() => setCurrentMonth(new Date())}
-              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition-colors font-mono"
+              className="pill-btn px-3 py-1 bg-[var(--background)] hover:bg-[var(--muted)] text-xs font-bold text-[var(--foreground)] transition-colors font-mono"
             >
               Today
             </button>
@@ -517,13 +512,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-full bg-[var(--background)] border-2 border-[var(--border)] text-[var(--foreground)] shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-full bg-[var(--background)] border-2 border-[var(--border)] text-[var(--foreground)] shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -531,25 +526,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1 border-t border-slate-800/60 font-mono">
+        <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--muted-foreground)] pt-1 border-t border-[var(--border)] font-mono font-medium">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-            <span>Actual Present</span>
+            <span className="w-3 h-3 rounded-full bg-emerald-500 border border-[var(--border)]" />
+            <span className="text-[var(--foreground)] font-bold">Actual Present</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-            <span>Actual Absent</span>
+            <span className="w-3 h-3 rounded-full bg-rose-500 border border-[var(--border)]" />
+            <span className="text-[var(--foreground)] font-bold">Actual Absent</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-emerald-400 bg-emerald-500/20" />
+            <span className="w-3 h-3 rounded-full border-2 border-dashed border-emerald-500 bg-emerald-400/20" />
             <span>Plan Attend</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full border border-dashed border-rose-400 bg-rose-500/20" />
+            <span className="w-3 h-3 rounded-full border-2 border-dashed border-rose-500 bg-rose-400/20" />
             <span>Plan Skip</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500/40 border border-amber-500" />
+            <span className="w-3 h-3 rounded-full bg-amber-400 border border-[var(--border)]" />
             <span>Holiday / Exam</span>
           </div>
         </div>
@@ -559,7 +554,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div
               key={day}
-              className="text-center py-2 text-xs font-mono font-bold uppercase tracking-wider text-slate-500"
+              className="text-center py-2 text-xs font-mono font-black uppercase tracking-wider text-[var(--muted-foreground)]"
             >
               {day}
             </div>
@@ -580,35 +575,35 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             return (
               <motion.div
                 key={dateStr}
-                whileHover={{ scale: 1.01 }}
+                whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
                 onClick={() => setSelectedDay(day)}
-                className={`min-h-[90px] sm:min-h-[110px] p-2 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                className={`min-h-[90px] sm:min-h-[110px] p-2 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                   !isCurrentMonth
-                    ? 'opacity-30 bg-slate-950/20 border-slate-900'
+                    ? 'opacity-30 bg-[var(--background)] border-[var(--border)]'
                     : isSelected
-                    ? 'bg-slate-800/90 border-cyan-500 shadow-md ring-1 ring-cyan-500/40'
+                    ? 'bg-[var(--card)] border-violet-600 shadow-[4px_4px_0px_var(--shadow-color)] ring-2 ring-violet-500/50'
                     : dayHoliday
-                    ? 'bg-amber-950/15 border-amber-500/30'
+                    ? 'bg-amber-400/15 border-amber-500/50 shadow-[2px_2px_0px_var(--shadow-color)]'
                     : isCurrentDay
-                    ? 'bg-slate-900 border-cyan-500/50'
-                    : 'bg-slate-900/50 border-slate-800/80 hover:border-slate-700'
+                    ? 'bg-[var(--card)] border-violet-500 shadow-[3px_3px_0px_var(--shadow-color)]'
+                    : 'bg-[var(--background)] border-[var(--border)] hover:border-violet-500/60 shadow-[2px_2px_0px_var(--shadow-color)]'
                 }`}
               >
                 {/* Day Header */}
                 <div className="flex items-center justify-between">
                   <span
-                    className={`text-xs font-bold font-mono rounded-lg px-1.5 py-0.5 ${
+                    className={`text-xs font-bold font-mono rounded-full px-2 py-0.5 border ${
                       isCurrentDay
-                        ? 'bg-cyan-600 text-white'
+                        ? 'bg-violet-600 text-white border-[var(--border)] shadow-[1px_1px_0px_var(--shadow-color)]'
                         : isSelected
-                        ? 'text-cyan-400'
-                        : 'text-slate-400'
+                        ? 'bg-violet-500/20 text-violet-700 dark:text-violet-300 border-violet-500'
+                        : 'text-[var(--foreground)] border-transparent'
                     }`}
                   >
                     {format(day, 'd')}
                   </span>
                   {recordsForDay.length > 0 && (
-                    <span className="text-[10px] font-mono text-slate-500">
+                    <span className="text-[10px] font-mono text-[var(--muted-foreground)] font-bold">
                       {recordsForDay.filter((r) => r.status === 'present').length}P/
                       {recordsForDay.filter((r) => r.status === 'absent').length}A
                     </span>
@@ -619,10 +614,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <div className="space-y-1 my-1 overflow-hidden">
                   {dayHoliday && (
                     <div
-                      className={`text-[10px] font-bold p-1 rounded-md truncate flex items-center gap-1 ${
+                      className={`text-[10px] font-bold p-1 rounded-lg truncate flex items-center gap-1 border ${
                         dayHoliday.type === 'exam'
-                          ? 'bg-purple-500/20 border border-purple-500/30 text-purple-300'
-                          : 'bg-amber-500/20 border border-amber-500/30 text-amber-300'
+                          ? 'bg-purple-400/25 border-purple-500 text-purple-900 dark:text-purple-200'
+                          : 'bg-amber-400/25 border-amber-500 text-amber-900 dark:text-amber-200'
                       }`}
                     >
                       <Palmtree className="w-3 h-3 shrink-0" />
@@ -636,15 +631,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       return (
                         <div
                           key={rec.id}
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center gap-1 shadow-sm font-mono ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full truncate flex items-center gap-1 shadow-sm font-mono border ${
                             rec.status === 'present'
-                              ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/40'
-                              : 'bg-rose-600/30 text-rose-300 border border-rose-500/40'
+                              ? 'bg-emerald-400 text-slate-900 border-[var(--border)]'
+                              : 'bg-rose-400 text-slate-900 border-[var(--border)]'
                           }`}
                         >
                           <span
                             className="w-1.5 h-1.5 rounded-full shrink-0"
-                            style={{ backgroundColor: course?.color || '#06b6d4' }}
+                            style={{ backgroundColor: course?.color || '#8B5CF6' }}
                           />
                           <span className="truncate">{course?.code || 'Class'}</span>
                         </div>
@@ -665,17 +660,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             e.stopPropagation()
                             handleTogglePlan(dateStr, slot.id, slot.courseId)
                           }}
-                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate flex items-center justify-between gap-1 border border-dashed transition-all hover:scale-[1.02] font-mono ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full truncate flex items-center justify-between gap-1 border-2 border-dashed transition-all hover:scale-[1.02] font-mono ${
                             planStatus === 'attend'
-                              ? 'bg-emerald-500/15 border-emerald-400 text-emerald-300'
+                              ? 'bg-emerald-400/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
                               : planStatus === 'skip'
-                              ? 'bg-rose-500/15 border-rose-400 text-rose-300'
-                              : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:border-slate-500'
+                              ? 'bg-rose-400/20 border-rose-500 text-rose-700 dark:text-rose-300'
+                              : 'bg-[var(--card)] border-[var(--border)] text-[var(--muted-foreground)]'
                           }`}
                           title="Click to toggle Plan: Attend -> Skip -> Reset"
                         >
                           <span className="truncate">{course?.code || 'Slot'}</span>
-                          <span className="text-[9px] uppercase font-bold shrink-0">
+                          <span className="text-[9px] uppercase font-black shrink-0">
                             {planStatus === 'attend'
                               ? 'P'
                               : planStatus === 'skip'
@@ -688,7 +683,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 </div>
 
                 {!dayHoliday && slotsForDay.length === 0 && recordsForDay.length === 0 && (
-                  <div className="text-[10px] text-slate-700 text-center py-1 font-mono">
+                  <div className="text-[10px] text-[var(--muted-foreground)] text-center py-1 font-mono">
                     Off
                   </div>
                 )}
@@ -700,14 +695,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* Selected Day Inspector */}
       {selectedDay && (
-        <div className="bg-[#0c121e] border border-slate-800/80 rounded-3xl p-6 sm:p-7 shadow-xl space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border)] pb-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2 font-sans">
-                <CalendarIcon className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
                 Day Inspector: {format(selectedDay, 'EEEE, MMMM d, yyyy')}
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-[var(--muted-foreground)] mt-0.5 font-medium">
                 {selectedDayHoliday
                   ? `Declared ${selectedDayHoliday.type === 'exam' ? 'Exam Day' : 'Holiday'}: ${selectedDayHoliday.label}`
                   : selectedDayIsFuture
@@ -722,7 +717,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 {onDeleteHoliday && (
                   <button
                     onClick={() => onDeleteHoliday(selectedDayHoliday.id)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                    className="pill-btn px-3.5 py-1.5 bg-[var(--background)] hover:bg-rose-500/20 text-rose-600 text-xs font-bold transition-colors flex items-center gap-1.5"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Remove Holiday Status
                   </button>
@@ -734,21 +729,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <>
                     <button
                       onClick={() => handlePlanSpecificDay(selectedDayStr, 'attend')}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                      className="pill-btn px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold flex items-center gap-1 transition-colors"
                       title="Plan all classes for this day as Attend"
                     >
                       <CheckCheck className="w-3.5 h-3.5" /> Plan All Attend
                     </button>
                     <button
                       onClick={() => handlePlanSpecificDay(selectedDayStr, 'skip')}
-                      className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-semibold flex items-center gap-1 transition-colors"
+                      className="pill-btn px-3.5 py-1.5 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold flex items-center gap-1 transition-colors"
                       title="Plan all classes for this day as Skip"
                     >
                       <X className="w-3.5 h-3.5" /> Plan All Skip
                     </button>
                     <button
                       onClick={() => handleResetSpecificDay(selectedDayStr)}
-                      className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800 transition-colors"
+                      className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-[var(--foreground)] bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-colors"
                       title="Reset planning for this date"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
@@ -759,7 +754,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <button
                       onClick={() => handleBatchMarkDay(selectedDayStr, 'present')}
                       disabled={isDayBatchBusy}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
+                      className="pill-btn px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold flex items-center gap-1 transition-colors disabled:opacity-50"
                       title="Mark all classes on this date as Present"
                     >
                       <CheckCheck className="w-3.5 h-3.5" /> All Present
@@ -767,7 +762,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <button
                       onClick={() => handleBatchMarkDay(selectedDayStr, 'absent')}
                       disabled={isDayBatchBusy}
-                      className="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 border border-rose-500/30 text-xs font-semibold flex items-center gap-1 transition-colors disabled:opacity-50"
+                      className="pill-btn px-3.5 py-1.5 bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold flex items-center gap-1 transition-colors disabled:opacity-50"
                       title="Mark all classes on this date as Absent"
                     >
                       <X className="w-3.5 h-3.5" /> All Absent
@@ -776,7 +771,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       <button
                         onClick={() => handleClearDayAttendance(selectedDayStr)}
                         disabled={isDayBatchBusy}
-                        className="p-1.5 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 border border-slate-800 transition-colors"
+                        className="p-2 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-colors"
                         title="Clear logs for this date"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -790,10 +785,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           {/* Holiday Alert Banner in Inspector if applicable */}
           {selectedDayHoliday && (
-            <div className="p-4 bg-amber-950/20 border border-amber-500/30 rounded-2xl flex items-center gap-3">
-              <Palmtree className="w-5 h-5 text-amber-400 shrink-0" />
-              <div className="text-xs text-slate-300">
-                <strong className="text-amber-300">
+            <div className="p-4 bg-amber-400/20 border-2 border-[var(--border)] rounded-2xl flex items-center gap-3 shadow-[2px_2px_0px_var(--shadow-color)]">
+              <Palmtree className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="text-xs text-[var(--foreground)]">
+                <strong className="font-bold">
                   {selectedDayHoliday.label} ({selectedDayHoliday.type === 'exam' ? 'Exam Day' : 'Holiday'})
                 </strong>{' '}
                 — No classes scheduled on this date.
@@ -804,12 +799,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Scheduled slots for this weekday */}
             <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)] font-mono">
                 Timetable Slots ({selectedDaySlots.length})
               </div>
 
               {selectedDaySlots.length === 0 ? (
-                <div className="text-xs text-slate-500 p-4 bg-slate-900/60 rounded-xl border border-slate-800 text-center">
+                <div className="text-xs text-[var(--muted-foreground)] p-4 bg-[var(--background)] rounded-2xl border-2 border-dashed border-[var(--border)] text-center">
                   No classes scheduled on this weekday.
                 </div>
               ) : (
@@ -824,21 +819,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   return (
                     <div
                       key={slot.id}
-                      className="bg-slate-900/70 border border-slate-800 rounded-2xl p-3.5 space-y-2.5"
+                      className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-3.5 space-y-2.5 shadow-[2px_2px_0px_var(--shadow-color)]"
                     >
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="font-semibold text-sm text-slate-200">
+                          <div className="font-heading font-black text-sm text-[var(--foreground)]">
                             {course?.name}
                           </div>
-                          <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                            <span className="font-mono text-slate-300">{course?.code}</span>
+                          <div className="text-xs text-[var(--muted-foreground)] flex items-center gap-2 mt-0.5 font-mono">
+                            <span className="font-bold text-[var(--foreground)]">{course?.code}</span>
                             <span>•</span>
                             <span>{slot.label}</span>
                             {slot.room && (
                               <>
                                 <span>•</span>
-                                <span className="text-slate-300 font-mono">{slot.room}</span>
+                                <span className="font-bold text-[var(--foreground)]">{slot.room}</span>
                               </>
                             )}
                           </div>
@@ -846,23 +841,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                         {actualRec && (
                           <span
-                            className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold uppercase ${
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
                               actualRec.status === 'present'
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-rose-500/20 text-rose-400'
+                                ? 'bg-emerald-400 text-slate-900 border-[var(--border)]'
+                                : 'bg-rose-400 text-slate-900 border-[var(--border)]'
                             }`}
                           >
-                            Confirmed {actualRec.status}
+                            {actualRec.status}
                           </span>
                         )}
                       </div>
 
                       {/* Action buttons */}
                       {!selectedDayHoliday && (
-                        <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
+                        <div className="flex items-center gap-2 pt-1 border-t border-[var(--border)]">
                           {selectedDayIsFuture ? (
                             <div className="flex items-center gap-2 w-full">
-                              <span className="text-xs text-slate-400 font-medium">
+                              <span className="text-xs text-[var(--muted-foreground)] font-bold">
                                 Simulation:
                               </span>
                               <button
@@ -872,10 +867,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     [planKey]: 'attend',
                                   }))
                                 }
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                className={`flex-1 py-1.5 rounded-full text-xs font-bold border-2 border-[var(--border)] transition-all ${
                                   currentPlan === 'attend'
-                                    ? 'bg-emerald-600/30 border-emerald-500 text-emerald-300 shadow-sm'
-                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                                    ? 'bg-emerald-500 text-white shadow-[2px_2px_0px_var(--shadow-color)]'
+                                    : 'bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
                                 }`}
                               >
                                 Plan Attend
@@ -887,10 +882,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     [planKey]: 'skip',
                                   }))
                                 }
-                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                                className={`flex-1 py-1.5 rounded-full text-xs font-bold border-2 border-[var(--border)] transition-all ${
                                   currentPlan === 'skip'
-                                    ? 'bg-rose-600/30 border-rose-500 text-rose-300 shadow-sm'
-                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200'
+                                    ? 'bg-rose-500 text-white shadow-[2px_2px_0px_var(--shadow-color)]'
+                                    : 'bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
                                 }`}
                               >
                                 Plan Skip
@@ -902,7 +897,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 onClick={() =>
                                   onLogAttendance(slot.courseId, selectedDayStr, 'present')
                                 }
-                                className="flex-1 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 text-xs font-semibold transition-colors"
+                                className="flex-1 py-1.5 rounded-full bg-emerald-500 text-white border-2 border-[var(--border)] text-xs font-bold shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
                               >
                                 Mark Present
                               </button>
@@ -910,7 +905,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 onClick={() =>
                                   onLogAttendance(slot.courseId, selectedDayStr, 'absent')
                                 }
-                                className="flex-1 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-400 text-xs font-semibold transition-colors"
+                                className="flex-1 py-1.5 rounded-full bg-rose-500 text-white border-2 border-[var(--border)] text-xs font-bold shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
                               >
                                 Mark Absent
                               </button>
@@ -926,12 +921,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
             {/* Confirmed actual records on this day */}
             <div className="space-y-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
-                Confirmed Records on this Date ({selectedDayAttendance.length})
+              <div className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)] font-mono">
+                Confirmed Records ({selectedDayAttendance.length})
               </div>
 
               {selectedDayAttendance.length === 0 ? (
-                <div className="text-xs text-slate-500 p-4 bg-slate-900/60 rounded-xl border border-slate-800 text-center">
+                <div className="text-xs text-[var(--muted-foreground)] p-4 bg-[var(--background)] rounded-2xl border-2 border-dashed border-[var(--border)] text-center font-mono">
                   No confirmed records logged for this date.
                 </div>
               ) : (
@@ -940,30 +935,30 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   return (
                     <div
                       key={rec.id}
-                      className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3 text-xs"
+                      className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-3 flex items-center justify-between gap-3 text-xs shadow-[2px_2px_0px_var(--shadow-color)]"
                     >
                       <div className="flex items-center gap-2.5">
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
                             rec.status === 'present'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                              ? 'bg-emerald-400 text-slate-900 border-[var(--border)]'
+                              : 'bg-rose-400 text-slate-900 border-[var(--border)]'
                           }`}
                         >
                           {rec.status}
                         </span>
                         <div>
-                          <div className="font-semibold text-slate-200">
+                          <div className="font-heading font-bold text-slate-900 dark:text-slate-100">
                             {course?.name} ({course?.code})
                           </div>
                           {rec.note && (
-                            <div className="text-slate-400 text-[11px]">{rec.note}</div>
+                            <div className="text-[var(--muted-foreground)] text-[11px]">{rec.note}</div>
                           )}
                         </div>
                       </div>
                       <button
                         onClick={() => onDeleteAttendance(rec.id)}
-                        className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors"
+                        className="p-1 rounded text-[var(--muted-foreground)] hover:text-rose-500 transition-colors"
                         title="Delete record"
                       >
                         <X className="w-4 h-4" />
