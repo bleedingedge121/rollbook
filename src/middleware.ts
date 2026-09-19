@@ -2,10 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth'
 
 // Public paths that don't require a session.
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/signup', '/api/auth/me']
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth/login',
+  '/api/auth/signup',
+  '/api/auth/me',
+  '/api/sync/push',
+]
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
+
+  // Handle CORS preflight for cross-origin sync push
+  if (pathname === '/api/sync/push' && req.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    })
+  }
 
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname === p) ||
