@@ -195,9 +195,9 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap max-w-full">
           {/* Status Filter Pills */}
-          <div className="flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] text-xs overflow-x-auto no-scrollbar">
+          <div className="flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] text-xs overflow-x-auto no-scrollbar max-w-full min-w-0">
             <button
               onClick={() => setFilterMode('all')}
               className={`px-3 py-1 rounded-full font-bold transition-all shrink-0 ${

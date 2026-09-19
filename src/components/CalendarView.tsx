@@ -328,11 +328,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header & Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight flex items-center gap-2.5">
-            <CalendarIcon className="w-7 h-7 text-teal-600 dark:text-teal-400" />
-            Trajectory Lab & Flight Calendar
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight flex items-center gap-2 sm:gap-2.5">
+            <CalendarIcon className="w-6 h-6 sm:w-7 sm:h-7 text-teal-600 dark:text-teal-400 shrink-0" />
+            <span>Trajectory Lab & Flight Calendar</span>
           </h1>
           <p className="text-xs sm:text-sm text-[var(--muted-foreground)] mt-1">
             Solid badges denote confirmed history; dashed outlines project future scenarios.
@@ -340,11 +340,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
 
         {/* Filter by course */}
-        <div className="flex items-center gap-3">
+        <div className="w-full lg:w-auto min-w-0 flex items-center">
           <select
             value={selectedCourseFilter}
             onChange={(e) => setSelectedCourseFilter(e.target.value)}
-            className="bg-[var(--card)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] rounded-full px-4 py-2 focus:outline-none focus:border-teal-500 font-mono shadow-[2px_2px_0px_var(--shadow-color)]"
+            className="w-full lg:w-auto max-w-full min-w-0 truncate bg-[var(--card)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] rounded-full px-4 py-2 sm:py-2.5 focus:outline-none focus:border-teal-500 font-mono shadow-[2px_2px_0px_var(--shadow-color)] cursor-pointer"
           >
             <option value="all">All Subjects (Aggregate)</option>
             {courses.map((c) => (
@@ -357,7 +357,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Trajectory Simulation HUD Banner */}
-      <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
+      <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5 sm:space-y-6 overflow-hidden">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b-2 border-[var(--border)] pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-teal-600/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center text-teal-600">
@@ -469,7 +469,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               <span>Trajectory Projection Curve</span>
               <span className="text-[var(--muted-foreground)]">Solid: Actual / Dashed: Simulation</span>
             </div>
-            <div className="h-44 w-full">
+            <div className="h-44 w-full min-w-0 overflow-hidden">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trajectoryData}>
                   <XAxis dataKey="name" stroke="currentColor" className="text-[var(--muted-foreground)]" fontSize={11} />
@@ -510,7 +510,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Month Navigation & Grid */}
-      <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
+      <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5 sm:space-y-6 overflow-hidden">
         {/* Month Navigation Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -542,7 +542,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--muted-foreground)] pt-1 border-t border-[var(--border)] font-mono font-medium">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs text-[var(--muted-foreground)] pt-1 border-t border-[var(--border)] font-mono font-medium">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-500 border border-[var(--border)]" />
             <span className="text-[var(--foreground)] font-bold">Actual Present</span>
@@ -566,7 +566,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+        <div className="grid grid-cols-7 gap-1 sm:gap-2 w-full min-w-0">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div
               key={day}
@@ -731,7 +731,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       {/* Selected Day Inspector */}
       {selectedDay && (
-        <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5">
+        <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4 sm:space-y-5 overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border)] pb-4">
             <div>
               <h3 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">

@@ -320,7 +320,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] flex flex-col transition-colors duration-200 bg-dot-grid">
+    <div className="min-h-screen bg-[var(--background)] flex flex-col transition-colors duration-200 bg-dot-grid w-full max-w-full overflow-x-hidden">
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
@@ -332,7 +332,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-36 md:pb-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-36 md:pb-8 min-w-0 max-w-full overflow-x-hidden">
         {activeTab === 'home' && (
           <HomeView
             courses={courses}
