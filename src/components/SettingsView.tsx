@@ -703,7 +703,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
                       💡 <strong>On Laptop:</strong> Click <strong>Copy Console Script</strong>, go to your SLCM Attendance tab, press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">F12</kbd> (Console), paste and press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Enter</kbd>.
+                      <br />
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">
+                        *(First time in DevTools? If Chrome blocks pasting, type <code className="font-bold">allow pasting</code> into the console and hit Enter first).*
+                      </span>
                     </p>
+
+                    {/* Step 1 Paste Area: Apply data from SLCM Banner */}
+                    <div className="pt-3 border-t-2 border-emerald-500/20 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-heading font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                          <span>📋 Paste Attendance Data (from SLCM Banner)</span>
+                        </span>
+                        {pasteFallbackText && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPasteFallbackText('')
+                              setPasteFallbackResult(null)
+                            }}
+                            className="text-[10px] text-[var(--muted-foreground)] hover:text-rose-500"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                        When the SLCM banner captures your subjects, click its <strong>Copy JSON</strong> button and paste it below:
+                      </p>
+                      <textarea
+                        value={pasteFallbackText}
+                        onChange={(e) => setPasteFallbackText(e.target.value)}
+                        placeholder='[{"name":"...","code":"...","present":0,"absent":0}, ...]'
+                        className="w-full h-24 bg-[var(--card)] border-2 border-[var(--border)] rounded-xl p-3 text-[11px] font-mono text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-[2px_2px_0px_var(--shadow-color)]"
+                      />
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handlePasteFallbackSubmit}
+                          disabled={isSubmittingPaste || !pasteFallbackText.trim()}
+                          className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
+                        >
+                          {isSubmittingPaste ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          <span>{isSubmittingPaste ? 'Applying...' : 'Apply Pasted Data'}</span>
+                        </button>
+                        {pasteFallbackResult && (
+                          <p className={`text-xs font-bold ${pasteFallbackResult.startsWith('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                            {pasteFallbackResult}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -725,7 +775,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <p className="text-[11px] text-[var(--muted-foreground)]">
                       {hasSyncToken
                         ? 'Your account has a valid sync token. Generating a new one will replace it.'
-                        : 'Generate a token to allow your local desktop scraper to push attendance figures directly to your account.'}
+                        : 'Generate a token to allow your browser or desktop scraper to push attendance figures directly to your account.'}
                     </p>
                   </div>
 
@@ -745,14 +795,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               )}
             </div>
 
-            {/* Step 2: Run Scraper on Desktop */}
+            {/* Step 2: Run Scraper on Desktop (Alternative) */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-mono text-xs font-black flex items-center justify-center">
                   2
                 </span>
                 <span className="font-heading font-black text-sm text-[var(--foreground)]">
-                  Run Scraper on Your Laptop / Computer
+                  Alternative: Automated Desktop Scraper (Node.js)
                 </span>
               </div>
 
@@ -785,48 +835,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Fallback: paste bookmarklet output manually if auto-push was blocked */}
-            <div className="pt-4 border-t-2 border-[var(--border)] space-y-3">
-              <button
-                type="button"
-                onClick={() => setShowPasteFallback((v) => !v)}
-                className="text-xs font-heading font-bold text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-1.5 transition-colors text-left"
-              >
-                <span className="font-mono">{showPasteFallback ? '▾' : '▸'}</span>
-                <span>Bookmarklet showed you data to copy instead of syncing automatically?</span>
-              </button>
-              {showPasteFallback && (
-                <div className="space-y-3 p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)]">
-                  <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-                    Paste what the bookmarklet gave you below — this happens if the SLCM site&apos;s own security
-                    blocked the direct push, which is out of our control but easy to work around.
-                  </p>
-                  <textarea
-                    value={pasteFallbackText}
-                    onChange={(e) => setPasteFallbackText(e.target.value)}
-                    placeholder='[{"name":"...","code":"...","present":0,"absent":0}, ...]'
-                    className="w-full h-24 bg-[var(--card)] border-2 border-[var(--border)] rounded-xl p-3 text-[11px] font-mono text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-[2px_2px_0px_var(--shadow-color)]"
-                  />
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handlePasteFallbackSubmit}
-                      disabled={isSubmittingPaste || !pasteFallbackText.trim()}
-                      className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
-                    >
-                      {isSubmittingPaste ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                      <span>{isSubmittingPaste ? 'Applying...' : 'Apply Pasted Data'}</span>
-                    </button>
-                    {pasteFallbackResult && (
-                      <p className={`text-xs font-bold ${pasteFallbackResult.startsWith('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                        {pasteFallbackResult}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Advanced Fallback: Manual File Upload */}
@@ -1536,11 +1544,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 )}
               </div>
               <ol className="text-[11px] text-[var(--foreground)] space-y-1.5 list-decimal list-inside leading-relaxed">
-                <li>Log in to SLCM and go to the <strong>Attendance</strong> page.</li>
-                <li>Press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">F12</kbd> (or right click anywhere &rarr; <em>Inspect</em>) and click the <strong>Console</strong> tab.</li>
-                <li>Paste the script and press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Enter</kbd>.</li>
+                <li>Log in to SLCM and open the <strong>Attendance</strong> page.</li>
+                <li>Press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">F12</kbd> (or right click &rarr; <em>Inspect</em>) and click the <strong>Console</strong> tab.</li>
+                <li><span className="text-amber-600 dark:text-amber-400 font-medium">If Chrome shows a warning about pasting, type <code className="font-bold">allow pasting</code> into the console and press Enter.</span></li>
+                <li>Paste the script (<kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Ctrl+V</kbd>) and press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Enter</kbd>.</li>
                 <li>If you were already on Attendance, click another tab (like <strong>Home</strong>) and click back to <strong>Attendance</strong> so the network request fires.</li>
-                <li>A banner will appear at the top confirming the attendance numbers have been synced to Roll Book!</li>
+                <li>The dark Roll Book banner will appear and capture your subjects. If university security prevents direct network sending, click the banner&apos;s <strong>Copy JSON</strong> button and paste it into the box in Roll Book!</li>
               </ol>
             </div>
 
@@ -1554,21 +1563,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
               <ol className="text-[11px] text-[var(--muted-foreground)] space-y-1.5 list-decimal list-inside leading-relaxed">
                 <li>Drag the <span className="font-bold text-teal-600 dark:text-teal-400">🔖 Sync Roll Book</span> button to your browser&apos;s Bookmarks bar (Press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Ctrl+Shift+B</kbd> if hidden).</li>
-                <li>In your SLCM tab, click the bookmark.</li>
+                <li>In your SLCM tab, click the bookmark. *(Note: Some university network CSP configurations block javascript: bookmark navigations; if blocked, use Method 1 above).*</li>
                 <li>Navigate into Attendance or switch tabs to capture the live data.</li>
               </ol>
             </div>
 
-            {/* Method 3: Mobile Bookmark */}
-            <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] space-y-2.5">
+            {/* Method 3: Mobile Phone Advice */}
+            <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-emerald-500/30 space-y-2.5">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase">
-                  Mobile Phone
+                  Mobile Phone (iPhone / Android)
                 </span>
-                <span className="text-xs font-bold text-[var(--foreground)]">Mobile Safari / Chrome</span>
+                <span className="text-xs font-bold text-[var(--foreground)]">Cloud Sync</span>
               </div>
               <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-                Bookmark any page in your mobile browser, edit the bookmark URL, and replace it with the code from <strong>Copy Bookmarklet Code</strong>. On SLCM, type the bookmark title into the address bar to trigger it!
+                💡 <strong>Best Practice:</strong> Mobile browsers restrict DevTools and block bookmarklet URLs. Simply run the 5-second console script on any laptop once. Because Roll Book saves all your courses to your cloud database account, opening Roll Book on your phone will automatically show all your updated subjects and attendance everywhere!
               </p>
             </div>
 

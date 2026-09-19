@@ -52,11 +52,31 @@ node login.js
 ```
 A browser will open. Log in with your MAHE email and approve your Microsoft Authenticator prompt. Wait until `auth.json` is generated.
 
-### Step 3: Run Desktop Reverse-Push Sync (Recommended)
+### Method 1: Instant Browser Console Sync (Zero-Install, Zero Terminal - Recommended for Laptop)
+If you don't want to run Node.js or terminal commands, you can sync directly from your browser:
+1. In Roll Book, open **Settings** $\rightarrow$ **Sync & Import** and generate your Personal Sync Token.
+2. Click **`💻 Copy Console Script (Laptop)`**.
+3. In a separate tab, log into your university SLCM portal and navigate to the **Attendance** section.
+4. Press <kbd>F12</kbd> (or right-click anywhere $\rightarrow$ *Inspect*) and click the **Console** tab.
+5. *(Note for first-time DevTools users: If Chrome displays a security warning about pasting, type `allow pasting` into the console and press Enter).*
+6. Paste the copied code (<kbd>Ctrl+V</kbd>) and hit <kbd>Enter</kbd>.
+7. A dark **Roll Book Sync** banner will appear at the bottom-right of SLCM. Click another tab (like **Home**) and click back into **Attendance** so the network request fires.
+8. The banner will capture all your subjects. Because Salesforce sites restrict outbound network requests (`connect-src`), the banner provides a convenient **Copy JSON** button. Click **Copy JSON**, switch back to Roll Book Settings $\rightarrow$ **Paste Attendance Data**, paste, and click **Apply Pasted Data**!
+
+### Method 2: Mobile Phone Sync Advice (iPhone / Android)
+Mobile browsers restrict developer tools and enforce strict policies against bookmarklet scripts.
+- **Best Practice**: Run the 5-second console script (Method 1) on any laptop or desktop once a week.
+- Because Roll Book saves all your courses and attendance directly to your account in Neon PostgreSQL, **opening Roll Book on your phone will automatically show all your updated figures in real-time**!
+
+### Method 3: Automated Desktop CLI Scraper (`agent.js`)
+For automated desktop scraping without touching DevTools:
 ```bash
+cd scraper
+npm install
+npx playwright install chromium
 node agent.js
 ```
-On first run, `agent.js` prompts for your hosted application URL (e.g. `https://rollbook.vercel.app`) and your **Personal Sync Token** (generated under **Settings** $\rightarrow$ **SLCM Sync Bridge** on desktop). These are saved in `scraper/.env`.
+On first run, `agent.js` prompts for your hosted application URL (e.g. `https://rollbook-peach.vercel.app`) and your **Personal Sync Token**. These are saved in `scraper/.env`.
 
 The script:
 1. Validates or prompts for interactive Microsoft SSO + MFA login.
@@ -64,22 +84,12 @@ The script:
 3. Automatically posts the verified payload to `{APP_URL}/api/sync/push`.
 4. Your hosted Roll Book dashboard updates immediately!
 
-### Step 4: Browser Bookmarklet Sync (Zero-Install, Mobile & Desktop)
-If you don't want to run Node.js or terminal commands:
-1. In Roll Book, open **Settings** $\rightarrow$ **Sync & Import** and click **Generate My Sync Token**.
-2. Drag the **🔖 Sync Roll Book** button to your browser bookmarks bar (or click **Copy Bookmarklet Code** on mobile).
-3. In a new tab, log into your university SLCM portal (`https://maheslcmtech.manipal.edu`).
-4. Click your **Sync Roll Book** bookmark. A subtle status pill will appear: *"Listening for attendance data…"*
-5. Click into the **Attendance** section on SLCM.
-6. The bookmarklet captures the live Salesforce Aura response and automatically pushes it to your Roll Book account!
-7. If the university site's Content Security Policy blocks the direct push, the bookmarklet presents the captured JSON with a **Copy** button. Expand **"Bookmarklet showed you data to copy instead?"** in Roll Book settings, paste it, and click **Apply Pasted Data**.
-
-### Step 5: Manual Fallback (Offline JSON Import)
+### Method 4: Manual File Fallback (Offline JSON Import)
 If you prefer offline manual import:
 1. Run `node sync.js` to output `scraper/sync-output.json`.
 2. Open Roll Book web app on your desktop browser.
-3. Go to **Settings** $\rightarrow$ **Sync & Import**.
-4. Click **Upload sync-output.json manually**, choose `scraper/sync-output.json`, and confirm the reconciliation diff.
+3. Go to **Settings** $\rightarrow$ **Sync & Import** $\rightarrow$ Click **Upload sync-output.json**.
+4. The visual **Sync Reconcile Modal** displays a course-by-course preview (present, absent, percentage change) before applying updates to your database.
 
 > [!NOTE]
 > **Scraper Execution Context**: Both the **Browser Bookmarklet** and the **Desktop Scraper (`node agent.js`)** use the same underlying personal sync token architecture. While the Playwright agent requires local Node.js, the Bookmarklet runs inside your active browser session on desktop or mobile with zero installation.

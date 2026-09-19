@@ -78,20 +78,25 @@ node scraper/agent.js  --------------------->  POST /api/sync/push
 ```
 
 ### How a User Syncs Their Attendance:
-1. **Generate Personal Sync Token**:
-   - In the hosted web app, navigate to **Settings** $\rightarrow$ **SLCM Sync Bridge**.
-   - Click **Generate My Sync Token** and copy the token (`rb_sync_...`). The token is stored as a one-way SHA-256 hash in the database and never shown again.
-2. **Run Scraper on Local Computer**:
-   - Clone the repo and run:
-     ```bash
-     cd scraper
-     npm install
-     npx playwright install chromium
-     node agent.js
-     ```
-   - On first run, it will prompt for the hosted app URL (e.g. `https://rollbook.vercel.app`) and personal sync token. These are saved to `scraper/.env` (gitignored).
-   - If no portal session exists, a browser window opens automatically for Microsoft SSO + MFA login.
-   - The script scrapes the live attendance figures and immediately pushes them to `{APP_URL}/api/sync/push`.
-3. **Refresh Dashboard**:
-   - Refresh the Roll Book web app—the dashboard immediately displays the fresh attendance counts, safe skip margins, and "Last synced" timestamp!
 
+#### Method A: Instant Browser Console Sync (Zero-Install, Zero Terminal - Recommended)
+1. Go to **Settings** $\rightarrow$ **Sync & Import** and click **Generate My Sync Token**.
+2. Click **`💻 Copy Console Script (Laptop)`**.
+3. In a separate tab, log into your university SLCM portal and navigate to **Attendance**.
+4. Press <kbd>F12</kbd> (Console tab). *(First time in DevTools? Type `allow pasting` and press Enter if Chrome prompts).*
+5. Paste (<kbd>Ctrl+V</kbd>) and hit <kbd>Enter</kbd>.
+6. Switch tabs in SLCM (Home $\rightarrow$ Attendance) to trigger capture.
+7. Click **Copy JSON** on the SLCM banner, switch back to Roll Book Settings $\rightarrow$ **Paste Attendance Data**, paste, and click **Apply Pasted Data**!
+
+#### Method B: Automated Desktop CLI Scraper (`agent.js`)
+1. Clone the repo and run:
+   ```bash
+   cd scraper
+   npm install
+   npx playwright install chromium
+   node agent.js
+   ```
+2. On first run, it prompts for the hosted app URL (e.g. `https://rollbook-peach.vercel.app`) and personal sync token. These are saved to `scraper/.env` (gitignored).
+3. If no portal session exists, a browser window opens automatically for Microsoft SSO + MFA login.
+4. The script scrapes the live attendance figures and immediately pushes them to `{APP_URL}/api/sync/push`.
+5. Refresh the Roll Book web app—the dashboard immediately displays fresh counts!

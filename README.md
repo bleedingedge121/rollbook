@@ -142,28 +142,30 @@ Roll Book can be hosted permanently for free using:
 
 ---
 
-## 🤖 Live SLCM Scraper Workflow (Reverse-Push)
+## 🔄 Live SLCM Attendance Sync (Zero Terminal & Scraper Options)
 
-Because MAHE SLCM requires Microsoft MFA and modern browsers block HTTPS web pages from calling local machine ports, Roll Book uses a **reverse-push architecture**:
+### Method 1: Instant Browser Console Sync (Zero-Install, Recommended for Laptop)
+No terminal, no repo cloning, no Node.js required:
+1. In Roll Book, go to **Settings** $\rightarrow$ **Sync & Import** and click **Generate My Sync Token**.
+2. Click **`💻 Copy Console Script (Laptop)`**.
+3. In a separate tab, log into your university SLCM portal and navigate to **Attendance**.
+4. Press <kbd>F12</kbd> (Console tab). *(First time? Type `allow pasting` and press Enter if Chrome prompts).*
+5. Paste (<kbd>Ctrl+V</kbd>) and hit <kbd>Enter</kbd>.
+6. Switch tabs in SLCM (Home $\rightarrow$ Attendance) to trigger capture.
+7. The dark banner captures your subjects. If university security blocks cross-origin background pushes, click **Copy JSON** on the banner, paste into Roll Book Settings $\rightarrow$ **Paste Attendance Data**, and click **Apply Pasted Data**!
 
+### Method 2: Mobile Phone Advice (iPhone / Android)
+Mobile browsers restrict DevTools and block bookmarklet URLs. Simply run the 5-second console script on any laptop once: because Roll Book saves your attendance directly to your cloud database account (Neon PostgreSQL), **opening Roll Book on your phone will automatically show all updated figures everywhere**!
+
+### Method 3: Automated Desktop CLI Scraper (`agent.js`)
+If you prefer an automated background scraper with Playwright:
 ```bash
 cd scraper
 npm install
 npx playwright install chromium
 node agent.js
 ```
-
-### How It Works:
-1. **Generate Token**: In Roll Book, go to **Settings** $\rightarrow$ **SLCM Sync Bridge** and click **Generate My Sync Token**. Copy the token.
-2. **Run Pusher**: Run `node agent.js`. On first run, it prompts for your app URL (e.g. `https://rollbook.vercel.app`) and your token, saving them to `scraper/.env`.
-3. **MFA Login**: If needed, a browser window opens for you to log in with your student Microsoft credentials and approve MFA.
-4. **Push & Refresh**: The script captures your verified attendance tables and immediately pushes them to your account. Refresh your dashboard to see your updated numbers!
-
-### Manual Fallback:
-If you prefer running manual commands:
-- Login: `cd scraper && node login.js`
-- Sync: `node sync.js`
-- Upload: In Settings, click *"Upload sync-output.json manually"*.
+On first run, `agent.js` prompts for your app URL (e.g. `https://rollbook-peach.vercel.app`) and your token, saving them to `scraper/.env`. Refresh your dashboard to see your updated numbers!
 
 ---
 
