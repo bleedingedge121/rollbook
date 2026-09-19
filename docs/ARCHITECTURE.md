@@ -235,3 +235,42 @@ To bypass modern browser restrictions (Mixed Content and Local Network Access bl
 - `GET /api/sections` — Lists 22 official department section timetables (`C01`–`C22`).
 - `POST /api/sections/apply` — Ingests section subjects and schedule into caller's account.
 - `POST /api/reset` — Atomically clears caller's courses and attendance without touching the global academic calendar.
+
+---
+
+## 📱 Mobile Architecture & Responsive Adaptation
+
+Roll Book is engineered for a seamless mobile experience across modern smartphones (iOS Safari, Android Chrome):
+
+### 1. Dynamic Device Detection Hook (`src/lib/useIsMobile.ts`)
+- Evaluates client environment via both User-Agent sniffing (`/Android|iPhone|iPad|iPod|Mobile/i`) and a reactive media query listener (`(max-width: 767px)`).
+- SSR-safe hydration with event listeners that react instantaneously to device rotation and viewport resizing.
+
+### 2. WebKit Stacking Context Isolation
+- **The Problem**: In WebKit (iOS Safari), any element containing `backdrop-filter` creates a new containing block for `position: fixed` descendants. Placing a mobile bottom navigation bar inside a sticky backdrop-blurred header causes WebKit to trap the bottom bar at the bottom of the header at the top of the screen, physically overlapping page titles and buttons.
+- **The Architecture**: The mobile bottom `<nav>` is extracted completely outside of the `<header>` container into a root-level sibling fragment (`<> <header/> <nav/> </>`). This ensures the navigation bar anchors reliably to the true viewport bottom across all mobile browsers.
+
+### 3. Hardware Safe-Area Insets & Clearance
+- **Home Indicator Insets**: The bottom navigation bar incorporates `pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]` to elevate touch targets above iOS home indicators and Android gesture bars.
+- **Floating Chat Positioning**: The Gemini AI advisor launcher floats at `bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]`, avoiding collision with the navigation dock.
+- **Scroll Clearance**: Main page containers apply `pb-36 md:pb-8` clearance, ensuring the lowest content cards and action buttons can be scrolled fully into view without obstruction.
+
+### 4. Contextual Feature Gating
+- Because running the Playwright local scraper requires desktop Node.js and terminal access for Microsoft MFA, the **SLCM Sync Bridge** sub-tab and **JSON Restore** card are automatically hidden when browsing on a mobile device. Mobile users opening Settings default cleanly to course configuration.
+
+---
+
+## ⏱️ Standardized Date & Time Engine (`src/lib/formatters.ts`)
+
+All temporal data throughout Roll Book is standardized into a consistent format:
+
+1. **12-Hour Format with Lowercase AM/PM**:
+   - `formatTime(date)`: Formats times without leading zero on hours (e.g. `9:00 am`, `2:30 pm`).
+   - `formatSlotTime(slotStr)`: Smart regex parser that normalizes 24-hour timetable slots (`"09:00 - 10:00"`, `"14:00 - 16:00"`, `"09:00 - 12:00 (Lab/Workshop)"`) into 12-hour format: `"9:00 am - 10:00 am"`, `"2:00 pm - 4:00 pm"`.
+2. **Date Representation (`DD/MM/YYYY`)**:
+   - `formatDate(date)`: Formats dates to `DD/MM/YYYY` (e.g. `19/09/2026`).
+   - `formatDateTime(date)`: Formats timestamps to `DD/MM/YYYY, h:mm am/pm`.
+   - `toValidDate(date)`: Seamlessly parses both ISO `YYYY-MM-DD` and `DD/MM/YYYY` strings.
+3. **AI Advisor Enforcement**:
+   - Gemini system instructions explicitly enforce `DD/MM/YYYY` dates and 12-hour `am`/`pm` times in all generated responses.
+

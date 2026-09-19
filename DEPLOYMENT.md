@@ -27,7 +27,7 @@ This guide details how to host Roll Book on Vercel with a free-tier PostgreSQL d
 3. Import the `rollbook` repository.
 4. **Build & Development Settings**:
    - Framework Preset: `Next.js`
-   - Build Command: `prisma generate && next build` (defined in `package.json`)
+   - Build Command: `prisma generate && prisma db push --accept-data-loss && next build` (defined in `package.json`, automatically keeps Neon schema in sync)
    - Output Directory: `.next`
 5. **Environment Variables**:
    Add the following environment variables in Vercel:
@@ -39,18 +39,27 @@ This guide details how to host Roll Book on Vercel with a free-tier PostgreSQL d
 | `GEMINI_API_KEY` | Google Gemini API key from AI Studio | `AIzaSy...` |
 | `AGENT_ALLOWED_ORIGIN`| Domain of your hosted app for CORS validation | `https://rollbook.vercel.app` |
 
-6. Click **Deploy**. Vercel will generate the Prisma Client, compile Next.js, and provide your live URL.
+6. Click **Deploy**. Vercel will generate the Prisma Client, synchronize Neon's database schema, compile Next.js, and provide your live URL.
 
 ---
 
 ## 3. Account Management & Security
 
 - **Sign Up**: Friends can visit `/login`, switch to the **Sign Up** tab, and create their own separate account with a username and password (minimum 8 characters).
-- **Data Isolation**: All courses, timetable slots, attendance history, and holidays are strictly isolated by `userId`. Cross-account mutations and queries are rejected with `403 Forbidden`.
-- **Password Resets**: Roll Book does not require email servers or OAuth for its friend-group scale. If a friend forgets their password, the owner can update the user's `passwordHash` directly in Neon or run:
+- **Data Isolation**: All courses, timetable slots, attendance records, and sync tokens are strictly isolated by `userId`. Cross-account mutations and queries are rejected with `403 Forbidden`.
+- **Shared Academic Calendar**: Holidays, recesses, and exam dates are stored centrally as a shared institutional calendar. Visible in real time to all students in read-only mode, and managed exclusively by administrators.
+- **Administrator Role & Console**:
+  - The first registered user, or any account created with the username `admin`, is automatically assigned the `admin` role.
+  - You can also promote any user manually via CLI:
+    ```bash
+    npx tsx scripts/make-admin.ts <username>
+    ```
+  - Administrators have access to the `/admin` console for managing the global calendar, inspecting student records for troubleshooting, wiping test data, and deleting accounts.
+- **Password Resets**: Roll Book does not require email servers or OAuth for its friend-group scale. If a friend forgets their password, run:
   ```bash
-  npx tsx scripts/migrate-to-multiuser.ts <username> <new_password>
+  npx tsx scripts/set-password.ts <username> <new_password>
   ```
+- **Mobile Smartphone Experience**: Roll Book is optimized for iPhone (iOS Safari) and Android mobile browsers with a docked bottom navigation bar, safe-area inset handling (`env(safe-area-inset-bottom)`), responsive SVG dials, and standardized 12-hour AM/PM and DD/MM/YYYY formatting. Desktop-only features (running the local Playwright scraper and manual JSON file restores) are automatically hidden on mobile viewports.
 - **Gemini AI Rate Limiting**: The Gemini free tier provides ~1,500 requests/day for the whole deployment. To ensure fair access across all users, each account has a built-in daily limit of 50 AI requests before returning a friendly wait message.
 
 ---

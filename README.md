@@ -26,8 +26,10 @@ Built with Next.js 16 App Router, React 19, Prisma, PostgreSQL (Neon-ready for s
 8. **Compound Multi-Tenant Uniqueness**: Users can register identical subject codes (e.g. `MAT101`) without unique constraint collisions.
 9. **Playful Geometric Design System (Dual Light/Dark Mode)**: High-contrast neo-brutalist sticker styling with Electric Teal primary accents (`#0D9488` light / `#2DD4BF` dark), chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
 10. **1-Click Section Onboarding**: Automatically imports all subjects and weekly timetable schedules for 22 MIT Bengaluru CSE Stream sections (`C01`–`C22`).
-11. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
-12. **Zero-Cost Hosting Ready**: Architected for free-tier hosting on **Vercel** with a free serverless PostgreSQL database from **Neon**.
+11. **Mobile-First Smartphone Experience**: Tailored for iPhone and Android mobile browsers featuring a thumb-friendly docked bottom navigation bar, dynamic safe-area insets (`env(safe-area-inset-bottom)`), responsive SVG progress rings, and desktop-only feature gating (hiding the CLI scraper bridge and JSON restore on phones).
+12. **Standardized 12-Hour AM/PM & DD/MM/YYYY Format**: Unified time (`h:mm am/pm`) and date (`DD/MM/YYYY`) formatting across all dashboard flight schedules, timetable slots, calendar day inspectors, modals, and Gemini AI assistant responses.
+13. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
+14. **Zero-Cost Hosting Ready**: Architected for free-tier hosting on **Vercel** with a free serverless PostgreSQL database from **Neon**.
 
 ---
 
@@ -110,12 +112,17 @@ npm run scraper:agent
 
 Open **[http://localhost:3000](http://localhost:3000)** in your browser. Click **Sign Up** to create your personal account!
 
-### 6. Promoting an Account to Admin
-To grant administrator access to an account (enabling the `/admin` console and global holiday management):
-```bash
-npx tsx scripts/make-admin.ts <username>
-```
-Once promoted, a **Shield** icon appears in the top navigation bar, granting access to the **Admin Console** (`/admin`) for:
+### 6. Administrator Access & Management
+- **Automatic Admin**: The very first registered user, or any account created with the username `admin`, is automatically granted the `admin` role upon registration.
+- **Manual CLI Promotion**: You can promote any existing user to administrator with:
+  ```bash
+  npx tsx scripts/make-admin.ts <username>
+  ```
+- **Password Resets**: To set or reset a user's password directly from the terminal:
+  ```bash
+  npx tsx scripts/set-password.ts <username> <new-password>
+  ```
+Once promoted or signed in as admin, a **Shield** icon appears in the top navigation bar, granting access to the **Admin Console** (`/admin`) for:
 - Declaring and modifying global university calendar holidays & exam ranges.
 - Viewing the user directory, registered courses, and last portal sync timestamps.
 - Inspecting student courses and attendance baselines without needing their passwords.
@@ -172,38 +179,45 @@ RollBook/
 │   ├── schema.prisma         # Multi-tenant PostgreSQL Prisma schema
 │   └── seed.js               # Sample semester seed script
 ├── scripts/
-│   ├── migrate-to-multiuser.ts # One-time data migration script
-│   └── test-multiuser-isolation.ts # Automated cross-tenant security test suite
+│   ├── make-admin.ts         # CLI tool to promote users to administrator
+│   ├── set-password.ts       # CLI tool to set/reset user passwords
+│   ├── test-admin-and-holidays.ts # Test suite for admin role & global calendar
+│   ├── test-multiuser-isolation.ts # Automated cross-tenant security test suite
+│   └── test-push-sync.ts     # Test suite for personal sync tokens & reverse push
 ├── scraper/
-│   ├── agent.js              # Local loopback HTTP bridge server (http://127.0.0.1:4747)
+│   ├── agent.js              # Desktop reverse-push CLI runner (supports auto-token)
 │   ├── login.js              # Modular SSO/MFA Playwright login
 │   ├── sync.js               # Modular headless getCOPList response listener
 │   └── package.json          # Scraper dependencies
 ├── src/
 │   ├── app/
+│   │   ├── admin/            # Dedicated Admin Management Console (/admin)
 │   │   ├── api/
+│   │   │   ├── admin/        # Admin directory, user inspect, reset & delete
 │   │   │   ├── attendance/   # Scoped attendance records CRUD & batch logger
-│   │   │   ├── auth/         # Login, signup, logout, session check
+│   │   │   ├── auth/         # Login, signup, logout, session check, sync token
 │   │   │   ├── chat/         # Google Gemini AI Attendance Advisor (7 tools, quota protected)
 │   │   │   ├── courses/      # Scoped course management
 │   │   │   ├── export/       # Scoped CSV and JSON backup/restore
-│   │   │   ├── holidays/     # Scoped holiday and exam-day registry
+│   │   │   ├── holidays/     # Shared global university academic calendar
 │   │   │   ├── reset/        # Per-user database reset
 │   │   │   ├── sections/     # Official department section schedules
-│   │   │   ├── sync/         # Scoped SLCM reconciliation diff engine
+│   │   │   ├── sync/         # Scoped SLCM reconciliation diff engine & reverse push
 │   │   │   └── timetable/    # Scoped weekly slot management
 │   │   ├── login/            # Dual-mode Sign In / Sign Up page
 │   │   ├── globals.css       # Neo-brutalist design tokens & CSS variables
 │   │   ├── layout.tsx        # Shell with Outfit and Plus Jakarta Sans fonts
 │   │   └── page.tsx          # App orchestrator
-│   ├── components/           # UI views, modals, and navigation
+│   ├── components/           # UI views, modals, bottom nav dock & chat widget
 │   ├── lib/
 │   │   ├── attendance.ts     # Deterministic math engine
 │   │   ├── auth.ts           # Web Crypto session tokens & bcrypt password hashing
 │   │   ├── courseMatch.ts    # Normalized & fuzzy course matcher
+│   │   ├── formatters.ts     # 12hr am/pm & dd/mm/yyyy date/time formatters
 │   │   ├── officialTimetable.ts # 22 section schedules (C01-C22)
 │   │   ├── prisma.ts         # Prisma Client singleton
-│   │   └── session.ts        # requireUser & verifyCourseOwnership helpers
+│   │   ├── session.ts        # requireUser, requireAdmin & verifyCourseOwnership
+│   │   └── useIsMobile.ts    # Dynamic device detection & viewport media query hook
 │   ├── middleware.ts         # Edge session protection middleware
 │   └── types/
 │       └── index.ts          # Shared TypeScript types

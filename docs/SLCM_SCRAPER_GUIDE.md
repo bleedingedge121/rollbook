@@ -52,22 +52,27 @@ node login.js
 ```
 A browser will open. Log in with your MAHE email and approve your Microsoft Authenticator prompt. Wait until `auth.json` is generated.
 
-### Step 3: Pull Attendance Figures
+### Step 3: Run Desktop Reverse-Push Sync (Recommended)
 ```bash
-node sync.js
+node agent.js
 ```
-The script will output:
-```
-✓ Intercepted Apex attendance call [getCOPList] with 10 items.
-✓ Synchronized 10 courses successfully!
-Saved output to: .../scraper/sync-output.json
-```
+On first run, `agent.js` prompts for your hosted application URL (e.g. `https://rollbook.vercel.app`) and your **Personal Sync Token** (generated under **Settings** $\rightarrow$ **SLCM Sync Bridge** on desktop). These are saved in `scraper/.env`.
 
-### Step 4: Import into Roll Book
-1. Open Roll Book web app at `http://localhost:3000`.
-2. Go to **Settings & Sync** $\rightarrow$ **SLCM Sync Bridge**.
-3. Click **Load Synced Data (JSON)** and select `scraper/sync-output.json`.
-4. Review the reconciliation diff and choose your course merge mappings before confirming.
+The script:
+1. Validates or prompts for interactive Microsoft SSO + MFA login.
+2. Intercepts attendance data directly from Salesforce Aura responses.
+3. Automatically posts the verified payload to `{APP_URL}/api/sync/push`.
+4. Your hosted Roll Book dashboard updates immediately!
+
+### Step 4: Manual Fallback (Offline JSON Import)
+If you prefer offline manual import:
+1. Run `node sync.js` to output `scraper/sync-output.json`.
+2. Open Roll Book web app on your desktop browser.
+3. Go to **Settings** $\rightarrow$ **SLCM Sync Bridge**.
+4. Click **Load Synced Data (JSON)**, choose `scraper/sync-output.json`, and confirm the reconciliation diff.
+
+> [!NOTE]
+> **Desktop-Only Utility**: The SLCM scraper bridge requires local terminal execution with Node.js and Playwright. When accessing Roll Book on a mobile device (iPhone or Android), the SLCM Sync Bridge tab and manual JSON file restore are automatically hidden to keep the mobile experience streamlined. Always run synchronization from your laptop or PC.
 
 ---
 
