@@ -617,10 +617,10 @@ export default function AdminPage() {
               <div>
                 <h2 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2">
                   <Palmtree className="w-5 h-5 text-amber-500" />
-                  Shared University Calendar (Global)
+                  College-Wide Academic Calendar (Global)
                 </h2>
                 <p className="text-xs text-[var(--muted-foreground)] mt-1">
-                  All dates added or deleted here are globally synchronized across all registered student accounts in this section.
+                  All dates added or deleted here are globally synchronized across the entire college and department (all sections C01–C22). They are automatically factored into attendance auditing and trajectory simulations for all students.
                 </p>
               </div>
 
@@ -711,14 +711,14 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Type</label>
+                    <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Event Classification</label>
                     <select
                       value={newHolidayType}
                       onChange={(e) => setNewHolidayType(e.target.value as any)}
                       className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-indigo-500 font-bold"
                     >
-                      <option value="holiday">🌴 Holiday / Recess</option>
-                      <option value="exam">📝 Exam Day / Assessment</option>
+                      <option value="holiday">🌴 College Holiday / Recess (Public Holiday, Festival Break, Off Day)</option>
+                      <option value="exam">📝 Term Exams / University Assessments (Mid-Terms, End-Terms, Lab Assessment Week)</option>
                     </select>
                   </div>
                 </div>

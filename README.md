@@ -17,7 +17,7 @@ Built with Next.js 16 App Router, React 19, Prisma, PostgreSQL (Neon-ready for s
 ## 🌟 Core Highlights
 
 1. **Strict Per-User Data Isolation**: Each friend has their own private account. Courses, timetable schedules, attendance logs, and personal sync tokens are strictly isolated per user. Cross-account mutations and queries are rejected with `403 Forbidden`.
-2. **Shared Global Academic Calendar**: Holidays, recesses, and exam dates are shared across all users in your section as a single academic calendar. Editable only by administrators and visible in read-only mode to regular users.
+2. **Shared College-Wide Academic Calendar**: Holidays, recesses, and term exam periods are institution-wide and apply across every department and section (e.g. C01–C22) as a single academic calendar. Maintained centrally by administrators and visible in real-time read-only mode to all students.
 3. **Dedicated Admin Console (`/admin`)**: Administrators can manage the shared holiday calendar, inspect user accounts and attendance baselines, perform per-user data resets, and permanently delete accounts with typed-username safety confirmations.
 4. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
 5. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory without corrupting your verified history.

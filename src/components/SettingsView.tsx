@@ -919,9 +919,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="flex items-start gap-3 p-4 rounded-2xl bg-indigo-500/10 border-2 border-indigo-500/30 text-xs shadow-[2px_2px_0px_var(--shadow-color)]">
                 <Shield className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <div className="font-heading font-black text-[var(--foreground)]">Shared University Calendar</div>
+                  <div className="font-heading font-black text-[var(--foreground)]">College-Wide Academic Calendar</div>
                   <p className="text-[var(--muted-foreground)] leading-relaxed">
-                    Holidays, recesses, and exam dates are shared across all registered students in this section. Holiday declarations and edits are managed centrally by administrators. You can view all confirmed events below.
+                    Holidays, recesses, and term exam windows are institution-wide and shared across all college departments and sections. Calendar events are maintained centrally by administrators. Below is your official academic schedule.
                   </p>
                 </div>
               </div>
@@ -930,7 +930,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl bg-indigo-500/10 border-2 border-indigo-500/30 text-xs shadow-[2px_2px_0px_var(--shadow-color)]">
                   <div className="flex items-center gap-2 font-mono font-bold text-indigo-700 dark:text-indigo-300">
                     <Shield className="w-4 h-4 flex-shrink-0" />
-                    <span>Admin Mode: Changes made here apply globally to all students in this section.</span>
+                    <span>Admin Mode: Changes made here apply globally across all college departments and sections.</span>
                   </div>
                   <a
                     href="/admin"
@@ -1027,14 +1027,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
 
                     <div>
-                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Type</label>
+                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Event Classification</label>
                       <select
                         value={newHolidayType}
                         onChange={(e) => setNewHolidayType(e.target.value as any)}
                         className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-bold"
                       >
-                        <option value="holiday">🌴 Holiday / Recess</option>
-                        <option value="exam">📝 Exam Day / Assessment</option>
+                        <option value="holiday">🌴 College Holiday / Recess (Public Holiday, Festival Break, Off Day)</option>
+                        <option value="exam">📝 Term Exams / University Assessments (Mid-Terms, End-Terms, Lab Assessment Week)</option>
                       </select>
                     </div>
                   </div>
