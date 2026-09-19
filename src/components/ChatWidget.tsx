@@ -8,17 +8,18 @@ import {
   Sparkles,
   RotateCcw,
   Image as ImageIcon,
+  Plus,
 } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  image?: {
+  images?: Array<{
     mimeType: string
     data: string
     url?: string
-  }
+  }>
 }
 
 export const ChatWidget: React.FC = () => {
@@ -27,16 +28,18 @@ export const ChatWidget: React.FC = () => {
     {
       role: 'assistant',
       content:
-        "Hello! I'm your Roll Book attendance advisor. Ask me anything about your current percentages, safe-to-skip buffers, recovery streaks, or upcoming timetable schedule. You can also paste your SLCM table or upload/paste a screenshot of it to sync your records instantly!",
+        "Hello! I'm your Roll Book attendance advisor. Ask me anything about your current percentages, safe-to-skip buffers, recovery streaks, or upcoming timetable schedule. You can also paste your SLCM table or upload multiple screenshots of it to sync your records instantly!",
     },
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedImage, setSelectedImage] = useState<{
-    mimeType: string
-    data: string
-    url: string
-  } | null>(null)
+  const [selectedImages, setSelectedImages] = useState<
+    Array<{
+      mimeType: string
+      data: string
+      url: string
+    }>
+  >([])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -50,11 +53,10 @@ export const ChatWidget: React.FC = () => {
     if (isOpen) {
       scrollToBottom()
     }
-  }, [messages, isOpen, selectedImage])
+  }, [messages, isOpen, selectedImages])
 
-  const processImageFile = (file: File) => {
-    if (!file.type.startsWith('image/')) return
-    try {
+  const processSingleImage = (file: File): Promise<void> => {
+    return new Promise<void>((resolve) => {
       const reader = new FileReader()
       reader.onload = (e) => {
         const img = new window.Image()
@@ -78,61 +80,80 @@ export const ChatWidget: React.FC = () => {
             ctx.drawImage(img, 0, 0, width, height)
             const dataUrl = canvas.toDataURL('image/jpeg', 0.88)
             const [, base64Data] = dataUrl.split(';base64,')
-            setSelectedImage({
-              mimeType: 'image/jpeg',
-              data: base64Data,
-              url: dataUrl,
-            })
+            setSelectedImages((prev) => [
+              ...prev,
+              {
+                mimeType: 'image/jpeg',
+                data: base64Data,
+                url: dataUrl,
+              },
+            ])
           } else {
             const rawUrl = (e.target?.result as string) || ''
             const [, base64Data] = rawUrl.split(';base64,')
-            setSelectedImage({
-              mimeType: file.type || 'image/png',
-              data: base64Data,
-              url: rawUrl,
-            })
+            setSelectedImages((prev) => [
+              ...prev,
+              {
+                mimeType: file.type || 'image/png',
+                data: base64Data,
+                url: rawUrl,
+              },
+            ])
           }
+          resolve()
         }
+        img.onerror = () => resolve()
         img.src = e.target?.result as string
       }
+      reader.onerror = () => resolve()
       reader.readAsDataURL(file)
-    } catch (err) {
-      console.error('Failed to process image:', err)
+    })
+  }
+
+  const processImageFiles = async (files: File[]) => {
+    const valid = files.filter((f) => f.type.startsWith('image/'))
+    for (const f of valid) {
+      await processSingleImage(f)
     }
   }
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const items = e.clipboardData?.items
     if (!items) return
+    const files: File[] = []
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.startsWith('image/')) {
         const file = items[i].getAsFile()
-        if (file) {
-          e.preventDefault()
-          processImageFile(file)
-          return
-        }
+        if (file) files.push(file)
       }
+    }
+    if (files.length > 0) {
+      e.preventDefault()
+      processImageFiles(files)
     }
   }
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || input).trim()
-    const imgToSend = selectedImage
-    if ((!text && !imgToSend) || isLoading) return
+    const imgsToSend = selectedImages
+    if ((!text && imgsToSend.length === 0) || isLoading) return
 
     const userMessageContent =
-      text || 'Please extract and synchronize my attendance figures from this SLCM table screenshot.'
+      text ||
+      (imgsToSend.length > 1
+        ? `Please extract and synchronize all attendance figures from these ${imgsToSend.length} SLCM table screenshots.`
+        : 'Please extract and synchronize my attendance figures from this SLCM table screenshot.')
+
     const newMsg: Message = {
       role: 'user',
       content: userMessageContent,
-      ...(imgToSend
+      ...(imgsToSend.length > 0
         ? {
-            image: {
-              mimeType: imgToSend.mimeType,
-              data: imgToSend.data,
-              url: imgToSend.url,
-            },
+            images: imgsToSend.map((img) => ({
+              mimeType: img.mimeType,
+              data: img.data,
+              url: img.url,
+            })),
           }
         : {}),
     }
@@ -140,7 +161,7 @@ export const ChatWidget: React.FC = () => {
     const newMessages: Message[] = [...messages, newMsg]
     setMessages(newMessages)
     setInput('')
-    setSelectedImage(null)
+    setSelectedImages([])
     setIsLoading(true)
 
     try {
@@ -151,8 +172,13 @@ export const ChatWidget: React.FC = () => {
           messages: newMessages.map((m) => ({
             role: m.role,
             content: m.content,
-            ...(m.image
-              ? { image: { mimeType: m.image.mimeType, data: m.image.data } }
+            ...(m.images && m.images.length > 0
+              ? {
+                  images: m.images.map((img) => ({
+                    mimeType: img.mimeType,
+                    data: img.data,
+                  })),
+                }
               : {}),
           })),
         }),
@@ -185,20 +211,20 @@ export const ChatWidget: React.FC = () => {
   }
 
   const quickPrompts = [
-    '📸 Sync from Screenshot',
+    '📸 Sync from Screenshots',
     'Am I below 75% in any subject?',
     'How many classes can I safely skip?',
     'What is my upcoming schedule?',
   ]
 
   const handleQuickPromptClick = (prompt: string) => {
-    if (prompt === '📸 Sync from Screenshot') {
-      if (!selectedImage) {
+    if (prompt === '📸 Sync from Screenshots') {
+      if (selectedImages.length === 0) {
         fileInputRef.current?.click()
         return
       }
       handleSend(
-        'Please extract and synchronize my attendance figures from this SLCM table screenshot.'
+        `Please extract and synchronize my attendance figures from these ${selectedImages.length} SLCM table screenshots.`
       )
       return
     }
@@ -256,7 +282,7 @@ export const ChatWidget: React.FC = () => {
                 : { opacity: 0, scale: 0.9, y: 20, transformOrigin: 'bottom right' }
             }
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] sm:w-[380px] max-h-[75vh] sm:max-h-[580px] h-[480px] sm:h-[520px] bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl shadow-[6px_6px_0px_var(--shadow-color)] flex flex-col overflow-hidden z-50"
+            className="absolute bottom-16 right-0 w-[calc(100vw-2rem)] sm:w-[390px] max-h-[75vh] sm:max-h-[590px] h-[500px] sm:h-[530px] bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl shadow-[6px_6px_0px_var(--shadow-color)] flex flex-col overflow-hidden z-50"
           >
             {/* Header */}
             <div className="p-4 bg-gradient-to-r from-teal-600/15 via-pink-500/10 to-amber-500/10 border-b-2 border-[var(--border)] flex items-center justify-between">
@@ -309,20 +335,37 @@ export const ChatWidget: React.FC = () => {
                   )}
 
                   <div
-                    className={`max-w-[82%] p-3 rounded-2xl text-xs leading-relaxed font-sans ${
+                    className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed font-sans ${
                       m.role === 'user'
                         ? 'bg-teal-600 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] rounded-tr-sm'
                         : 'bg-[var(--card)] text-[var(--card-foreground)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] rounded-tl-sm'
                     }`}
                   >
-                    {m.image?.url && (
-                      <div className="mb-2 rounded-xl overflow-hidden border border-white/20 max-h-44">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={m.image.url}
-                          alt="SLCM Screenshot"
-                          className="w-full h-auto object-cover max-h-44"
-                        />
+                    {/* Render attached screenshots if any */}
+                    {m.images && m.images.length > 0 && (
+                      <div
+                        className={`mb-2 grid gap-1.5 ${
+                          m.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                        } max-h-48 overflow-y-auto rounded-xl`}
+                      >
+                        {m.images.map((img, i) => (
+                          <div
+                            key={i}
+                            className="relative rounded-lg overflow-hidden border border-white/20 bg-black/20"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={img.url}
+                              alt={`Screenshot ${i + 1}`}
+                              className="w-full h-24 object-cover"
+                            />
+                            {m.images && m.images.length > 1 && (
+                              <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-white font-bold">
+                                #{i + 1}
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                     {m.content}
@@ -372,33 +415,52 @@ export const ChatWidget: React.FC = () => {
               ))}
             </div>
 
-            {/* Image Preview Banner */}
-            {selectedImage && (
-              <div className="px-3 py-2 bg-teal-600/10 border-t-2 border-[var(--border)] flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={selectedImage.url}
-                    alt="Preview"
-                    className="w-8 h-8 object-cover rounded-lg border border-[var(--border)] shrink-0"
-                  />
-                  <div className="overflow-hidden">
-                    <p className="text-[11px] font-bold text-[var(--foreground)] truncate">
-                      SLCM Screenshot Attached
-                    </p>
-                    <p className="text-[9px] text-[var(--muted-foreground)] font-mono truncate">
-                      Hit send to extract &amp; sync attendance
-                    </p>
-                  </div>
+            {/* Multi-Image Preview Banner */}
+            {selectedImages.length > 0 && (
+              <div className="px-3 py-2 bg-teal-600/10 border-t-2 border-[var(--border)] flex items-center justify-between gap-2 overflow-x-auto">
+                <div className="flex items-center gap-2 overflow-x-auto py-0.5">
+                  {selectedImages.map((img, idx) => (
+                    <div key={idx} className="relative shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.url}
+                        alt={`Preview ${idx + 1}`}
+                        className="w-9 h-9 object-cover rounded-lg border-2 border-[var(--border)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedImages((prev) => prev.filter((_, i) => i !== idx))
+                        }
+                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center text-[9px] font-bold shadow"
+                        title="Remove screenshot"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-9 h-9 rounded-lg border-2 border-dashed border-[var(--border)] hover:border-teal-500 text-[var(--muted-foreground)] hover:text-teal-600 flex items-center justify-center text-xs font-bold shrink-0 transition-colors"
+                    title="Add another screenshot"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedImage(null)}
-                  className="p-1 rounded-md text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-                  title="Remove screenshot"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] font-mono font-bold text-teal-600 dark:text-teal-400 block">
+                    {selectedImages.length} {selectedImages.length === 1 ? 'photo' : 'photos'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImages([])}
+                    className="text-[9px] text-[var(--muted-foreground)] hover:text-rose-500 font-mono"
+                  >
+                    Clear all
+                  </button>
+                </div>
               </div>
             )}
 
@@ -416,7 +478,7 @@ export const ChatWidget: React.FC = () => {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading}
                 className="p-2.5 rounded-full text-[var(--muted-foreground)] hover:text-teal-600 hover:bg-teal-600/15 border border-[var(--border)] transition-colors shrink-0 mb-0.5"
-                title="Attach or upload SLCM screenshot"
+                title="Attach or upload SLCM screenshots"
               >
                 <ImageIcon className="w-4 h-4" />
               </button>
@@ -424,11 +486,12 @@ export const ChatWidget: React.FC = () => {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
+                multiple
                 className="hidden"
                 onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    processImageFile(file)
+                  const files = Array.from(e.target.files || [])
+                  if (files.length > 0) {
+                    processImageFiles(files)
                     e.target.value = ''
                   }
                 }}
@@ -445,16 +508,16 @@ export const ChatWidget: React.FC = () => {
                   }
                 }}
                 placeholder={
-                  selectedImage
-                    ? 'Add a message or hit send to sync...'
-                    : 'Ask advisor or paste table / screenshot...'
+                  selectedImages.length > 0
+                    ? `Hit send to sync ${selectedImages.length} screenshot${selectedImages.length > 1 ? 's' : ''}...`
+                    : 'Ask advisor or paste table / screenshots...'
                 }
                 disabled={isLoading}
                 className="flex-1 bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-3.5 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-teal-500 transition-colors font-sans resize-none max-h-24 overflow-y-auto leading-normal"
               />
               <button
                 type="submit"
-                disabled={isLoading || (!input.trim() && !selectedImage)}
+                disabled={isLoading || (!input.trim() && selectedImages.length === 0)}
                 className="p-2.5 rounded-full bg-teal-600 hover:bg-teal-500 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] disabled:opacity-40 transition-transform active:scale-95 shrink-0 mb-0.5"
               >
                 <Send className="w-3.5 h-3.5" />

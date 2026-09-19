@@ -19,8 +19,47 @@ function formatIsoDate(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
-const MODEL_NAME = 'gemini-flash-latest'
+const CANDIDATE_MODELS = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite']
 const MAX_DAILY_CHAT_REQUESTS = 50
+
+async function generateWithFallback(
+  ai: GoogleGenAI,
+  contents: any[],
+  systemInstruction: string,
+  toolDeclarations: any[]
+): Promise<{ response: any; modelUsed: string }> {
+  let lastErr: any = null
+  for (const model of CANDIDATE_MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction,
+            tools: [{ functionDeclarations: toolDeclarations as any }],
+          },
+        })
+        return { response, modelUsed: model }
+      } catch (err: any) {
+        lastErr = err
+        const isTransient =
+          err?.status === 503 ||
+          err?.status === 429 ||
+          err?.message?.includes('503') ||
+          err?.message?.includes('demand') ||
+          err?.message?.includes('UNAVAILABLE') ||
+          err?.message?.includes('RESOURCE_EXHAUSTED')
+        if (isTransient && attempt === 0) {
+          await new Promise((r) => setTimeout(r, 600))
+          continue
+        }
+        break
+      }
+    }
+  }
+  throw lastErr
+}
 
 export async function POST(req: Request) {
   const auth = await requireUser(req)
@@ -573,7 +612,7 @@ RULES:
 6. Be concise, punchy, clear, and supportive. Use a witty, dignified tone.
 7. NEVER address the user as "Sir", "Ma'am", or similar honorifics. Speak to them directly as a smart, capable peer.
 8. If the user pastes attendance data, an SLCM table, or asks to update their attendance from text, call \`sync_attendance_data\` to save it directly to their Roll Book database account if not already synced. If a [SYSTEM NOTIFICATION] indicates Roll Book already synchronized the courses, celebrate the sync, confirm how many courses were updated, and provide an encouraging, organized breakdown of their subjects, present/total classes, and current percentages.
-9. When the user sends or uploads a screenshot/image of an attendance portal or SLCM table, inspect the image carefully. Extract all course names, course codes (e.g. SMS_1102, CES_1102), total classes, present count, and absent count for every row visible in the table. Immediately call \`sync_attendance_data\` with the list of extracted courses to save them directly to the user's Roll Book account. Once synchronized, confirm the exact courses and numbers recorded, and provide an encouraging summary of their overall attendance health.`
+9. When the user sends or uploads one or more screenshots/images of an attendance portal or SLCM table (even if split across multiple screenshots covering the top and bottom of the table), inspect ALL images collectively. Deduplicate any overlapping course rows across multiple screenshots. Extract all course names, course codes (e.g. SMS_1102, CES_1102), total classes, present count, and absent count for every unique course found across all uploaded screenshots. Immediately call \`sync_attendance_data\` with the deduplicated list of courses to save them directly to the user's Roll Book account. Once synchronized, confirm the exact courses and numbers recorded, and provide an encouraging summary of their overall attendance health.`
 
     // Format messages for Gemini
     const contents: any[] = []
@@ -589,16 +628,27 @@ RULES:
       if (text) {
         parts.push({ text })
       }
-      if (msg.image && msg.image.data && msg.image.mimeType) {
-        const cleanBase64 = msg.image.data.includes('base64,')
-          ? msg.image.data.split('base64,')[1]
-          : msg.image.data
-        parts.push({
-          inlineData: {
-            mimeType: msg.image.mimeType,
-            data: cleanBase64,
-          },
-        })
+
+      // Collect all images from array (msg.images) or legacy single object (msg.image)
+      const rawImages: any[] = []
+      if (Array.isArray(msg.images)) {
+        rawImages.push(...msg.images)
+      } else if (msg.image) {
+        rawImages.push(msg.image)
+      }
+
+      for (const img of rawImages) {
+        if (img?.data && img?.mimeType) {
+          const cleanBase64 = img.data.includes('base64,')
+            ? img.data.split('base64,')[1]
+            : img.data
+          parts.push({
+            inlineData: {
+              mimeType: img.mimeType,
+              data: cleanBase64,
+            },
+          })
+        }
       }
 
       if (parts.length === 0) {
@@ -611,30 +661,12 @@ RULES:
       })
     }
 
-    let response: any = null
-
-    try {
-      response = await ai.models.generateContent({
-        model: MODEL_NAME,
-        contents,
-        config: {
-          systemInstruction,
-          tools: [{ functionDeclarations: toolDeclarations as any }],
-        },
-      })
-    } catch (modelErr: any) {
-      if (
-        modelErr?.status === 404 ||
-        modelErr?.message?.includes('404') ||
-        modelErr?.message?.includes('not found') ||
-        modelErr?.message?.includes('NOT_FOUND')
-      ) {
-        return NextResponse.json({
-          reply: `The AI model (${MODEL_NAME}) is temporarily unavailable. Please check your Gemini configuration or try again shortly.`,
-        })
-      }
-      throw modelErr
-    }
+    let { response } = await generateWithFallback(
+      ai,
+      contents,
+      systemInstruction,
+      toolDeclarations
+    )
 
     // Handle Function Calls Loop (up to 4 rounds)
     for (let round = 0; round < 4; round++) {
@@ -662,29 +694,14 @@ RULES:
           ],
         })
 
-        // Call Gemini again with function output
-        try {
-          response = await ai.models.generateContent({
-            model: MODEL_NAME,
-            contents,
-            config: {
-              systemInstruction,
-              tools: [{ functionDeclarations: toolDeclarations as any }],
-            },
-          })
-        } catch (followupErr: any) {
-          if (
-            followupErr?.status === 404 ||
-            followupErr?.message?.includes('404') ||
-            followupErr?.message?.includes('not found') ||
-            followupErr?.message?.includes('NOT_FOUND')
-          ) {
-            return NextResponse.json({
-              reply: `The AI model (${MODEL_NAME}) encountered an availability error during tool execution. Please try again shortly.`,
-            })
-          }
-          throw followupErr
-        }
+        // Call Gemini again with function output using resilient fallback
+        const followup = await generateWithFallback(
+          ai,
+          contents,
+          systemInstruction,
+          toolDeclarations
+        )
+        response = followup.response
       } else {
         break
       }
@@ -709,21 +726,16 @@ RULES:
     console.error('Chat API error:', err)
     if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED')) {
       return NextResponse.json({
-        reply: "I've reached the daily request limit. Please try again shortly!",
+        reply: "The AI service reached capacity limits. Please wait a moment and try sending your message again.",
       })
     }
-    if (
-      err?.status === 404 ||
-      err?.message?.includes('404') ||
-      err?.message?.includes('not found') ||
-      err?.message?.includes('NOT_FOUND')
-    ) {
+    if (err?.status === 503 || err?.message?.includes('503') || err?.message?.includes('demand') || err?.message?.includes('UNAVAILABLE')) {
       return NextResponse.json({
-        reply: 'The AI advisor is temporarily unavailable. Please try again shortly.',
+        reply: "Google Gemini is currently experiencing a temporary demand spike. Please try sending again in a few seconds.",
       })
     }
     return NextResponse.json({
-      reply: 'The AI assistant encountered a temporary issue. Please try again shortly.',
+      reply: `The AI assistant encountered an issue: ${err?.message || 'Connection interrupted'}. Please try again shortly.`,
     })
   }
 }
