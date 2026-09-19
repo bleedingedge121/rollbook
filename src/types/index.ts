@@ -9,6 +9,9 @@ export interface Course {
   syncedPresent?: number | null
   syncedAbsent?: number | null
   syncedAt?: string | null
+  trackingMode?: 'detailed' | 'simple' | string
+  simpleHeld?: number | null
+  simpleAttended?: number | null
   timetableSlots?: TimetableSlot[]
   attendance?: AttendanceRecord[]
   createdAt?: string

@@ -45,6 +45,7 @@ import {
   addDays,
 } from 'date-fns'
 import { toDateString, parseDateString } from '@/lib/attendance'
+import { formatDate } from '@/lib/formatters'
 import {
   ResponsiveContainer,
   LineChart,
@@ -143,6 +144,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const weekday = day.getDay()
         const slots = allSlots.filter((s) => s.weekday === weekday)
         slots.forEach((slot) => {
+          const c = courses.find((co) => co.id === slot.courseId)
+          if (c && c.trackingMode === 'simple') return
+
           if (selectedCourseFilter === 'all' || slot.courseId === selectedCourseFilter) {
             updated[`${dateStr}_${slot.id}`] = plan
           }
@@ -164,6 +168,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const slots = allSlots.filter((s) => s.weekday === weekday)
     const updated = { ...plannedSlots }
     slots.forEach((slot) => {
+      const c = courses.find((co) => co.id === slot.courseId)
+      if (c && c.trackingMode === 'simple') return
       updated[`${dateStr}_${slot.id}`] = plan
     })
     setPlannedSlots(updated)
@@ -188,12 +194,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
     setIsDayBatchBusy(true)
     try {
-      const records = slots.map((s) => ({
-        courseId: s.courseId,
-        date: dateStr,
-        status,
-        note: 'Day Inspector bulk log',
-      }))
+      const records = slots
+        .filter((s) => {
+          const c = courses.find((co) => co.id === s.courseId)
+          return c && c.trackingMode !== 'simple'
+        })
+        .map((s) => ({
+          courseId: s.courseId,
+          date: dateStr,
+          status,
+          note: 'Day Inspector bulk log',
+        }))
+      if (records.length === 0) return
+
       if (onBatchLogAttendance) {
         await onBatchLogAttendance(records)
       } else {
@@ -209,7 +222,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const handleClearDayAttendance = async (dateStr: string) => {
     const dayRecs = allAttendance.filter((a) => a.date === dateStr)
     if (dayRecs.length === 0) return
-    if (!confirm(`Clear all attendance logs for ${dateStr}?`)) return
+    if (!confirm(`Clear all attendance logs for ${formatDate(dateStr)}?`)) return
 
     setIsDayBatchBusy(true)
     try {
@@ -249,6 +262,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       const slot = allSlots.find((s) => s.id === slotId)
       if (!slot) return
+
+      const c = courses.find((co) => co.id === slot.courseId)
+      if (c && c.trackingMode === 'simple') return
 
       if (selectedCourseFilter === 'all' || slot.courseId === selectedCourseFilter) {
         if (plan === 'attend') planPresent++
@@ -650,6 +666,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     (isFuture || (isToday(day) && recordsForDay.length === 0)) &&
                     slotsForDay.map((slot) => {
                       const course = courses.find((c) => c.id === slot.courseId)
+                      if (course && course.trackingMode === 'simple') return null
                       const planKey = `${dateStr}_${slot.id}`
                       const planStatus = plannedSlots[planKey]
 
@@ -700,7 +717,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <div>
               <h3 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                Day Inspector: {format(selectedDay, 'EEEE, MMMM d, yyyy')}
+                Day Inspector: {format(selectedDay, 'EEEE, MMMM d, yyyy')} ({formatDate(selectedDay)})
               </h3>
               <p className="text-xs text-[var(--muted-foreground)] mt-0.5 font-medium">
                 {selectedDayHoliday

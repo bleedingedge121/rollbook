@@ -1,5 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { addDays, isBefore, isSameDay } from 'date-fns'
+
+function parseIsoDate(str: string): Date {
+  const [y, m, d] = str.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function formatIsoDate(d: Date): string {
+  const year = d.getFullYear()
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const day = d.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 export async function GET() {
   try {
@@ -16,22 +29,66 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const { date, label, type } = body
+    const { date, startDate, endDate, label, type } = body
 
+    const holidayLabel = (label || 'Holiday / No Class').trim()
+    const holidayType = type || 'holiday'
+
+    // Multi-day date range support
+    if (startDate && endDate) {
+      let current = parseIsoDate(startDate)
+      const end = parseIsoDate(endDate)
+
+      if (isNaN(current.getTime()) || isNaN(end.getTime())) {
+        return NextResponse.json({ error: 'Invalid start or end date format (use YYYY-MM-DD)' }, { status: 400 })
+      }
+
+      if (isBefore(end, current)) {
+        return NextResponse.json({ error: 'End date cannot be before start date' }, { status: 400 })
+      }
+
+      const dateList: string[] = []
+      while (isBefore(current, end) || isSameDay(current, end)) {
+        dateList.push(formatIsoDate(current))
+        current = addDays(current, 1)
+      }
+
+      // Upsert all dates in the range atomically
+      const results = await prisma.$transaction(
+        dateList.map((d) =>
+          prisma.holiday.upsert({
+            where: { date: d },
+            update: {
+              label: holidayLabel,
+              type: holidayType,
+            },
+            create: {
+              date: d,
+              label: holidayLabel,
+              type: holidayType,
+            },
+          })
+        )
+      )
+
+      return NextResponse.json({ success: true, count: results.length, holidays: results }, { status: 201 })
+    }
+
+    // Single day
     if (!date) {
-      return NextResponse.json({ error: 'Date is required' }, { status: 400 })
+      return NextResponse.json({ error: 'Either "date" or "startDate" and "endDate" are required' }, { status: 400 })
     }
 
     const holiday = await prisma.holiday.upsert({
       where: { date },
       update: {
-        label: (label || 'Holiday / No Class').trim(),
-        type: type || 'holiday',
+        label: holidayLabel,
+        type: holidayType,
       },
       create: {
         date,
-        label: (label || 'Holiday / No Class').trim(),
-        type: type || 'holiday',
+        label: holidayLabel,
+        type: holidayType,
       },
     })
 
@@ -39,5 +96,37 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Failed to save holiday:', error)
     return NextResponse.json({ error: 'Failed to save holiday' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const url = new URL(req.url)
+    const queryIds = url.searchParams.get('ids')
+    
+    let idsToDelete: string[] = []
+    if (queryIds) {
+      idsToDelete = queryIds.split(',').map((id) => id.trim()).filter(Boolean)
+    } else {
+      try {
+        const body = await req.json()
+        if (Array.isArray(body.ids)) {
+          idsToDelete = body.ids
+        }
+      } catch {}
+    }
+
+    if (idsToDelete.length === 0) {
+      return NextResponse.json({ error: 'No holiday IDs provided for deletion' }, { status: 400 })
+    }
+
+    await prisma.holiday.deleteMany({
+      where: { id: { in: idsToDelete } },
+    })
+
+    return NextResponse.json({ success: true, count: idsToDelete.length })
+  } catch (error) {
+    console.error('Failed to delete holidays:', error)
+    return NextResponse.json({ error: 'Failed to delete holidays' }, { status: 500 })
   }
 }

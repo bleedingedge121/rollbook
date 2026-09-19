@@ -52,6 +52,20 @@ export default function App() {
 
       if (Array.isArray(rawCourses) && Array.isArray(rawAttendance)) {
         const enrichedCourses: CourseWithStats[] = rawCourses.map((c: any) => {
+          if (c.trackingMode === 'simple') {
+            const held = c.simpleHeld || 0
+            const present = c.simpleAttended || 0
+            const absent = Math.max(0, held - present)
+            const stats = calculateAttendance(present, absent, c.requiredPercent || 75.0)
+
+            return {
+              ...c,
+              stats,
+              history: [],
+              attendance: [],
+            }
+          }
+
           const courseAttendance: AttendanceRecord[] = rawAttendance.filter(
             (a: AttendanceRecord) =>
               a.courseId === c.id && !a.note?.includes('Synced from SLCM')
@@ -162,6 +176,9 @@ export default function App() {
     code: string
     requiredPercent: number
     color: string
+    trackingMode?: string
+    simpleHeld?: number
+    simpleAttended?: number
   }) => {
     const isEdit = !!courseData.id
     const url = isEdit ? `/api/courses/${courseData.id}` : '/api/courses'
@@ -226,7 +243,7 @@ export default function App() {
   }
 
   // Holiday Handlers
-  const handleSaveHoliday = async (holidayData: { date: string; label: string; type?: string }) => {
+  const handleSaveHoliday = async (holidayData: { date?: string; startDate?: string; endDate?: string; label: string; type?: string }) => {
     const res = await fetch('/api/holidays', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -337,6 +354,7 @@ export default function App() {
             onDeleteCourse={handleDeleteCourse}
             onLogAttendance={handleLogAttendance}
             onDeleteAttendance={handleDeleteAttendance}
+            onUpdateCourseDirect={handleSaveCourse}
           />
         )}
 
