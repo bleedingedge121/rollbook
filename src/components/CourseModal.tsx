@@ -13,6 +13,8 @@ interface CourseModalProps {
     code: string
     requiredPercent: number
     color: string
+    syncedPresent?: number
+    syncedAbsent?: number
   }) => Promise<void>
   initialData?: Course | null
 }
@@ -36,6 +38,8 @@ export const CourseModal: React.FC<CourseModalProps> = ({
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [requiredPercent, setRequiredPercent] = useState<number>(75.0)
+  const [syncedPresent, setSyncedPresent] = useState<number>(0)
+  const [syncedAbsent, setSyncedAbsent] = useState<number>(0)
   const [color, setColor] = useState('#0D9488')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,11 +49,15 @@ export const CourseModal: React.FC<CourseModalProps> = ({
       setName(initialData.name)
       setCode(initialData.code)
       setRequiredPercent(initialData.requiredPercent || 75.0)
+      setSyncedPresent(initialData.syncedPresent || 0)
+      setSyncedAbsent(initialData.syncedAbsent || 0)
       setColor(initialData.color || '#0D9488')
     } else {
       setName('')
       setCode('')
       setRequiredPercent(75.0)
+      setSyncedPresent(0)
+      setSyncedAbsent(0)
       setColor(COLOR_OPTIONS[Math.floor(Math.random() * COLOR_OPTIONS.length)])
     }
     setError(null)
@@ -73,6 +81,8 @@ export const CourseModal: React.FC<CourseModalProps> = ({
         code: code.trim().toUpperCase(),
         requiredPercent: Number(requiredPercent),
         color,
+        syncedPresent: Math.max(0, Number(syncedPresent) || 0),
+        syncedAbsent: Math.max(0, Number(syncedAbsent) || 0),
       })
       onClose()
     } catch (err: any) {
@@ -135,6 +145,43 @@ export const CourseModal: React.FC<CourseModalProps> = ({
               required
               className="w-full bg-[var(--background)] border-2 border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm font-mono text-[var(--foreground)] focus:outline-none focus:border-teal-500 uppercase"
             />
+          </div>
+
+          {/* Attendance Baseline Inputs */}
+          <div className="p-3.5 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] space-y-2">
+            <div className="text-xs font-mono font-bold text-[var(--foreground)] flex items-center justify-between">
+              <span>Portal / Current Attendance Baseline</span>
+              <span className="text-[10px] text-[var(--muted-foreground)]">SLCM Baseline</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block mb-1 font-mono uppercase">
+                  Attended (Present)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={syncedPresent}
+                  onChange={(e) => setSyncedPresent(parseInt(e.target.value, 10) || 0)}
+                  className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-sm font-mono font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-rose-600 dark:text-rose-400 block mb-1 font-mono uppercase">
+                  Missed (Absent)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={syncedAbsent}
+                  onChange={(e) => setSyncedAbsent(parseInt(e.target.value, 10) || 0)}
+                  className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-sm font-mono font-bold text-rose-600 dark:text-rose-400 focus:outline-none focus:border-teal-500"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-[var(--muted-foreground)] font-mono">
+              Enter numbers from SLCM or let the scraper sync them automatically.
+            </p>
           </div>
 
           <div>

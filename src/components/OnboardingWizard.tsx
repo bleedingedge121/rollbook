@@ -31,7 +31,7 @@ interface OnboardingWizardProps {
   onImported: () => Promise<void>
 }
 
-type Step = 'welcome' | 'section' | 'confirm' | 'applying' | 'slcm-sync' | 'syncing' | 'done'
+type Step = 'welcome' | 'section' | 'confirm' | 'applying' | 'done'
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, onImported }) => {
   const [step, setStep] = useState<Step>('welcome')
@@ -39,14 +39,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
   const [selected, setSelected] = useState<SectionSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [resultMessage, setResultMessage] = useState<string | null>(null)
-  const [agentOffline, setAgentOffline] = useState(false)
-  const [copiedCmd, setCopiedCmd] = useState(false)
 
   useEffect(() => {
     fetch('/api/sections')
       .then((r) => r.json())
       .then((data) => setSections(data.sections || []))
-      .catch(() => setError('Could not load the section list. You can still set things up manually later.'))
+      .catch(() => setError('Failed to load official sections'))
   }, [])
 
   const skipOnboarding = () => {
@@ -70,87 +68,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
       if (!res.ok) throw new Error(data.error || 'Something went wrong setting up your timetable')
       setResultMessage(data.message)
       await onImported()
-      setStep('slcm-sync')
+      setStep('done')
     } catch (err: any) {
       setError(err?.message || 'Something went wrong setting up your timetable')
       setStep('confirm')
     }
-  }
-
-  const handleOnboardingSync = async () => {
-    setStep('syncing')
-    setError(null)
-    setAgentOffline(false)
-
-    try {
-      // 1. Check agent status
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 2500)
-
-      let statusRes
-      try {
-        statusRes = await fetch('http://localhost:4747/status', {
-          signal: controller.signal,
-        })
-      } catch {
-        setAgentOffline(true)
-        setStep('slcm-sync')
-        return
-      } finally {
-        clearTimeout(timeoutId)
-      }
-
-      if (!statusRes.ok) {
-        setAgentOffline(true)
-        setStep('slcm-sync')
-        return
-      }
-
-      // 2. Run sync
-      const syncRes = await fetch('http://localhost:4747/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      const json = await syncRes.json()
-      if (!syncRes.ok) {
-        throw new Error(json.error || 'Scraper could not capture attendance.')
-      }
-
-      // 3. Auto-reconcile & apply
-      const reconcileRes = await fetch('/api/sync/reconcile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          courses: json.courses,
-          syncedAt: json.syncedAt,
-          apply: true,
-          merges: json.courses.map((c: any) => ({
-            incomingCode: c.code,
-            incomingName: c.name,
-            present: c.present,
-            absent: c.absent,
-            targetCourseId: 'AUTO_MATCH',
-          })),
-        }),
-      })
-
-      if (!reconcileRes.ok) {
-        console.warn('Reconcile auto-apply notice, refreshing...')
-      }
-
-      await onImported()
-      setStep('done')
-    } catch (err: any) {
-      setError(err?.message || 'Failed to sync with SLCM')
-      setStep('slcm-sync')
-    }
-  }
-
-  const copyAgentCommand = () => {
-    navigator.clipboard.writeText('cd scraper && node agent.js')
-    setCopiedCmd(true)
-    setTimeout(() => setCopiedCmd(false), 2000)
   }
 
   return (
@@ -295,88 +217,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
             )}
 
             {/* Step: SLCM Sync Prompt */}
-            {step === 'slcm-sync' && (
-              <motion.div
-                key="slcm-sync"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="text-center space-y-5"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-teal-500/20 text-teal-600 border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] flex items-center justify-center mx-auto">
-                  <RefreshCw className="w-6 h-6" />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-heading font-black text-[var(--foreground)]">
-                    Synchronize Live SLCM Attendance?
-                  </h2>
-                  <p className="text-xs text-[var(--muted-foreground)] mt-1 max-w-sm mx-auto leading-relaxed">
-                    Would you like to pull your verified attendance figures from the MAHE portal right now?
-                  </p>
-                </div>
-
-                {agentOffline && (
-                  <div className="p-4 rounded-2xl bg-amber-400/15 border-2 border-[var(--border)] text-left space-y-2.5 shadow-[3px_3px_0px_var(--shadow-color)]">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--foreground)]">
-                      <Terminal className="w-3.5 h-3.5 text-amber-600" />
-                      Local Scraper Bridge Offline (Optional)
-                    </div>
-                    <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-                      The automated scraper is an optional local tool for students running the script on their own computer. If you are using Roll Book on the web, you can skip this and track attendance directly in the app!
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 bg-[var(--background)] p-2 rounded-xl font-mono text-[11px] text-[var(--foreground)] border border-[var(--border)] truncate" title="cd scraper && node agent.js">
-                        cd scraper && node agent.js
-                      </div>
-                      <button
-                        onClick={copyAgentCommand}
-                        className="pill-btn px-3 py-1.5 bg-[var(--card)] hover:bg-[var(--muted)] text-[10px] font-bold flex items-center gap-1 shrink-0"
-                      >
-                        {copiedCmd ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        {copiedCmd ? 'Copied' : 'Copy'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2 pt-2">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleOnboardingSync}
-                    className="pill-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-[3px_3px_0px_var(--shadow-color)]"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    Sync Now (1-Click)
-                  </motion.button>
-                  <button
-                    onClick={() => setStep('done')}
-                    className="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] py-2 block w-full transition-colors font-medium"
-                  >
-                    Skip, start with 0 attendance
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {step === 'syncing' && (
-              <motion.div
-                key="syncing"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-8 space-y-3"
-              >
-                <RefreshCw className="w-8 h-8 text-teal-600 mx-auto animate-spin" />
-                <h3 className="font-heading font-black text-sm text-[var(--foreground)]">
-                  Synchronizing Portal Figures...
-                </h3>
-                <p className="text-xs text-[var(--muted-foreground)] max-w-xs mx-auto">
-                  Connecting to MAHE SLCM. If Microsoft SSO or MFA is needed, a browser window will open.
-                </p>
-              </motion.div>
-            )}
-
             {step === 'done' && (
               <motion.div
                 key="done"
@@ -384,19 +224,19 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center space-y-5"
               >
-                <PartyPopper className="w-10 h-10 text-emerald-500 mx-auto" />
+                <PartyPopper className="w-12 h-12 text-emerald-500 mx-auto" />
                 <div>
-                  <h2 className="text-sm font-heading font-black text-[var(--foreground)]">Setup Complete!</h2>
+                  <h2 className="text-base font-heading font-black text-[var(--foreground)]">Timetable Configured!</h2>
                   <p className="text-xs text-[var(--muted-foreground)] mt-1">{resultMessage}</p>
                 </div>
 
                 <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 text-left space-y-2 shadow-[3px_3px_0px_var(--shadow-color)]">
-                  <div className="flex items-center gap-2 text-xs font-heading font-bold uppercase tracking-wider text-[var(--foreground)] font-mono">
+                  <div className="flex items-center gap-2 text-xs font-heading font-bold text-teal-600 dark:text-teal-400 font-mono">
                     <Terminal className="w-3.5 h-3.5 text-teal-600" />
-                    1-Click Sync Ready
+                    SLCM Live Attendance Sync
                   </div>
-                  <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-                    You can synchronize live SLCM baseline figures any time via Settings → SLCM Sync Bridge.
+                  <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed font-mono">
+                    Your timetable slots and courses are ready! To pull your verified attendance from SLCM anytime, generate a Personal Sync Token in Settings and run the scraper.
                   </p>
                 </div>
 
@@ -404,7 +244,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={onComplete}
-                  className="pill-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all"
+                  className="pill-btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-[3px_3px_0px_var(--shadow-color)]"
                 >
                   Open Dashboard <ArrowRight className="w-4 h-4" />
                 </motion.button>

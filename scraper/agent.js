@@ -1,107 +1,143 @@
-// agent.js — Local scraper bridge server on http://127.0.0.1:4747
-const http = require('http');
+// agent.js — One-off SLCM sync runner that pushes attendance directly to your hosted Roll Book app.
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const { runLogin } = require('./login');
 const { runScrape } = require('./sync');
 
-const PORT = 4747;
-const HOST = '127.0.0.1';
+const ENV_PATH = path.resolve(__dirname, '.env');
 const AUTH_PATH = path.resolve(__dirname, 'auth.json');
-const ALLOWED_ORIGIN = process.env.AGENT_ALLOWED_ORIGIN || 'http://localhost:3000';
 
-function setCorsHeaders(res) {
-  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+function loadLocalEnv(filePath) {
+  const env = {};
+  if (fs.existsSync(filePath)) {
+    const lines = fs.readFileSync(filePath, 'utf8').split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const idx = trimmed.indexOf('=');
+      if (idx !== -1) {
+        const key = trimmed.slice(0, idx).trim();
+        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+        env[key] = val;
+      }
+    }
+  }
+  return env;
 }
 
-const server = http.createServer(async (req, res) => {
-  setCorsHeaders(res);
+function saveLocalEnv(filePath, data) {
+  const lines = Object.entries(data).map(([k, v]) => `${k}=${v}`);
+  fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
+}
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
+async function promptConfig() {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
+
+  console.log('\n========================================');
+  console.log('⚙️  Roll Book Scraper Setup');
+  console.log('Configure your connection to the hosted app once.');
+  console.log('========================================\n');
+
+  const appUrl = (
+    await ask('1. Enter your Roll Book App URL (e.g. https://your-app.vercel.app or http://localhost:3000): ')
+  ).trim();
+
+  const syncToken = (
+    await ask('2. Enter your Personal Sync Token (generate in Roll Book > Settings > SLCM Sync): ')
+  ).trim();
+
+  rl.close();
+
+  if (!appUrl || !syncToken) {
+    console.error('\n❌ Both App URL and Sync Token are required to continue.\n');
+    process.exit(1);
   }
 
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost:4747'}`);
+  return { APP_URL: appUrl, SYNC_TOKEN: syncToken };
+}
 
-  // Endpoint: GET /status
-  if (req.method === 'GET' && url.pathname === '/status') {
-    const hasSession = fs.existsSync(AUTH_PATH) && fs.statSync(AUTH_PATH).size > 10;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        status: 'online',
-        hasSession,
-        port: PORT,
-      })
-    );
-    return;
+async function main() {
+  console.log('\n========================================');
+  console.log('🚀 Roll Book SLCM Live Attendance Pusher');
+  console.log('========================================\n');
+
+  const fileEnv = loadLocalEnv(ENV_PATH);
+  let appUrl = process.env.APP_URL || fileEnv.APP_URL;
+  let syncToken = process.env.SYNC_TOKEN || fileEnv.SYNC_TOKEN;
+
+  // If configuration is missing, prompt user interactively
+  if (!appUrl || !syncToken) {
+    const answers = await promptConfig();
+    appUrl = answers.APP_URL;
+    syncToken = answers.SYNC_TOKEN;
+    saveLocalEnv(ENV_PATH, { APP_URL: appUrl, SYNC_TOKEN: syncToken });
+    console.log(`✓ Saved configuration to scraper/.env`);
   }
 
-  // Endpoint: POST /login
-  if (req.method === 'POST' && url.pathname === '/login') {
-    try {
-      console.log('[Agent] Triggering interactive login...');
-      const result = await runLogin(AUTH_PATH);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, message: 'Login complete', result }));
-    } catch (err) {
-      console.error('[Agent] Login failed:', err);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: false, error: err.message }));
+  const cleanAppUrl = appUrl.replace(/\/+$/, '');
+
+  // Step 1: Check authentication session
+  if (!fs.existsSync(AUTH_PATH)) {
+    console.log('[Auth] No saved SLCM session found. Launching login browser...');
+    await runLogin(AUTH_PATH);
+  }
+
+  // Step 2: Scrape attendance figures
+  console.log('[Scraper] Connecting to SLCM portal...');
+  let payload;
+  try {
+    payload = await runScrape(AUTH_PATH);
+  } catch (err) {
+    if (err.message === 'SESSION_EXPIRED' || err.message === 'DID_NOT_CAPTURE_COURSES') {
+      console.log('[Scraper] SLCM session expired or invalid. Opening browser to re-authenticate...');
+      await runLogin(AUTH_PATH);
+      payload = await runScrape(AUTH_PATH);
+    } else {
+      throw err;
     }
-    return;
   }
 
-  // Endpoint: POST /sync
-  if (req.method === 'POST' && url.pathname === '/sync') {
-    try {
-      console.log('[Agent] 1-Click Sync requested.');
+  console.log(`[Scraper] Successfully captured attendance for ${payload.courses.length} course(s).`);
 
-      // If no session exists, run interactive login first
-      if (!fs.existsSync(AUTH_PATH)) {
-        console.log('[Agent] auth.json missing. Opening login browser...');
-        await runLogin(AUTH_PATH);
-      }
+  // Step 3: Push attendance payload to hosted Roll Book API
+  const pushEndpoint = `${cleanAppUrl}/api/sync/push`;
+  console.log(`[Sync] Pushing attendance to ${pushEndpoint}...`);
 
-      let payload;
-      try {
-        payload = await runScrape(AUTH_PATH);
-      } catch (scrapeErr) {
-        if (scrapeErr.message === 'SESSION_EXPIRED' || scrapeErr.message === 'DID_NOT_CAPTURE_COURSES') {
-          console.log('[Agent] Session expired or stale. Re-launching login...');
-          await runLogin(AUTH_PATH);
-          payload = await runScrape(AUTH_PATH);
-        } else {
-          throw scrapeErr;
-        }
-      }
+  const response = await fetch(pushEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${syncToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(payload));
-    } catch (err) {
-      console.error('[Agent] Sync error:', err);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          error: err.message || 'Scrape failed. Please check portal credentials or rerun login.',
-        })
-      );
+  const resJson = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    console.error('\n❌ Failed to push attendance to Roll Book:');
+    console.error(`Status ${response.status}: ${resJson.error || response.statusText}`);
+    if (response.status === 401) {
+      console.error('\n💡 Tip: Your sync token may be expired or invalid.');
+      console.error('Go to Settings > SLCM Sync in Roll Book to generate a new token, then update scraper/.env.\n');
     }
-    return;
+    process.exit(1);
   }
 
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ error: 'Endpoint not found' }));
-});
+  console.log('\n========================================');
+  console.log('✓ Attendance successfully synchronized with Roll Book!');
+  console.log(`Updated Courses: ${resJson.count || payload.courses.length}`);
+  console.log(`Timestamp:       ${new Date(payload.syncedAt).toLocaleString()}`);
+  console.log('========================================');
+  console.log('Refresh your Roll Book web dashboard to see updated numbers!\n');
+}
 
-server.listen(PORT, HOST, () => {
-  console.log(`\n========================================`);
-  console.log(`🚀 SLCM Scraper Agent listening on http://${HOST}:${PORT}`);
-  console.log(`Restricted to origin: ${ALLOWED_ORIGIN}`);
-  console.log(`Ready for 1-Click Sync requests from Roll Book.`);
-  console.log(`========================================\n`);
+main().catch((err) => {
+  console.error('\n❌ Sync failed:', err.message);
+  process.exit(1);
 });

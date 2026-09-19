@@ -11,6 +11,7 @@ model User {
   id               String    @id @default(cuid())
   username         String    @unique
   passwordHash     String
+  syncToken        String?   @unique
   chatRequestCount Int       @default(0)
   chatRequestDate  String?
   createdAt        DateTime  @default(now())

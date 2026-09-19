@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import {
   BookOpen,
   Calendar,
@@ -90,10 +90,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [syncError, setSyncError] = useState<string | null>(null)
   const [isParsingSync, setIsParsingSync] = useState(false)
 
-  // 1-Click Sync Agent State
-  const [isAgentSyncing, setIsAgentSyncing] = useState(false)
-  const [agentOffline, setAgentOffline] = useState(false)
-  const [agentStatusNote, setAgentStatusNote] = useState<string | null>(null)
+  // Personal Sync Token State
+  const [hasSyncToken, setHasSyncToken] = useState(false)
+  const [isGeneratingToken, setIsGeneratingToken] = useState(false)
+  const [activeSyncToken, setActiveSyncToken] = useState<string | null>(null)
+  const [copiedToken, setCopiedToken] = useState(false)
   const [copiedCmd, setCopiedCmd] = useState(false)
 
   // Add Holiday Form State (Single vs Range)
@@ -114,6 +115,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // File input refs
   const fileInputRef = useRef<HTMLInputElement>(null)
   const backupInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/sync-token')
+      .then((r) => r.json())
+      .then((d) => setHasSyncToken(!!d.hasSyncToken))
+      .catch(() => {})
+  }, [])
+
+  const latestSyncedAt = useMemo(() => {
+    const dates = courses
+      .map((c) => c.syncedAt)
+      .filter((d): d is string => !!d)
+      .map((d) => new Date(d).getTime())
+    if (dates.length === 0) return null
+    return new Date(Math.max(...dates))
+  }, [courses])
 
   // Group consecutive holidays with identical label/type into date ranges
   const groupedHolidays = useMemo<HolidayGroup[]>(() => {
@@ -171,57 +188,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsSyncModalOpen(true)
   }
 
-  // 1-Click Sync Trigger
-  const handleOneClickSync = async () => {
-    setIsAgentSyncing(true)
-    setSyncError(null)
-    setAgentOffline(false)
-    setAgentStatusNote('Checking local scraper agent (http://localhost:4747)...')
-
-    try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 2500)
-
-      let statusRes
-      try {
-        statusRes = await fetch('http://localhost:4747/status', {
-          signal: controller.signal,
-        })
-      } catch {
-        setAgentOffline(true)
-        setIsAgentSyncing(false)
-        setAgentStatusNote(null)
-        return
-      } finally {
-        clearTimeout(timeoutId)
-      }
-
-      if (!statusRes.ok) {
-        setAgentOffline(true)
-        setIsAgentSyncing(false)
-        setAgentStatusNote(null)
-        return
-      }
-
-      setAgentStatusNote('Fetching portal attendance (a browser window will open if MFA is required)...')
-      const syncRes = await fetch('http://localhost:4747/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-
-      const json = await syncRes.json()
-      if (!syncRes.ok) {
-        throw new Error(json.error || 'Scraper failed to capture portal attendance.')
-      }
-
-      setAgentStatusNote('Reconciling subjects with local database...')
-      await processSyncPayload(json)
-    } catch (err: any) {
-      setSyncError(err.message || 'Sync error')
-    } finally {
-      setIsAgentSyncing(false)
-      setAgentStatusNote(null)
+  // Generate Personal Sync Token
+  const handleGenerateSyncToken = async () => {
+    if (hasSyncToken && !confirm('Generating a new sync token will invalidate your previous token. Continue?')) {
+      return
     }
+    setIsGeneratingToken(true)
+    setSyncError(null)
+    try {
+      const res = await fetch('/api/auth/sync-token', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate token')
+      setActiveSyncToken(data.syncToken)
+      setHasSyncToken(true)
+    } catch (err: any) {
+      setSyncError(err.message || 'Failed to generate sync token')
+    } finally {
+      setIsGeneratingToken(false)
+    }
+  }
+
+  const copySyncToken = () => {
+    if (!activeSyncToken) return
+    navigator.clipboard.writeText(activeSyncToken)
+    setCopiedToken(true)
+    setTimeout(() => setCopiedToken(false), 2000)
   }
 
   // Handle Sync Output JSON Upload (Fallback)
@@ -539,37 +530,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           </div>
 
-          {/* 2. 1-Click SLCM Sync Hub */}
-          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* 2. Live SLCM Attendance Push Hub */}
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b-2 border-[var(--border)] pb-4">
               <div>
                 <h2 className="text-base font-heading font-black text-[var(--foreground)] flex items-center gap-2.5">
                   <RefreshCw className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                  1-Click Live SLCM Attendance Sync
+                  Live SLCM Attendance Sync (Desktop Pusher)
                 </h2>
                 <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
-                  Synchronize your verified portal attendance in one step without managing manual files.
+                  Run the scraper on your computer to log in with Microsoft MFA and securely push live attendance directly to your account.
                 </p>
               </div>
 
-              <motion.button
-                whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                onClick={handleOneClickSync}
-                disabled={isAgentSyncing}
-                className="pill-btn flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform disabled:opacity-50 font-mono shadow-[3px_3px_0px_var(--shadow-color)]"
-              >
-                <RefreshCw className={`w-4 h-4 ${isAgentSyncing ? 'animate-spin' : ''}`} />
-                {isAgentSyncing ? 'Syncing...' : 'Sync Now (1-Click)'}
-              </motion.button>
+              {latestSyncedAt ? (
+                <div className="px-3 py-1.5 rounded-full bg-emerald-400/20 border-2 border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 shadow-[2px_2px_0px_var(--shadow-color)]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Synced {formatDateTime(latestSyncedAt)}</span>
+                </div>
+              ) : (
+                <div className="px-3 py-1.5 rounded-full bg-amber-400/20 border-2 border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-mono font-bold flex items-center gap-1.5 shrink-0 shadow-[2px_2px_0px_var(--shadow-color)]">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                  <span>No SLCM sync recorded yet</span>
+                </div>
+              )}
             </div>
-
-            {agentStatusNote && (
-              <div className="p-3.5 rounded-2xl bg-teal-500/10 border-2 border-teal-500/40 text-teal-800 dark:text-teal-300 text-xs flex items-center gap-2 font-mono font-bold animate-pulse">
-                <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
-                <span>{agentStatusNote}</span>
-              </div>
-            )}
 
             {syncError && (
               <div className="p-4 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2 font-bold">
@@ -578,45 +563,124 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
 
-            {/* Agent Offline Quick Setup Card */}
-            {agentOffline && (
-              <div className="p-5 rounded-2xl bg-amber-400/15 border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] space-y-3">
-                <div className="flex items-center gap-2 font-heading font-black text-sm text-[var(--foreground)]">
-                  <Terminal className="w-4 h-4 text-amber-600" />
-                  Local Scraper Agent Offline (Optional)
-                </div>
-                <p className="text-xs text-[var(--muted-foreground)] leading-relaxed">
-                  The automated 1-Click Sync is an <strong>optional helper</strong> for desktop users who have the repo cloned locally. If you are using Roll Book on the web, you don't need this—you can track attendance directly on the dashboard or enter your current figures in <strong>Subjects</strong>!
-                </p>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
-                    For local desktop users with the scraper installed:
-                  </span>
+            {/* Step 1: Personal Sync Token */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-mono text-xs font-black flex items-center justify-center">
+                  1
+                </span>
+                <span className="font-heading font-black text-sm text-[var(--foreground)]">
+                  Your Personal Sync Token
+                </span>
+              </div>
+
+              {activeSyncToken ? (
+                <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-heading font-black text-emerald-800 dark:text-emerald-300">
+                      Copy your sync token now:
+                    </span>
+                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-[11px]">
+                      ⚠️ Save this now! It will never be shown again.
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-[var(--background)] p-2.5 rounded-xl font-mono text-xs text-[var(--foreground)] border-2 border-[var(--border)] font-bold truncate" title="cd scraper && node agent.js">
-                      cd scraper && node agent.js
+                    <div className="flex-1 bg-[var(--background)] p-3 rounded-xl font-mono text-xs font-bold text-[var(--foreground)] border-2 border-[var(--border)] select-all truncate">
+                      {activeSyncToken}
                     </div>
                     <button
-                      onClick={copyAgentCommand}
-                      className="pill-btn px-3.5 py-2.5 bg-[var(--card)] hover:bg-[var(--muted)] text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0"
+                      onClick={copySyncToken}
+                      className="pill-btn px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
                     >
-                      {copiedCmd ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      {copiedCmd ? 'Copied' : 'Copy'}
-                    </button>
-                    <button
-                      onClick={handleOneClickSync}
-                      className="pill-btn px-4 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform shrink-0"
-                    >
-                      Retry Sync
+                      {copiedToken ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copiedToken ? 'Copied!' : 'Copy Token'}
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]">
+                  <div className="space-y-0.5">
+                    <div className="font-heading font-bold text-xs text-[var(--foreground)] flex items-center gap-1.5">
+                      {hasSyncToken ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Active Sync Token Configured</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 text-amber-500" />
+                          <span>No Sync Token Configured</span>
+                        </>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[var(--muted-foreground)]">
+                      {hasSyncToken
+                        ? 'Your account has a valid sync token. Generating a new one will replace it.'
+                        : 'Generate a token to allow your local desktop scraper to push attendance figures directly to your account.'}
+                    </p>
+                  </div>
 
-            {/* Advanced Manual JSON Fallback Link */}
+                  <button
+                    onClick={handleGenerateSyncToken}
+                    disabled={isGeneratingToken}
+                    className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    {isGeneratingToken
+                      ? 'Generating...'
+                      : hasSyncToken
+                      ? 'Regenerate Token'
+                      : 'Generate My Sync Token'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: Run Scraper on Desktop */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-mono text-xs font-black flex items-center justify-center">
+                  2
+                </span>
+                <span className="font-heading font-black text-sm text-[var(--foreground)]">
+                  Run Scraper on Your Laptop / Computer
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="flex-1 bg-[var(--background)] p-3 rounded-xl font-mono text-xs font-bold text-[var(--foreground)] border-2 border-[var(--border)] select-all truncate"
+                    title="cd scraper && npm install && node agent.js"
+                  >
+                    cd scraper && npm install && node agent.js
+                  </div>
+                  <button
+                    onClick={copyAgentCommand}
+                    className="pill-btn px-4 py-3 bg-[var(--card)] hover:bg-[var(--muted)] text-xs font-bold flex items-center gap-1.5 border-2 border-[var(--border)] shrink-0 transition-colors"
+                  >
+                    {copiedCmd ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    {copiedCmd ? 'Copied' : 'Copy Command'}
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] leading-relaxed space-y-1 font-mono">
+                  <p>
+                    • On first run, it asks for your Roll Book URL (<strong className="text-[var(--foreground)]">{typeof window !== 'undefined' ? window.location.origin : 'https://your-app.vercel.app'}</strong>) and your Personal Sync Token.
+                  </p>
+                  <p>
+                    • It saves them once in <code className="text-teal-600 dark:text-teal-400 font-bold">scraper/.env</code>.
+                  </p>
+                  <p>
+                    • Run <code className="text-teal-600 dark:text-teal-400 font-bold">node agent.js</code> anytime you want fresh attendance numbers. Refresh this page to see the latest figures!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Advanced Fallback: Manual File Upload */}
             <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between text-xs text-[var(--muted-foreground)]">
-              <span>Looking for manual file import?</span>
+              <span>Prefer manual file import?</span>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -629,7 +693,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 disabled={isParsingSync}
                 className="text-teal-600 dark:text-teal-400 font-bold hover:underline font-mono"
               >
-                {isParsingSync ? 'Parsing...' : 'Advanced: upload sync-output.json manually'}
+                {isParsingSync ? 'Parsing...' : 'Upload sync-output.json manually'}
               </button>
             </div>
           </div>

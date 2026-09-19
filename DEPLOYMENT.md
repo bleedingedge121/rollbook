@@ -55,14 +55,34 @@ This guide details how to host Roll Book on Vercel with a free-tier PostgreSQL d
 
 ---
 
-## 4. Local University Portal Sync (`scraper/agent.js`)
+## 4. University Portal Sync (Reverse-Push Architecture)
 
-The scraper uses Playwright and Chromium to perform interactive university portal login and capture attendance tables. **It runs solely on the user's local machine and should never be deployed to Vercel.**
+MAHE's SLCM portal requires Microsoft SSO with Multi-Factor Authentication (MFA) on the student's phone. Cloud servers cannot authenticate on a student's behalf, and modern browsers block HTTPS web pages from reaching local HTTP ports on the user's machine (Mixed Content / Local Network Access security). 
 
-When using the hosted web app:
-1. Each user runs the agent locally on their computer:
-   ```bash
-   AGENT_ALLOWED_ORIGIN="https://rollbook.vercel.app" node scraper/agent.js
-   ```
-2. The agent listens exclusively on `127.0.0.1:4747` (loopback only) and permits CORS requests from your configured `AGENT_ALLOWED_ORIGIN`.
-3. In the hosted Roll Book app under **Command & Sync**, clicking **1-Click Sync** will trigger the user's local agent, perform the scrape, and import the attendance data straight into their own account.
+Roll Book solves this by using a **secure reverse-push architecture**: the local scraper pushes data *out* to the hosted app's authenticated API:
+
+```
+[Student's Laptop]                                 [Hosted Roll Book (Vercel)]
+node scraper/agent.js  --------------------->  POST /api/sync/push
+(logs in with MFA,     (HTTPS outbound POST)    (Header: Authorization: Bearer <syncToken>)
+ scrapes SLCM)                                  (reconciles & saves directly to user account)
+```
+
+### How a User Syncs Their Attendance:
+1. **Generate Personal Sync Token**:
+   - In the hosted web app, navigate to **Settings** $\rightarrow$ **SLCM Sync Bridge**.
+   - Click **Generate My Sync Token** and copy the token (`rb_sync_...`). The token is stored as a one-way SHA-256 hash in the database and never shown again.
+2. **Run Scraper on Local Computer**:
+   - Clone the repo and run:
+     ```bash
+     cd scraper
+     npm install
+     npx playwright install chromium
+     node agent.js
+     ```
+   - On first run, it will prompt for the hosted app URL (e.g. `https://rollbook.vercel.app`) and personal sync token. These are saved to `scraper/.env` (gitignored).
+   - If no portal session exists, a browser window opens automatically for Microsoft SSO + MFA login.
+   - The script scrapes the live attendance figures and immediately pushes them to `{APP_URL}/api/sync/push`.
+3. **Refresh Dashboard**:
+   - Refresh the Roll Book web app—the dashboard immediately displays the fresh attendance counts, safe skip margins, and "Last synced" timestamp!
+

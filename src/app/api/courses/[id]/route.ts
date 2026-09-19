@@ -68,7 +68,17 @@ export async function PUT(
     }
 
     const body = await req.json()
-    const { name, code, requiredPercent, color, trackingMode, simpleHeld, simpleAttended } = body
+    const {
+      name,
+      code,
+      requiredPercent,
+      color,
+      trackingMode,
+      simpleHeld,
+      simpleAttended,
+      syncedPresent,
+      syncedAbsent,
+    } = body
 
     const updated = await prisma.course.update({
       where: { id },
@@ -82,6 +92,8 @@ export async function PUT(
         ...(trackingMode && { trackingMode }),
         ...(simpleHeld !== undefined && { simpleHeld: Math.max(0, parseInt(simpleHeld, 10)) }),
         ...(simpleAttended !== undefined && { simpleAttended: Math.max(0, parseInt(simpleAttended, 10)) }),
+        ...(syncedPresent !== undefined && { syncedPresent: Math.max(0, parseInt(syncedPresent, 10)) }),
+        ...(syncedAbsent !== undefined && { syncedAbsent: Math.max(0, parseInt(syncedAbsent, 10)) }),
       },
     })
 

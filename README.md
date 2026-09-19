@@ -19,7 +19,7 @@ Built with Next.js 16 App Router, React 19, Prisma, PostgreSQL (Neon-ready for s
 1. **Strict Per-User Data Isolation**: Each friend has their own private account. Courses, timetable schedules, attendance logs, and declared holidays are isolated per user. Cross-account mutations and queries are strictly rejected with `403 Forbidden`.
 2. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
 3. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory without corrupting your verified history.
-4. **1-Click Live SLCM Attendance Sync**: Native local scraper bridge (`scraper/agent.js` on `http://127.0.0.1:4747`). Click "Sync Now" in the UI and Roll Book communicates with the local agent, executes the Playwright session, and reconciles courses directly without manual file picking. Hardened with loopback restriction and CORS origin validation.
+4. **Secure Reverse-Push SLCM Attendance Sync**: A lightweight desktop runner (`scraper/agent.js`) authenticates with your student credentials and Microsoft MFA on your machine, then securely pushes verified figures directly to `{APP_URL}/api/sync/push` using your Personal Sync Token. Eliminates all browser Mixed Content and Local Network Access restrictions.
 5. **AI Attendance Advisor (Google Gemini Free Tier)**: Built-in intelligent advisor powered by `@google/genai` (`gemini-flash-latest`) with 7 deterministic database tools—querying summaries, course details, unlogged classes, upcoming schedules, and declaring holidays directly into the user's data without hallucinations. Features per-user daily rate limiting to protect shared free tier limits.
 6. **Compound Multi-Tenant Uniqueness**: Users can register identical subject codes (e.g. `MAT101`) and holiday dates without unique constraint collisions.
 7. **Playful Geometric Design System (Dual Light/Dark Mode)**: High-contrast neo-brutalist sticker styling with Electric Teal primary accents (`#0D9488` light / `#2DD4BF` dark), chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
@@ -121,9 +121,9 @@ Roll Book can be hosted permanently for free using:
 
 ---
 
-## 🤖 1-Click SLCM Scraper Workflow
+## 🤖 Live SLCM Scraper Workflow (Reverse-Push)
 
-The scraper runs as a lightweight local HTTP daemon (`scraper/agent.js`) on port `4747`:
+Because MAHE SLCM requires Microsoft MFA and modern browsers block HTTPS web pages from calling local machine ports, Roll Book uses a **reverse-push architecture**:
 
 ```bash
 cd scraper
@@ -132,16 +132,17 @@ npx playwright install chromium
 node agent.js
 ```
 
-### 1. 1-Click Sync (Recommended)
-Inside Roll Book, navigate to **Settings** $\rightarrow$ **SLCM Sync Bridge** and click **Sync Now (1-Click)**.
-- If it's your first time or your session expired, a visible browser will open automatically for Microsoft SSO / MFA.
-- Once authenticated, it headlessly intercepts the `getCOPList` Apex payload, reconciles courses with your database, and presents the diff modal.
+### How It Works:
+1. **Generate Token**: In Roll Book, go to **Settings** $\rightarrow$ **SLCM Sync Bridge** and click **Generate My Sync Token**. Copy the token.
+2. **Run Pusher**: Run `node agent.js`. On first run, it prompts for your app URL (e.g. `https://rollbook.vercel.app`) and your token, saving them to `scraper/.env`.
+3. **MFA Login**: If needed, a browser window opens for you to log in with your student Microsoft credentials and approve MFA.
+4. **Push & Refresh**: The script captures your verified attendance tables and immediately pushes them to your account. Refresh your dashboard to see your updated numbers!
 
-### 2. Manual CLI Fallback
+### Manual Fallback:
 If you prefer running manual commands:
 - Login: `cd scraper && node login.js`
 - Sync: `node sync.js`
-- Upload: In Settings, click *"Advanced: upload sync-output.json manually"*.
+- Upload: In Settings, click *"Upload sync-output.json manually"*.
 
 ---
 

@@ -179,6 +179,8 @@ export default function App() {
     trackingMode?: string
     simpleHeld?: number
     simpleAttended?: number
+    syncedPresent?: number
+    syncedAbsent?: number
   }) => {
     const isEdit = !!courseData.id
     const url = isEdit ? `/api/courses/${courseData.id}` : '/api/courses'

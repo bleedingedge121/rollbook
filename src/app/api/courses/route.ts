@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { name, code, requiredPercent, color } = body
+    const { name, code, requiredPercent, color, syncedPresent, syncedAbsent } = body
 
     if (!name || !code) {
       return NextResponse.json(
@@ -44,6 +44,9 @@ export async function POST(req: Request) {
       )
     }
 
+    const present = syncedPresent !== undefined ? Math.max(0, parseInt(syncedPresent, 10)) : 0
+    const absent = syncedAbsent !== undefined ? Math.max(0, parseInt(syncedAbsent, 10)) : 0
+
     const course = await prisma.course.create({
       data: {
         userId,
@@ -51,6 +54,10 @@ export async function POST(req: Request) {
         code: code.trim().toUpperCase(),
         requiredPercent: requiredPercent ? parseFloat(requiredPercent) : 75.0,
         color: color || '#3b82f6',
+        syncedPresent: present,
+        syncedAbsent: absent,
+        simpleAttended: present,
+        simpleHeld: present + absent,
       },
     })
 
