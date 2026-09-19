@@ -94,16 +94,17 @@ Roll Book offers multiple ways to ingest your live portal attendance figures:
                                 Instant Cloud Sync to All Devices
 ```
 
-#### Option A: AI Chatbot Direct Table Paste (Fastest on Mobile & Laptop)
+#### Option A: AI Chatbot Screenshot Upload or Table Paste (Fastest on Mobile & Laptop)
 
 *Zero code, zero scripts, zero extensions. Works right inside mobile Safari, mobile Chrome, or desktop.*
 
 1. Open SLCM in your phone or laptop browser and navigate to the **Attendance** page.
-2. Select and copy the attendance table (or the entire page text containing your subjects, codes, total classes, and present counts).
-3. Open Roll Book and tap the **AI Attendance Advisor** floating button in the bottom right corner.
-4. Paste the copied text directly into the chat message box and hit **Send** (or press Enter).
-5. The Roll Book engine immediately detects the courses, parses the attended/total classes, synchronizes the numbers straight into your database, and the AI provides a personalized summary of your attendance health.
-6. Your entire Roll Book dashboard instantly refreshes with updated percentages, safe skip counts, and recovery targets!
+2. Either **take a screenshot** of the attendance table, or select and copy the table text.
+3. Open Roll Book and tap the **AI Attendance Advisor** floating bubble in the bottom right corner.
+4. Tap the **camera/image icon** to attach the screenshot (or press <kbd>Ctrl+V</kbd> to paste it from your clipboard), or paste the copied text.
+5. Hit **Send** (or click the *📸 Sync from Screenshot* prompt).
+6. Gemini vision automatically reads the table rows, parses attended/total counts, and synchronizes the figures straight into your Neon PostgreSQL database.
+7. Your entire Roll Book dashboard instantly refreshes live with updated percentages, safe skip counts, and recovery targets!
 
 #### Option B: Settings Paste Box (Manual Ingest)
 

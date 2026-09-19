@@ -572,20 +572,42 @@ RULES:
 5. All times must be formatted in 12-hour format with lowercase am/pm (e.g. 9:00 am, 2:30 pm), and all dates must be formatted strictly in dd/mm/yyyy (e.g. 19/09/2026).
 6. Be concise, punchy, clear, and supportive. Use a witty, dignified tone.
 7. NEVER address the user as "Sir", "Ma'am", or similar honorifics. Speak to them directly as a smart, capable peer.
-8. If the user pastes attendance data, an SLCM table, or asks to update their attendance from text, call \`sync_attendance_data\` to save it directly to their Roll Book database account if not already synced. If a [SYSTEM NOTIFICATION] indicates Roll Book already synchronized the courses, celebrate the sync, confirm how many courses were updated, and provide an encouraging, organized breakdown of their subjects, present/total classes, and current percentages.`
+8. If the user pastes attendance data, an SLCM table, or asks to update their attendance from text, call \`sync_attendance_data\` to save it directly to their Roll Book database account if not already synced. If a [SYSTEM NOTIFICATION] indicates Roll Book already synchronized the courses, celebrate the sync, confirm how many courses were updated, and provide an encouraging, organized breakdown of their subjects, present/total classes, and current percentages.
+9. When the user sends or uploads a screenshot/image of an attendance portal or SLCM table, inspect the image carefully. Extract all course names, course codes (e.g. SMS_1102, CES_1102), total classes, present count, and absent count for every row visible in the table. Immediately call \`sync_attendance_data\` with the list of extracted courses to save them directly to the user's Roll Book account. Once synchronized, confirm the exact courses and numbers recorded, and provide an encouraging summary of their overall attendance health.`
 
     // Format messages for Gemini
     const contents: any[] = []
     for (let i = 0; i < messages.length; i++) {
       const msg = messages[i]
       const isLast = i === messages.length - 1
-      let text = msg.content
+      let text = msg.content || ''
       if (isLast && msg.role === 'user' && proactiveSyncNotification) {
         text = `${text}\n\n${proactiveSyncNotification}`
       }
+
+      const parts: any[] = []
+      if (text) {
+        parts.push({ text })
+      }
+      if (msg.image && msg.image.data && msg.image.mimeType) {
+        const cleanBase64 = msg.image.data.includes('base64,')
+          ? msg.image.data.split('base64,')[1]
+          : msg.image.data
+        parts.push({
+          inlineData: {
+            mimeType: msg.image.mimeType,
+            data: cleanBase64,
+          },
+        })
+      }
+
+      if (parts.length === 0) {
+        parts.push({ text: ' ' })
+      }
+
       contents.push({
         role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text }],
+        parts,
       })
     }
 

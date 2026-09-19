@@ -1452,12 +1452,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
 
-            {/* Method 1: Laptop Browser Console */}
+            {/* Method 1: AI Chat Advisor (Screenshot & Table Paste) */}
+            <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-teal-500/40 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-bold uppercase">
+                    Option 1: AI Chat Advisor
+                  </span>
+                  <span className="text-xs font-bold text-teal-600 dark:text-teal-400">Fastest (Mobile &amp; Laptop)</span>
+                </div>
+              </div>
+              <ol className="text-[11px] text-[var(--foreground)] space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>Take a screenshot of your SLCM attendance table on your phone or laptop (or copy the table text).</li>
+                <li>Tap the <strong>AI Attendance Advisor</strong> floating bubble in the bottom-right corner.</li>
+                <li>Tap the <strong>camera/image icon</strong> to attach the screenshot (or press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Ctrl+V</kbd> to paste it).</li>
+                <li>Hit <strong>Send</strong>. Gemini automatically reads the courses, updates your database, and refreshes your dashboard live!</li>
+              </ol>
+            </div>
+
+            {/* Method 2: Laptop Browser Console */}
             <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-indigo-500/30 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold uppercase">
-                    Option 1: Laptop Browser
+                    Option 2: Laptop Browser
                   </span>
                   <span className="text-xs font-bold text-[var(--foreground)]">5 Seconds</span>
                 </div>
@@ -1480,11 +1498,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </ol>
             </div>
 
-            {/* Method 2: Mobile Instant Table Copy */}
+            {/* Method 3: Mobile Instant Table Copy */}
             <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-emerald-500/30 space-y-2.5">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase">
-                  Option 2: Mobile Phone
+                  Option 3: Mobile Phone
                 </span>
                 <span className="text-xs font-bold text-[var(--foreground)]">Direct Table Copy</span>
               </div>
@@ -1496,11 +1514,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </ol>
             </div>
 
-            {/* Method 3: Section Template & Cloud Sync */}
+            {/* Method 4: Section Template & Cloud Sync */}
             <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] space-y-2.5">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-bold uppercase">
-                  Option 3: Section Template
+                  Option 4: Section Template
                 </span>
                 <span className="text-xs font-bold text-[var(--foreground)]">1-Click Instant Setup</span>
               </div>
