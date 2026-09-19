@@ -87,7 +87,7 @@ export const ChatWidget: React.FC = () => {
   ]
 
   return (
-    <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50">
+    <div className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 sm:bottom-6 sm:right-6 z-40">
       {/* Floating Trigger Button */}
       <motion.button
         whileHover={prefersReducedMotion ? {} : { scale: 1.08, rotate: 2 }}

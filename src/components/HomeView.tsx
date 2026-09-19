@@ -282,7 +282,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Main Standing Display */}
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 text-center sm:text-left">
             <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full transform -rotate-90">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 112 112">
                 <circle
                   cx="56"
                   cy="56"

@@ -70,158 +70,160 @@ export const Navigation: React.FC<NavigationProps> = ({
   const isDark = mounted && (resolvedTheme === 'dark' || theme === 'dark')
 
   return (
-    <header className="sticky top-0 z-40 bg-[var(--background)]/90 backdrop-blur-xl border-b-2 border-[var(--border)] transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand */}
-          <div className="flex items-center gap-3">
-            <motion.div
-              whileHover={prefersReducedMotion ? {} : { scale: 1.08, rotate: -2 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.94 }}
-              className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] font-heading font-black text-white tracking-widest text-base"
-            >
-              RB
-            </motion.div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-heading font-black text-[var(--foreground)] text-lg tracking-tight">
-                  Roll Book
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 font-mono font-bold border border-teal-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
-                  SLCM 2.0
-                </span>
+    <>
+      <header className="sticky top-0 z-40 bg-[var(--background)]/90 backdrop-blur-xl border-b-2 border-[var(--border)] transition-colors duration-200">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            {/* Brand */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <motion.div
+                whileHover={prefersReducedMotion ? {} : { scale: 1.08, rotate: -2 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.94 }}
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-teal-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] sm:shadow-[3px_3px_0px_var(--shadow-color)] font-heading font-black text-white tracking-widest text-xs sm:text-base shrink-0"
+              >
+                RB
+              </motion.div>
+              <div>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <span className="font-heading font-black text-[var(--foreground)] text-base sm:text-lg tracking-tight">
+                    Roll Book
+                  </span>
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 font-mono font-bold border border-teal-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse" />
+                    SLCM 2.0
+                  </span>
+                </div>
+                <p className="text-[11px] text-[var(--muted-foreground)] hidden sm:block font-medium">
+                  Confirmed Attendance & Honest Planning
+                </p>
               </div>
-              <p className="text-[11px] text-[var(--muted-foreground)] hidden sm:block font-medium">
-                Confirmed Attendance & Honest Planning
-              </p>
             </div>
-          </div>
 
-          {/* Navigation Pill Bar (Desktop & Tablet) */}
-          <nav className="hidden md:flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)]">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = activeTab === item.id
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onTabChange(item.id)}
-                  className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors duration-200 z-10 ${
-                    isActive ? 'text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
-                  }`}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeNavTab"
-                      className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <Icon
-                    className={`w-3.5 h-3.5 relative z-10 transition-colors ${
-                      isActive ? 'text-white' : 'text-[var(--muted-foreground)]'
+            {/* Navigation Pill Bar (Desktop & Tablet) */}
+            <nav className="hidden md:flex items-center p-1 rounded-full bg-[var(--card)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)]">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const isActive = activeTab === item.id
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onTabChange(item.id)}
+                    className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors duration-200 z-10 ${
+                      isActive ? 'text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
                     }`}
-                  />
-                  <span className="relative z-10">{item.label}</span>
-                </button>
-              )
-            })}
-          </nav>
-
-          {/* Right Controls & Theme Toggle */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className={`flex items-center gap-1 px-2.5 py-1 sm:px-3 rounded-full border-2 border-[var(--border)] text-xs font-mono font-bold shadow-[2px_2px_0px_var(--shadow-color)] ${
-                isSafe
-                  ? 'bg-emerald-400/20 text-emerald-700 dark:text-emerald-300'
-                  : 'bg-rose-400/20 text-rose-700 dark:text-rose-300'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{overallPct}%</span>
-            </motion.div>
-
-            {/* Theme Toggle Button */}
-            <motion.button
-              whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
-              onClick={toggleTheme}
-              title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-              className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
-            >
-              {mounted ? (
-                isDark ? (
-                  <Sun className="w-4 h-4 text-amber-400" strokeWidth={2.5} />
-                ) : (
-                  <Moon className="w-4 h-4 text-teal-600" strokeWidth={2.5} />
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeNavTab"
+                        className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <Icon
+                      className={`w-3.5 h-3.5 relative z-10 transition-colors ${
+                        isActive ? 'text-white' : 'text-[var(--muted-foreground)]'
+                      }`}
+                    />
+                    <span className="relative z-10">{item.label}</span>
+                  </button>
                 )
-              ) : (
-                <div className="w-4 h-4" />
-              )}
-            </motion.button>
+              })}
+            </nav>
 
-            {/* Refresh Button */}
-            <motion.button
-              whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              title="Refresh attendance records"
-              className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all disabled:opacity-50"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-teal-600' : ''}`}
-                strokeWidth={2.5}
-              />
-            </motion.button>
+            {/* Right Controls & Theme Toggle */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full border-2 border-[var(--border)] text-[11px] sm:text-xs font-mono font-bold shadow-[2px_2px_0px_var(--shadow-color)] ${
+                  isSafe
+                    ? 'bg-emerald-400/20 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-rose-400/20 text-rose-700 dark:text-rose-300'
+                }`}
+              >
+                <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span>{overallPct}%</span>
+              </motion.div>
 
-            {/* Admin Console Link for Admin Users */}
-            {currentUserRole === 'admin' && (
-              <motion.a
-                href="/admin"
+              {/* Theme Toggle Button */}
+              <motion.button
                 whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
-                title="Admin Management Panel"
-                className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-xs font-bold font-mono transition-all"
+                onClick={toggleTheme}
+                title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+                className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
               >
-                <Shield className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Admin</span>
-              </motion.a>
-            )}
+                {mounted ? (
+                  isDark ? (
+                    <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" strokeWidth={2.5} />
+                  ) : (
+                    <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600" strokeWidth={2.5} />
+                  )
+                ) : (
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                )}
+              </motion.button>
 
-            {currentUsername && (
-              <div
-                title={`Logged in as ${currentUsername}${currentUserRole === 'admin' ? ' (Admin)' : ''}`}
-                className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-[var(--border)] text-xs font-mono font-bold bg-[var(--card)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              {/* Refresh Button (Desktop & Tablet) */}
+              <motion.button
+                whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                title="Refresh attendance records"
+                className="hidden sm:flex p-1.5 sm:p-2 rounded-full text-[var(--foreground)] bg-[var(--card)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all disabled:opacity-50"
               >
-                <span className={`w-2 h-2 rounded-full ${currentUserRole === 'admin' ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
-                <span className="max-w-[100px] truncate">{currentUsername}</span>
-              </div>
-            )}
+                <RefreshCw
+                  className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-teal-600' : ''}`}
+                  strokeWidth={2.5}
+                />
+              </motion.button>
 
-            {/* Logout Button */}
-            <motion.button
-              whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
-              onClick={async () => {
-                await fetch('/api/auth/logout', { method: 'POST' })
-                window.location.href = '/login'
-              }}
-              title="Sign out of Roll Book"
-              className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] hover:text-rose-500 bg-[var(--card)] hover:bg-rose-500/10 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
-            >
-              <LogOut className="w-4 h-4" strokeWidth={2.5} />
-            </motion.button>
+              {/* Admin Console Link for Admin Users */}
+              {currentUserRole === 'admin' && (
+                <motion.a
+                  href="/admin"
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
+                  title="Admin Management Panel"
+                  className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-xs font-bold font-mono transition-all"
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Admin</span>
+                </motion.a>
+              )}
+
+              {currentUsername && (
+                <div
+                  title={`Logged in as ${currentUsername}${currentUserRole === 'admin' ? ' (Admin)' : ''}`}
+                  className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-[var(--border)] text-xs font-mono font-bold bg-[var(--card)] shadow-[2px_2px_0px_var(--shadow-color)]"
+                >
+                  <span className={`w-2 h-2 rounded-full ${currentUserRole === 'admin' ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
+                  <span className="max-w-[100px] truncate">{currentUsername}</span>
+                </div>
+              )}
+
+              {/* Logout Button */}
+              <motion.button
+                whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' })
+                  window.location.href = '/login'
+                }}
+                title="Sign out of Roll Book"
+                className="p-1.5 sm:p-2 rounded-full text-[var(--foreground)] hover:text-rose-500 bg-[var(--card)] hover:bg-rose-500/10 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all"
+              >
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.5} />
+              </motion.button>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Mobile Bottom Navigation Bar (Docked on phones) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--card)]/95 backdrop-blur-xl border-t-2 border-[var(--border)] px-2 py-1.5 shadow-[0_-4px_16px_rgba(0,0,0,0.1)] pb-[max(env(safe-area-inset-bottom),0.5rem)]">
-        <div className="flex items-center justify-around">
+      {/* Mobile Bottom Navigation Bar (Docked on phones, completely outside header stacking context) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--card)]/95 backdrop-blur-xl border-t-2 border-[var(--border)] px-2 pt-1 pb-[max(env(safe-area-inset-bottom,0px),0.5rem)] shadow-[0_-4px_20px_rgba(0,0,0,0.15)]">
+        <div className="flex items-center justify-around max-w-md mx-auto">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = activeTab === item.id
@@ -229,7 +231,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-2xl transition-all relative ${
+                className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-xl transition-all relative ${
                   isActive
                     ? 'text-teal-600 dark:text-teal-400 font-black'
                     : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)] font-semibold'
@@ -257,6 +259,6 @@ export const Navigation: React.FC<NavigationProps> = ({
           })}
         </div>
       </nav>
-    </header>
+    </>
   )
 }
