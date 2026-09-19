@@ -8,6 +8,11 @@ export function toValidDate(date: Date | string): Date {
       const [y, m, d] = date.split('-').map(Number)
       return new Date(y, m - 1, d)
     }
+    // If format is DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+      const [d, m, y] = date.split('/').map(Number)
+      return new Date(y, m - 1, d)
+    }
     return new Date(date)
   }
   return new Date()
@@ -26,6 +31,25 @@ export function formatTime(date: Date | string): string {
   hours = hours ? hours : 12 // 0 becomes 12
   const minutesStr = minutes < 10 ? `0${minutes}` : `${minutes}`
   return `${hours}:${minutesStr} ${ampm}`
+}
+
+/**
+ * Converts timetable slot labels like "14:00 - 16:00", "09:00 - 09:50",
+ * or "09:00 - 12:00 (Lab/Workshop)" into 12-hour am/pm format:
+ * "2:00 pm - 4:00 pm", "9:00 am - 9:50 am", "9:00 am - 12:00 pm (Lab/Workshop)".
+ */
+export function formatSlotTime(slotStr: string | null | undefined): string {
+  if (!slotStr) return ''
+  return slotStr.replace(/\b(\d{1,2}):(\d{2})(?:\s*(am|pm))?\b/gi, (match, hStr, mStr, existingAmPm) => {
+    const h = parseInt(hStr, 10)
+    if (existingAmPm) {
+      return `${h % 12 === 0 ? 12 : h % 12}:${mStr} ${existingAmPm.toLowerCase()}`
+    }
+    if (h < 0 || h > 23) return match
+    const ampm = h >= 12 ? 'pm' : 'am'
+    const h12 = h % 12 === 0 ? 12 : h % 12
+    return `${h12}:${mStr} ${ampm}`
+  })
 }
 
 /**

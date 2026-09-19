@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Course, TimetableSlot } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
+import { formatSlotTime } from '@/lib/formatters'
 import { motion } from 'framer-motion'
 
 interface SlotModalProps {
@@ -20,15 +21,15 @@ interface SlotModalProps {
 }
 
 const COMMON_TIME_SLOTS = [
-  '09:00 - 10:00',
-  '10:00 - 11:00',
-  '11:00 - 12:00',
-  '12:00 - 13:00',
-  '14:00 - 15:00',
-  '15:00 - 16:00',
-  '16:00 - 17:00',
-  '09:00 - 12:00 (Lab/Workshop)',
-  '14:00 - 17:00 (Lab/Workshop)',
+  '9:00 am - 10:00 am',
+  '10:00 am - 11:00 am',
+  '11:00 am - 12:00 pm',
+  '12:00 pm - 1:00 pm',
+  '2:00 pm - 3:00 pm',
+  '3:00 pm - 4:00 pm',
+  '4:00 pm - 5:00 pm',
+  '9:00 am - 12:00 pm (Lab/Workshop)',
+  '2:00 pm - 5:00 pm (Lab/Workshop)',
 ]
 
 export const SlotModal: React.FC<SlotModalProps> = ({
@@ -40,7 +41,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
 }) => {
   const [courseId, setCourseId] = useState('')
   const [weekday, setWeekday] = useState<number>(1) // Monday default
-  const [label, setLabel] = useState('09:00 - 10:00')
+  const [label, setLabel] = useState('9:00 am - 10:00 am')
   const [room, setRoom] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,12 +50,12 @@ export const SlotModal: React.FC<SlotModalProps> = ({
     if (initialData) {
       setCourseId(initialData.courseId)
       setWeekday(initialData.weekday)
-      setLabel(initialData.label)
+      setLabel(formatSlotTime(initialData.label))
       setRoom(initialData.room || '')
     } else {
       if (courses.length > 0) setCourseId(courses[0].id)
       setWeekday(1)
-      setLabel('09:00 - 10:00')
+      setLabel('9:00 am - 10:00 am')
       setRoom('')
     }
     setError(null)
@@ -76,7 +77,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
         id: initialData?.id,
         courseId,
         weekday: Number(weekday),
-        label: label.trim(),
+        label: formatSlotTime(label.trim()),
         room: room.trim() || undefined,
       })
       onClose()
@@ -159,7 +160,7 @@ export const SlotModal: React.FC<SlotModalProps> = ({
             <input
               type="text"
               list="time-slot-presets"
-              placeholder="e.g. 09:00 - 10:00"
+              placeholder="e.g. 9:00 am - 10:00 am"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               required

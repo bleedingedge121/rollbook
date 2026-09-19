@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
-import { formatDate, formatDateTime } from '@/lib/formatters'
+import { formatDate, formatDateTime, formatSlotTime } from '@/lib/formatters'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
@@ -872,7 +872,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                   <span className="truncate">{course?.name}</span>
                                 </div>
                                 <div className="text-[var(--muted-foreground)] text-[11px] flex items-center gap-2 font-mono">
-                                  <span>{slot.label}</span>
+                                  <span>{formatSlotTime(slot.label)}</span>
                                   {slot.room && (
                                     <>
                                       <span>•</span>

@@ -45,7 +45,7 @@ import {
   addDays,
 } from 'date-fns'
 import { toDateString, parseDateString } from '@/lib/attendance'
-import { formatDate } from '@/lib/formatters'
+import { formatDate, formatSlotTime } from '@/lib/formatters'
 import {
   ResponsiveContainer,
   LineChart,
@@ -736,7 +736,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <div>
               <h3 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                Day Inspector: {format(selectedDay, 'EEEE, MMMM d, yyyy')} ({formatDate(selectedDay)})
+                Day Inspector: {format(selectedDay, 'EEEE')}, {formatDate(selectedDay)}
               </h3>
               <p className="text-xs text-[var(--muted-foreground)] mt-0.5 font-medium">
                 {selectedDayHoliday
@@ -865,7 +865,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           <div className="text-xs text-[var(--muted-foreground)] flex items-center gap-2 mt-0.5 font-mono">
                             <span className="font-bold text-[var(--foreground)]">{course?.code}</span>
                             <span>•</span>
-                            <span>{slot.label}</span>
+                            <span>{formatSlotTime(slot.label)}</span>
                             {slot.room && (
                               <>
                                 <span>•</span>

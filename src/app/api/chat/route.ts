@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { GoogleGenAI, Type } from '@google/genai'
 import { prisma } from '@/lib/prisma'
 import { calculateAttendance, toDateString, WEEKDAYS } from '@/lib/attendance'
-import { formatDate, formatTime } from '@/lib/formatters'
+import { formatDate, formatTime, formatSlotTime } from '@/lib/formatters'
 import { addDays, subDays, format, isBefore, isSameDay } from 'date-fns'
 import { requireUser } from '@/lib/session'
 
@@ -279,7 +279,7 @@ export async function POST(req: Request) {
           stats,
           timetableSlots: course.timetableSlots.map((s) => ({
             weekday: WEEKDAYS[s.weekday],
-            time: s.label,
+            time: formatSlotTime(s.label),
             room: s.room,
           })),
           recentHistory: course.attendance
@@ -329,7 +329,7 @@ export async function POST(req: Request) {
               return {
                 courseName: c?.name || 'Unknown',
                 courseCode: c?.code || 'N/A',
-                time: s.label,
+                time: formatSlotTime(s.label),
                 room: s.room,
               }
             }),
@@ -383,7 +383,7 @@ export async function POST(req: Request) {
                 day: format(pastDate, 'EEEE'),
                 courseName: course.name,
                 courseCode: course.code,
-                time: slot.label,
+                time: formatSlotTime(slot.label),
               })
             }
           }
@@ -503,7 +503,7 @@ RULES:
 2. If asked about standing, skip capacity, or recovery, call get_attendance_summary or get_course_detail.
 3. If the user asks to add or declare a holiday, holiday break, recess, or exam day (e.g. "add a holiday on 25 Dec for Christmas", "add Diwali break from 2026-10-20 to 2026-10-24", "mark tomorrow as a holiday"), ALWAYS call the \`add_holiday\` tool with the corresponding date/dates and label.
 4. If asked to list holidays, call \`list_holidays\`. If asked to remove a holiday, call \`delete_holiday\`.
-5. All dates displayed to the user must be formatted cleanly as dd/mm/yyyy.
+5. All times must be formatted in 12-hour format with lowercase am/pm (e.g. 9:00 am, 2:30 pm), and all dates must be formatted strictly in dd/mm/yyyy (e.g. 19/09/2026).
 6. Be concise, punchy, clear, and supportive. Use a witty, dignified tone.`
 
     // Format messages for Gemini

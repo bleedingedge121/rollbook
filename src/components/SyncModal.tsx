@@ -13,6 +13,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { formatDateTime } from '@/lib/formatters'
 
 export interface DbCourseSummary {
   id: string
@@ -143,7 +144,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
               </h3>
               <p className="text-xs text-[var(--muted-foreground)] mt-0.5 font-mono">
                 {syncedAt
-                  ? `Portal data from ${new Date(syncedAt).toLocaleString()}`
+                  ? `Portal data from ${formatDateTime(syncedAt)}`
                   : 'Portal Snapshot'}
                 {' • '}
                 <span className="font-bold text-teal-600 dark:text-teal-400">

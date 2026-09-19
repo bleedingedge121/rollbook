@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { toDateString, WEEKDAYS } from '@/lib/attendance'
-import { formatDate } from '@/lib/formatters'
+import { formatDate, formatSlotTime } from '@/lib/formatters'
 import { motion, AnimatePresence, Variants, useReducedMotion } from 'framer-motion'
 
 interface HomeViewProps {
@@ -473,7 +473,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       </div>
                       <div className="text-xs text-[var(--muted-foreground)] flex items-center gap-2 pl-5 font-mono">
                         <Clock className="w-3.5 h-3.5" />
-                        <span>{slot.label}</span>
+                        <span>{formatSlotTime(slot.label)}</span>
                         {slot.room && (
                           <>
                             <span>•</span>
@@ -596,7 +596,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] font-mono">
                     <span className="font-bold text-amber-600 dark:text-amber-400">{formatDate(item.date)}</span>
-                    <span>{item.slot.label}</span>
+                    <span>{formatSlotTime(item.slot.label)}</span>
                   </div>
                   <div className="font-heading font-bold text-xs text-[var(--foreground)] truncate">
                     {item.courseName} ({item.courseCode})

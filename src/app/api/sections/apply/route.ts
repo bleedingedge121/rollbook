@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { OFFICIAL_SECTIONS } from '@/lib/officialTimetable'
 import { findBestMatch, normalizeCode } from '@/lib/courseMatch'
 import { requireUser } from '@/lib/session'
+import { formatSlotTime } from '@/lib/formatters'
 
 interface ApplyRequest {
   section: string
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
       .map((s) => ({
         courseId: shortToCourseId[courseCodeToShort(sectionData, s.courseCode)],
         weekday: s.weekday,
-        label: s.label,
+        label: formatSlotTime(s.label),
         room: s.room || sectionData.defaultRoom,
       }))
 
