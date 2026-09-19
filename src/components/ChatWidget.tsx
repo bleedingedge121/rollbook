@@ -93,7 +93,7 @@ export const ChatWidget: React.FC = () => {
         whileHover={prefersReducedMotion ? {} : { scale: 1.08, rotate: 2 }}
         whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 rounded-full bg-violet-600 text-white border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] flex items-center justify-center transition-colors hover:bg-violet-500 focus:outline-none"
+        className="w-14 h-14 rounded-full bg-teal-600 text-white border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] flex items-center justify-center transition-colors hover:bg-teal-500 focus:outline-none"
         title="Open AI Attendance Advisor"
       >
         <AnimatePresence mode="wait">
@@ -140,9 +140,9 @@ export const ChatWidget: React.FC = () => {
             className="absolute bottom-16 right-0 w-[90vw] sm:w-[380px] max-h-[580px] h-[520px] bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl shadow-[6px_6px_0px_var(--shadow-color)] flex flex-col overflow-hidden z-50"
           >
             {/* Header */}
-            <div className="p-4 bg-gradient-to-r from-violet-600/15 via-pink-500/10 to-amber-500/10 border-b-2 border-[var(--border)] flex items-center justify-between">
+            <div className="p-4 bg-gradient-to-r from-teal-600/15 via-pink-500/10 to-amber-500/10 border-b-2 border-[var(--border)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-violet-600 text-white flex items-center justify-center border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]">
+                <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
@@ -184,7 +184,7 @@ export const ChatWidget: React.FC = () => {
                   }`}
                 >
                   {m.role === 'assistant' && (
-                    <div className="w-6 h-6 rounded-full bg-violet-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-1 border border-[var(--border)]">
+                    <div className="w-6 h-6 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-1 border border-[var(--border)]">
                       AI
                     </div>
                   )}
@@ -192,7 +192,7 @@ export const ChatWidget: React.FC = () => {
                   <div
                     className={`max-w-[82%] p-3 rounded-2xl text-xs leading-relaxed font-sans ${
                       m.role === 'user'
-                        ? 'bg-violet-600 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] rounded-tr-sm'
+                        ? 'bg-teal-600 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] rounded-tr-sm'
                         : 'bg-[var(--card)] text-[var(--card-foreground)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] rounded-tl-sm'
                     }`}
                   >
@@ -203,14 +203,14 @@ export const ChatWidget: React.FC = () => {
 
               {isLoading && (
                 <div className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-violet-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 border border-[var(--border)]">
+                  <div className="w-6 h-6 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 border border-[var(--border)]">
                     AI
                   </div>
                   <div className="bg-[var(--card)] border-2 border-[var(--border)] p-3 rounded-2xl rounded-tl-sm shadow-[3px_3px_0px_var(--shadow-color)] flex items-center gap-1.5">
                     <motion.span
                       animate={{ scale: [1, 1.4, 1] }}
                       transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
-                      className="w-1.5 h-1.5 rounded-full bg-violet-500"
+                      className="w-1.5 h-1.5 rounded-full bg-teal-500"
                     />
                     <motion.span
                       animate={{ scale: [1, 1.4, 1] }}
@@ -236,7 +236,7 @@ export const ChatWidget: React.FC = () => {
                   key={i}
                   onClick={() => handleSend(prompt)}
                   disabled={isLoading}
-                  className="px-2.5 py-1 rounded-full bg-[var(--muted)] hover:bg-violet-600/15 hover:text-violet-600 border border-[var(--border)] text-[10px] font-semibold text-[var(--foreground)] whitespace-nowrap transition-colors"
+                  className="px-2.5 py-1 rounded-full bg-[var(--muted)] hover:bg-teal-600/15 hover:text-teal-600 border border-[var(--border)] text-[10px] font-semibold text-[var(--foreground)] whitespace-nowrap transition-colors"
                 >
                   {prompt}
                 </button>
@@ -257,12 +257,12 @@ export const ChatWidget: React.FC = () => {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask about your attendance..."
                 disabled={isLoading}
-                className="flex-1 bg-[var(--background)] border-2 border-[var(--border)] rounded-full px-3.5 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-violet-500 transition-colors font-sans"
+                className="flex-1 bg-[var(--background)] border-2 border-[var(--border)] rounded-full px-3.5 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-teal-500 transition-colors font-sans"
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="p-2 rounded-full bg-violet-600 hover:bg-violet-500 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] disabled:opacity-40 transition-transform active:scale-95"
+                className="p-2 rounded-full bg-teal-600 hover:bg-teal-500 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] disabled:opacity-40 transition-transform active:scale-95"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>

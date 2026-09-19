@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 @layer base {
-  /* LIGHT MODE: Warm Cream Paper Palette */
+  /* LIGHT MODE: Warm Cream Paper Palette with Electric Teal Primary Accent */
   :root {
     --background: #FFFDF5;
     --foreground: #1E293B;
@@ -11,26 +11,28 @@
     --card-foreground: #1E293B;
     --popover: #FFFFFF;
     --popover-foreground: #1E293B;
-    --primary: #8B5CF6; /* Vibrant Violet */
+    --primary: #0D9488; /* Electric Teal-600 */
     --primary-foreground: #FFFFFF;
     --secondary: #F472B6; /* Bubblegum Pink */
     --secondary-foreground: #1E293B;
     --muted: #F1EEDA;
     --muted-foreground: #64748B;
-    --accent: #FBBF24; /* Sunny Amber */
-    --accent-foreground: #1E293B;
+    --accent: #0D9488; /* Primary Teal Accent */
+    --accent-foreground: #FFFFFF;
+    --tertiary: #FBBF24; /* Sunny Amber */
+    --quaternary: #34D399; /* Mint Green */
     --destructive: #F43F5E;
     --destructive-foreground: #FFFFFF;
     --border: #1E293B;
     --input: #1E293B;
-    --ring: #8B5CF6;
+    --ring: #0D9488;
     --radius: 1rem;
     --shadow-color: #1E293B;
     --shadow-offset: 4px;
     --dot-color: rgba(30, 41, 59, 0.08);
   }
 
-  /* DARK MODE: Warm Charcoal Paper with Vibrant Violet/Pink Accents */
+  /* DARK MODE: Warm Charcoal Paper with Vibrant Luminous Teal Accent */
   .dark {
     --background: #15131A;
     --foreground: #F5F3FF;
@@ -38,19 +40,21 @@
     --card-foreground: #F5F3FF;
     --popover: #1E1B26;
     --popover-foreground: #F5F3FF;
-    --primary: #8B5CF6;
-    --primary-foreground: #FFFFFF;
-    --secondary: #F472B6;
+    --primary: #2DD4BF; /* Luminous Teal-400 */
+    --primary-foreground: #15131A;
+    --secondary: #F472B6; /* Bubblegum Pink */
     --secondary-foreground: #FFFFFF;
     --muted: #282433;
     --muted-foreground: #A19DAC;
-    --accent: #FBBF24;
+    --accent: #2DD4BF; /* Primary Teal Accent */
     --accent-foreground: #15131A;
+    --tertiary: #FBBF24; /* Sunny Amber */
+    --quaternary: #34D399; /* Mint Green */
     --destructive: #FB7185;
     --destructive-foreground: #FFFFFF;
     --border: #3A3545;
     --input: #3A3545;
-    --ring: #A78BFA;
+    --ring: #2DD4BF;
     --radius: 1rem;
     --shadow-color: #0D0B12;
     --shadow-offset: 4px;
@@ -80,7 +84,7 @@
 .bg-confetti-shapes {
   background-color: var(--background);
   background-image: 
-    radial-gradient(circle at 15% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 25%),
+    radial-gradient(circle at 15% 20%, rgba(45, 212, 191, 0.08) 0%, transparent 25%),
     radial-gradient(circle at 85% 15%, rgba(244, 114, 182, 0.08) 0%, transparent 25%),
     radial-gradient(circle at 50% 85%, rgba(251, 191, 36, 0.08) 0%, transparent 30%);
 }
@@ -89,7 +93,7 @@
 .sticker-card {
   background: var(--card);
   color: var(--card-foreground);
-  border: 2.5px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 1.25rem;
   box-shadow: 4px 4px 0px var(--shadow-color);
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;

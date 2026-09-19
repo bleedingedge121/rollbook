@@ -1,7 +1,4 @@
 // sync.js — robust SLCM attendance synchronizer.
-// Specifically targets the getCOPList / commonLWCApexMethods Apex action request
-// and retains the largest non-empty semester attendance capture.
-
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -81,12 +78,9 @@ function hasValidCourseRecords(list) {
   });
 }
 
-(async () => {
-  const authPath = path.resolve(__dirname, 'auth.json');
+async function runScrape(authPath = path.resolve(__dirname, 'auth.json')) {
   if (!fs.existsSync(authPath)) {
-    console.error('\n[Error] auth.json not found in scraper directory.');
-    console.error('Please run: node login.js first to log in and save your session.\n');
-    process.exit(1);
+    throw new Error('auth.json not found. Please log in first.');
   }
 
   const browser = await chromium.launch({
@@ -94,188 +88,175 @@ function hasValidCourseRecords(list) {
     args: ['--disable-blink-features=AutomationControlled'],
   });
 
-  const context = await browser.newContext({
-    storageState: authPath,
-    userAgent:
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    viewport: { width: 1280, height: 800 },
-  });
+  try {
+    const context = await browser.newContext({
+      storageState: authPath,
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      viewport: { width: 1280, height: 800 },
+    });
 
-  const page = await context.newPage();
-  let validCourseList = null;
-  let rawCapturedData = null;
-  let capturedActionDescriptor = '';
+    const page = await context.newPage();
+    let validCourseList = null;
+    let rawCapturedData = null;
+    let capturedActionDescriptor = '';
 
-  console.log('Connecting to MAHE SLCM portal...');
+    console.log('[Scraper] Connecting to MAHE SLCM portal...');
 
-  // Set up response listener targeting the specific getCOPList / commonLWCApexMethods POST request
-  page.on('response', async (response) => {
-    const url = response.url();
-    if (!url.includes('/s/sfsites/aura') || response.request().method() !== 'POST') {
-      return;
-    }
+    page.on('response', async (response) => {
+      const url = response.url();
+      if (!url.includes('/s/sfsites/aura') || response.request().method() !== 'POST') {
+        return;
+      }
+
+      try {
+        const postData = response.request().postData() || '';
+        const decodedPost = decodeURIComponent(postData);
+
+        const isTargetRequest =
+          decodedPost.includes('getCOPList') ||
+          decodedPost.includes('commonLWCApexMethods') ||
+          postData.includes('getCOPList');
+
+        const json = await response.json();
+        if (!json || !json.actions || !Array.isArray(json.actions)) return;
+
+        for (const action of json.actions) {
+          if (action.state !== 'SUCCESS' || !action.returnValue) continue;
+
+          const descriptor = action.descriptor || '';
+          if (
+            descriptor.includes('instrumentation') ||
+            descriptor.includes('telemetry') ||
+            descriptor.includes('logMetrics')
+          ) {
+            continue;
+          }
+
+          const candidateList = extractAttendanceList(action.returnValue);
+
+          if (isTargetRequest || hasValidCourseRecords(candidateList)) {
+            if (candidateList.length > 0 && candidateList.length > (validCourseList?.length || 0)) {
+              validCourseList = candidateList;
+              rawCapturedData = action.returnValue;
+              capturedActionDescriptor = descriptor || 'getCOPList';
+              console.log(
+                `✓ Intercepted Apex attendance call [${capturedActionDescriptor}] with ${candidateList.length} items.`
+              );
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore non-JSON
+      }
+    });
 
     try {
-      const postData = response.request().postData() || '';
-      const decodedPost = decodeURIComponent(postData);
+      await page.goto('https://maheslcmtech.manipal.edu/s/attendance', {
+        waitUntil: 'domcontentloaded',
+        timeout: 45000,
+      });
+    } catch (err) {
+      console.warn('[Scraper] Navigation notice:', err.message);
+    }
 
-      // Check if this outgoing request is specifically for getCOPList / attendance
-      const isTargetRequest =
-        decodedPost.includes('getCOPList') ||
-        decodedPost.includes('commonLWCApexMethods') ||
-        postData.includes('getCOPList');
+    const maxWaitMs = 15000;
+    const pollInterval = 500;
+    let elapsed = 0;
 
-      const json = await response.json();
-      if (!json || !json.actions || !Array.isArray(json.actions)) return;
+    while (elapsed < maxWaitMs) {
+      await page.waitForTimeout(pollInterval);
+      elapsed += pollInterval;
 
-      for (const action of json.actions) {
-        if (action.state !== 'SUCCESS' || !action.returnValue) continue;
-
-        const descriptor = action.descriptor || '';
-
-        // Discard any O11y / telemetry logging beacons
-        if (
-          descriptor.includes('instrumentation') ||
-          descriptor.includes('telemetry') ||
-          descriptor.includes('logMetrics')
-        ) {
-          continue;
-        }
-
-        const candidateList = extractAttendanceList(action.returnValue);
-
-        // Accept if request matches getCOPList OR candidate list has valid course objects
-        if (isTargetRequest || hasValidCourseRecords(candidateList)) {
-          // CRITICAL: Only overwrite if candidateList is non-empty and larger than current capture.
-          // This prevents empty sibling semester tabs (0 items) from overwriting real data (10 items).
-          if (candidateList.length > 0 && candidateList.length > (validCourseList?.length || 0)) {
-            validCourseList = candidateList;
-            rawCapturedData = action.returnValue;
-            capturedActionDescriptor = descriptor || 'getCOPList';
-            console.log(
-              `✓ Intercepted Apex attendance call [${capturedActionDescriptor}] with ${candidateList.length} items.`
-            );
-          } else if (candidateList.length === 0) {
-            console.log(
-              `  (ignored empty getCOPList response — keeping previous capture of ${validCourseList?.length || 0} items)`
-            );
-          }
-        } else {
-          if (descriptor && !descriptor.includes('O11y')) {
-            console.log(`[Aura Event] Received: ${descriptor}`);
-          }
-        }
+      const currentUrl = page.url();
+      if (
+        currentUrl.includes('login.microsoftonline.com') ||
+        currentUrl.includes('/login') ||
+        currentUrl.includes('/s/login')
+      ) {
+        throw new Error('SESSION_EXPIRED');
       }
-    } catch (e) {
-      // Ignore non-JSON responses
-    }
-  });
 
-  try {
-    await page.goto('https://maheslcmtech.manipal.edu/s/attendance', {
-      waitUntil: 'domcontentloaded',
-      timeout: 45000,
+      if (validCourseList && validCourseList.length > 0 && elapsed >= 4000) {
+        break;
+      }
+    }
+
+    if (!validCourseList || validCourseList.length === 0) {
+      throw new Error('DID_NOT_CAPTURE_COURSES');
+    }
+
+    const courses = validCourseList.map((c) => {
+      const present = Number(
+        c.Total_number_of_classes_attended__c ??
+        c.classesAttended ??
+        c.present ??
+        c.Attended_Classes__c ??
+        c.AttendedClasses ??
+        0
+      );
+
+      const total = Number(
+        c.Total_Classes__c ??
+        c.totalClasses ??
+        c.TotalClasses ??
+        c.total ??
+        (present + (c.absent || 0))
+      );
+
+      const absent = Math.max(0, total - present);
+
+      const name =
+        c.CourseOffering?.LearningCourse?.Name ??
+        c.CourseOffering?.Name ??
+        c.Course_Title__c ??
+        c.courseName ??
+        c.Name ??
+        c.name ??
+        'Unknown Course';
+
+      const code =
+        c.Course_Code__c ??
+        c.CourseOffering?.Course_Code__c ??
+        c.courseCode ??
+        c.code ??
+        '';
+
+      return {
+        name,
+        code,
+        present,
+        absent,
+      };
     });
-  } catch (err) {
-    console.warn('Navigation note:', err.message);
-  }
 
-  // Allow single-page application components time to dispatch all semester Aura calls
-  console.log('Awaiting portal component telemetry...');
-  const maxWaitMs = 15000;
-  const pollInterval = 500;
-  let elapsed = 0;
-
-  while (elapsed < maxWaitMs) {
-    await page.waitForTimeout(pollInterval);
-    elapsed += pollInterval;
-
-    // Check if redirected to Microsoft SSO / login page
-    const currentUrl = page.url();
-    if (
-      currentUrl.includes('login.microsoftonline.com') ||
-      currentUrl.includes('/login') ||
-      currentUrl.includes('/s/login')
-    ) {
-      console.error('\n[Session Expired] The portal redirected to the login page.');
-      console.error('Resolution: Run "node login.js" to authenticate, then retry "node sync.js".\n');
-      await browser.close();
-      process.exit(1);
-    }
-
-    // Once we have captured valid records and waited at least 4 seconds for sibling calls to settle
-    if (validCourseList && validCourseList.length > 0 && elapsed >= 4000) {
-      break;
-    }
-  }
-
-  if (!validCourseList || validCourseList.length === 0) {
-    const finalUrl = page.url();
-    console.error('\n[Error] Did not capture attendance course list from SLCM.');
-    console.error(`Current Page URL: ${finalUrl}`);
-    console.error('Please rerun: node login.js to refresh your authentication session.\n');
-    await browser.close();
-    process.exit(1);
-  }
-
-  // Format into standard Roll Book schema
-  const courses = validCourseList.map((c) => {
-    const present = Number(
-      c.Total_number_of_classes_attended__c ??
-      c.classesAttended ??
-      c.present ??
-      c.Attended_Classes__c ??
-      c.AttendedClasses ??
-      0
-    );
-
-    const total = Number(
-      c.Total_Classes__c ??
-      c.totalClasses ??
-      c.TotalClasses ??
-      c.total ??
-      (present + (c.absent || 0))
-    );
-
-    const absent = Math.max(0, total - present);
-
-    const name =
-      c.CourseOffering?.LearningCourse?.Name ??
-      c.CourseOffering?.Name ??
-      c.Course_Title__c ??
-      c.courseName ??
-      c.Name ??
-      c.name ??
-      'Unknown Course';
-
-    const code =
-      c.Course_Code__c ??
-      c.CourseOffering?.Course_Code__c ??
-      c.courseCode ??
-      c.code ??
-      '';
-
-    return {
-      name,
-      code,
-      present,
-      absent,
+    const payload = {
+      courses,
+      syncedAt: new Date().toISOString(),
+      capturedVia: capturedActionDescriptor,
     };
-  });
 
-  const outputPath = path.resolve(__dirname, 'sync-output.json');
-  const payload = {
-    courses,
-    syncedAt: new Date().toISOString(),
-    capturedVia: capturedActionDescriptor,
-  };
+    const outputPath = path.resolve(__dirname, 'sync-output.json');
+    fs.writeFileSync(outputPath, JSON.stringify(payload, null, 2));
+    console.log(`[Scraper] Saved payload to: ${outputPath}`);
 
-  fs.writeFileSync(outputPath, JSON.stringify(payload, null, 2));
+    return payload;
+  } finally {
+    await browser.close();
+  }
+}
 
-  console.log(`\n========================================`);
-  console.log(`✓ Synchronized ${courses.length} courses successfully!`);
-  console.log(`Saved output to: ${outputPath}`);
-  console.log(`========================================\n`);
+if (require.main === module) {
+  runScrape()
+    .then((res) => {
+      console.log(`\n========================================`);
+      console.log(`✓ Synchronized ${res.courses.length} courses successfully!`);
+      console.log(`========================================\n`);
+    })
+    .catch((err) => {
+      console.error('Scrape error:', err.message);
+      process.exit(1);
+    });
+}
 
-  await browser.close();
-})();
+module.exports = { runScrape, extractAttendanceList, hasValidCourseRecords };

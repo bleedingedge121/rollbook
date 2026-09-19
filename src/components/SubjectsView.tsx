@@ -134,7 +134,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight flex items-center gap-2.5">
-            <Layers className="w-7 h-7 text-violet-600 dark:text-violet-400" />
+            <Layers className="w-7 h-7 text-teal-600 dark:text-teal-400" />
             Registered Subjects
           </h1>
           <p className="text-xs sm:text-sm text-[var(--muted-foreground)] mt-1">
@@ -149,7 +149,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
               onClick={() => setFilterMode('all')}
               className={`px-3 py-1 rounded-full font-bold transition-all ${
                 filterMode === 'all'
-                  ? 'bg-violet-600 text-white shadow-[1px_1px_0px_var(--shadow-color)]'
+                  ? 'bg-teal-600 text-white shadow-[1px_1px_0px_var(--shadow-color)]'
                   : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
               }`}
             >
@@ -181,7 +181,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
             whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
             whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
             onClick={onAddCourse}
-            className="pill-btn flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-transform shrink-0"
+            className="pill-btn flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-transform shrink-0"
           >
             <Plus className="w-4 h-4" /> Add Subject
           </motion.button>
@@ -198,7 +198,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
           </p>
           <button
             onClick={onAddCourse}
-            className="pill-btn px-5 py-2.5 bg-violet-600 text-white text-xs font-bold"
+            className="pill-btn px-5 py-2.5 bg-teal-600 text-white text-xs font-bold"
           >
             Create First Subject
           </button>
@@ -228,7 +228,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                       <div className="flex items-center gap-2">
                         <span
                           className="w-3 h-3 rounded-full border border-[var(--border)]"
-                          style={{ backgroundColor: course.color || '#8B5CF6' }}
+                          style={{ backgroundColor: course.color || '#0D9488' }}
                         />
                         <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)]">
                           {course.code}
@@ -345,7 +345,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     <div className="space-y-1 pt-1">
                       <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] font-mono">
                         <span className="flex items-center gap-1 font-bold">
-                          <TrendingUp className="w-3 h-3 text-violet-500" /> Attendance Trend
+                          <TrendingUp className="w-3 h-3 text-teal-500" /> Attendance Trend
                         </span>
                         <span className="text-[10px]">{trendData.length} records</span>
                       </div>
@@ -360,7 +360,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                                   return (
                                     <div className="bg-[var(--card)] border-2 border-[var(--border)] text-xs p-2 rounded-xl shadow-[3px_3px_0px_var(--shadow-color)] font-mono">
                                       <p className="text-[var(--foreground)] font-bold">{data.date}</p>
-                                      <p className="font-black text-violet-600 dark:text-violet-400">
+                                      <p className="font-black text-teal-600 dark:text-teal-400">
                                         {data.percentage}% ({data.status})
                                       </p>
                                     </div>
@@ -390,7 +390,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                   onClick={() => setSelectedCourse(course)}
                   className="w-full py-2.5 px-4 rounded-full bg-[var(--background)] hover:bg-[var(--muted)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] flex items-center justify-center gap-1.5 transition-all shadow-[2px_2px_0px_var(--shadow-color)]"
                 >
-                  <History className="w-3.5 h-3.5 text-violet-600" />
+                  <History className="w-3.5 h-3.5 text-teal-600" />
                   View & Edit Attendance Log ({course.attendance?.length || 0})
                 </motion.button>
               </motion.div>
@@ -450,7 +450,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                   className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 space-y-3 shadow-[3px_3px_0px_var(--shadow-color)]"
                 >
                   <div className="text-xs font-bold uppercase tracking-wider text-[var(--foreground)] flex items-center gap-1.5 font-mono">
-                    <Plus className="w-3.5 h-3.5 text-violet-600" /> Log Confirmed Attendance
+                    <Plus className="w-3.5 h-3.5 text-teal-600" /> Log Confirmed Attendance
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -460,7 +460,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                         value={newLogDate}
                         onChange={(e) => setNewLogDate(e.target.value)}
                         required
-                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-mono"
+                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
                       />
                     </div>
                     <div>
@@ -468,7 +468,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                       <select
                         value={newLogStatus}
                         onChange={(e) => setNewLogStatus(e.target.value as any)}
-                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-violet-500 font-bold"
+                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-bold"
                       >
                         <option value="present">Present</option>
                         <option value="absent">Absent</option>
@@ -481,7 +481,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                         placeholder="e.g. Lab, Quiz"
                         value={newLogNote}
                         onChange={(e) => setNewLogNote(e.target.value)}
-                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-violet-500"
+                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500"
                       />
                     </div>
                   </div>
@@ -489,7 +489,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="pill-btn px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 transition-colors shadow-[2px_2px_0px_var(--shadow-color)]"
+                      className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors shadow-[2px_2px_0px_var(--shadow-color)]"
                     >
                       {isSubmitting ? 'Saving...' : 'Add Record'}
                     </button>

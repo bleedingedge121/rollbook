@@ -1,31 +1,41 @@
-// login.js — run this once, and again whenever your session expires.
-// Opens a real, visible browser so you can log in through Microsoft SSO
-// (including MFA) yourself. Once you land back on the attendance page,
-// it saves the authenticated session to auth.json for sync.js to reuse.
-//
-// Run:  node login.js
-
+// login.js — interactive Microsoft SSO + MFA login module
 const { chromium } = require('playwright');
+const path = require('path');
 
-(async () => {
+async function runLogin(authPath = path.resolve(__dirname, 'auth.json')) {
+  console.log('[Login] Launching interactive browser for MAHE Microsoft SSO...');
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  await page.goto('https://maheslcmtech.manipal.edu/s/attendance');
+  try {
+    await page.goto('https://maheslcmtech.manipal.edu/s/attendance', {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000,
+    });
 
-  console.log('A browser window has opened.');
-  console.log('Log in with your MAHE Microsoft account, complete MFA if prompted.');
-  console.log('Waiting for you to land back on the attendance page (up to 5 minutes)...');
+    console.log('[Login] A browser window has opened.');
+    console.log('[Login] Log in with your MAHE Microsoft account, complete MFA if prompted.');
+    console.log('[Login] Waiting for redirect back to attendance page (up to 5 minutes)...');
 
-  // Wait until SSO finishes redirecting us back to the attendance page
-  await page.waitForURL('**/s/attendance**', { timeout: 5 * 60 * 1000 });
+    await page.waitForURL('**/s/attendance**', { timeout: 5 * 60 * 1000 });
+    await page.waitForTimeout(5000);
 
-  // Give the single-page app a moment to finish its own internal loading
-  await page.waitForTimeout(5000);
+    await context.storageState({ path: authPath });
+    console.log(`[Login] Session saved to ${authPath}`);
+    return { success: true, authPath };
+  } finally {
+    await browser.close();
+  }
+}
 
-  await context.storageState({ path: 'auth.json' });
-  console.log('Session saved to auth.json. You can now run: node sync.js');
+if (require.main === module) {
+  runLogin()
+    .then(() => console.log('Login complete. You can now run: node sync.js'))
+    .catch((err) => {
+      console.error('Login error:', err);
+      process.exit(1);
+    });
+}
 
-  await browser.close();
-})();
+module.exports = { runLogin };

@@ -134,7 +134,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b-2 border-[var(--border)] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-violet-600/20 text-violet-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-teal-600/20 text-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] flex items-center justify-center">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
@@ -146,7 +146,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                   ? `Portal data from ${new Date(syncedAt).toLocaleString()}`
                   : 'Portal Snapshot'}
                 {' • '}
-                <span className="font-bold text-violet-600 dark:text-violet-400">
+                <span className="font-bold text-teal-600 dark:text-teal-400">
                   {diff.length} course(s) in sync file
                 </span>
               </p>
@@ -169,10 +169,10 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           )}
 
           {/* Info Banner */}
-          <div className="bg-violet-500/10 border-2 border-[var(--border)] rounded-2xl p-4 flex items-start gap-3 shadow-[3px_3px_0px_var(--shadow-color)]">
-            <GitMerge className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
+          <div className="bg-teal-500/10 border-2 border-[var(--border)] rounded-2xl p-4 flex items-start gap-3 shadow-[3px_3px_0px_var(--shadow-color)]">
+            <GitMerge className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
             <div className="space-y-1 text-xs text-[var(--foreground)]">
-              <p className="font-heading font-bold text-violet-600 dark:text-violet-400">
+              <p className="font-heading font-bold text-teal-600 dark:text-teal-400">
                 Verified Portal Snapshot
               </p>
               <p className="text-[var(--muted-foreground)] leading-relaxed">
@@ -200,7 +200,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                     {/* Incoming Course Info */}
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-violet-600 dark:text-violet-400">
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-teal-600 dark:text-teal-400">
                           {item.syncedCode}
                         </span>
                         <span className="font-heading font-bold text-sm text-[var(--foreground)] truncate">
@@ -225,7 +225,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                       <select
                         value={currentTarget}
                         onChange={(e) => handleTargetChange(item.syncedCode, e.target.value)}
-                        className="w-full sm:w-64 text-xs font-bold rounded-full px-3.5 py-2 border-2 border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:outline-none focus:border-violet-500 transition-colors shadow-[2px_2px_0px_var(--shadow-color)]"
+                        className="w-full sm:w-64 text-xs font-bold rounded-full px-3.5 py-2 border-2 border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] focus:outline-none focus:border-teal-500 transition-colors shadow-[2px_2px_0px_var(--shadow-color)]"
                       >
                         {item.matchType === 'exact' && item.matchedCourseId && (
                           <option value={item.matchedCourseId}>
@@ -261,7 +261,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
                           {item.current.present}P / {item.current.absent}A ({item.current.pct}%)
                         </span>
                       </div>
-                      <ArrowRight className="w-3.5 h-3.5 text-violet-500" />
+                      <ArrowRight className="w-3.5 h-3.5 text-teal-500" />
                       <div className="flex items-center gap-2">
                         <span>New Baseline:</span>
                         <span className="font-bold text-emerald-600 dark:text-emerald-400">
@@ -287,7 +287,7 @@ export const SyncModal: React.FC<SyncModalProps> = ({
           <button
             onClick={handleConfirmApply}
             disabled={isApplying || activeCount === 0}
-            className="pill-btn px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-2 transition-transform"
+            className="pill-btn px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 flex items-center gap-2 transition-transform"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isApplying ? 'animate-spin' : ''}`} />
             {isApplying
