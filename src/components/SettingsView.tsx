@@ -27,11 +27,14 @@ import {
   Copy,
   Check,
   Sliders,
+  HelpCircle,
+  Code,
+  ExternalLink,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
 import { formatDate, formatDateTime, formatSlotTime } from '@/lib/formatters'
-import { generateBookmarklet } from '@/lib/bookmarklet'
+import { generateBookmarklet, generateConsoleSnippet } from '@/lib/bookmarklet'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
@@ -101,6 +104,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [copiedToken, setCopiedToken] = useState(false)
   const [copiedCmd, setCopiedCmd] = useState(false)
   const [copiedBookmarklet, setCopiedBookmarklet] = useState(false)
+  const [copiedConsoleSnippet, setCopiedConsoleSnippet] = useState(false)
+  const [isBookmarkModalOpen, setIsBookmarkModalOpen] = useState(false)
   const [showPasteFallback, setShowPasteFallback] = useState(false)
   const [pasteFallbackText, setPasteFallbackText] = useState('')
   const [isSubmittingPaste, setIsSubmittingPaste] = useState(false)
@@ -109,8 +114,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handlePasteFallbackSubmit = async () => {
     setIsSubmittingPaste(true)
     setPasteFallbackResult(null)
+    const trimmed = pasteFallbackText.trim()
+    if (trimmed.startsWith('rb_sync_')) {
+      setPasteFallbackResult('⚠️ That looks like your Personal Sync Token, not attendance data! To sync directly from your browser, use the "Copy Console Script (Laptop)" button above and paste into your browser F12 Console on SLCM.')
+      setIsSubmittingPaste(false)
+      return
+    }
     try {
-      const courses = JSON.parse(pasteFallbackText)
+      const courses = JSON.parse(trimmed)
       const res = await fetch('/api/sync/paste', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +133,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setPasteFallbackText('')
       await onRefreshAll()
     } catch (err: any) {
-      setPasteFallbackResult(`❌ ${err?.message || 'Could not parse or apply that data'}`)
+      setPasteFallbackResult(`❌ ${err?.message || 'Could not parse or apply that data. Make sure it is valid course JSON.'}`)
     } finally {
       setIsSubmittingPaste(false)
     }
@@ -628,25 +639,56 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </button>
                   </div>
 
-                  <div className="pt-3 border-t-2 border-emerald-500/30 space-y-2">
-                    <p className="text-[11px] font-heading font-bold text-emerald-800 dark:text-emerald-300">
-                      📱 On your phone or a computer without the repo? Drag this to your bookmarks bar instead —
-                      no install, no terminal:
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <a
-                        href={typeof window !== 'undefined' ? generateBookmarklet(window.location.origin, activeSyncToken) : '#'}
-                        onClick={(e) => {
-                          if (!e.defaultPrevented) e.preventDefault()
-                        }}
-                        className="inline-flex pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold cursor-grab active:cursor-grabbing select-none items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)]"
+                  <div className="pt-3 border-t-2 border-emerald-500/30 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-heading font-bold text-emerald-800 dark:text-emerald-300">
+                        ⚡ Quick Sync Directly from Browser (No terminal needed):
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsBookmarkModalOpen(true)}
+                        className="text-[11px] font-bold text-teal-700 dark:text-teal-300 hover:underline flex items-center gap-1 shrink-0"
                       >
-                        🔖 Sync Roll Book
-                      </a>
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        <span>Instructions</span>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Laptop F12 Console Option (Most Reliable) */}
                       <button
                         type="button"
                         onClick={async () => {
-                          if (typeof window === 'undefined') return
+                          if (typeof window === 'undefined' || !activeSyncToken) return
+                          const snippet = generateConsoleSnippet(window.location.origin, activeSyncToken)
+                          await navigator.clipboard.writeText(snippet)
+                          setCopiedConsoleSnippet(true)
+                          setTimeout(() => setCopiedConsoleSnippet(false), 2500)
+                        }}
+                        className="pill-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
+                      >
+                        {copiedConsoleSnippet ? <Check className="w-3.5 h-3.5 text-white" /> : <Code className="w-3.5 h-3.5" />}
+                        <span>{copiedConsoleSnippet ? 'Script Copied!' : '💻 Copy Console Script (Laptop)'}</span>
+                      </button>
+
+                      {/* Bookmarklet Drag / Click */}
+                      <a
+                        href={typeof window !== 'undefined' ? generateBookmarklet(window.location.origin, activeSyncToken) : '#'}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setIsBookmarkModalOpen(true)
+                        }}
+                        title="Drag to bookmarks bar, or click for instructions"
+                        className="inline-flex pill-btn px-3 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold cursor-grab active:cursor-grabbing select-none items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)]"
+                      >
+                        🔖 Sync Roll Book
+                      </a>
+
+                      {/* Copy Bookmarklet Code (Mobile / Manual Bookmark) */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (typeof window === 'undefined' || !activeSyncToken) return
                           const bm = generateBookmarklet(window.location.origin, activeSyncToken)
                           await navigator.clipboard.writeText(bm)
                           setCopiedBookmarklet(true)
@@ -655,11 +697,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         className="pill-btn px-3 py-2 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold border-2 border-[var(--border)] flex items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)]"
                       >
                         {copiedBookmarklet ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedBookmarklet ? 'Code Copied!' : 'Copy Bookmarklet Code'}</span>
+                        <span>{copiedBookmarklet ? 'Code Copied!' : '📱 Copy Bookmarklet Code'}</span>
                       </button>
                     </div>
-                    <p className="text-[10px] text-[var(--muted-foreground)] leading-relaxed">
-                      On mobile, copy the code above and save it as a bookmark URL. Then: log into SLCM normally, tap the bookmark, and click into the Attendance section.
+
+                    <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                      💡 <strong>On Laptop:</strong> Click <strong>Copy Console Script</strong>, go to your SLCM Attendance tab, press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">F12</kbd> (Console), paste and press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Enter</kbd>.
                     </p>
                   </div>
                 </div>
@@ -1433,6 +1476,109 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="pill-btn px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold disabled:opacity-40 transition-colors flex items-center gap-2"
               >
                 {isResetting ? 'Resetting...' : 'Confirm Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Browser Sync / Bookmarklet Instructions Modal */}
+      {isBookmarkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl w-full max-w-lg shadow-[8px_8px_0px_var(--shadow-color)] p-6 space-y-5 animate-scaleUp max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-teal-500/10 border-2 border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-teal-400">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-heading font-black text-[var(--foreground)]">
+                    How to Sync SLCM Attendance
+                  </h3>
+                  <p className="text-[11px] text-[var(--muted-foreground)]">
+                    Direct sync from your browser tab — no terminal needed
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBookmarkModalOpen(false)}
+                className="w-8 h-8 rounded-full border border-[var(--border)] hover:bg-[var(--muted)] flex items-center justify-center text-sm font-bold transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Method 1: Console Script (Laptop) */}
+            <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-indigo-500/30 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold uppercase">
+                    Laptop / Desktop (Recommended)
+                  </span>
+                  <span className="text-xs font-bold text-[var(--foreground)]">F12 Console</span>
+                </div>
+                {activeSyncToken && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (typeof window === 'undefined') return
+                      const snippet = generateConsoleSnippet(window.location.origin, activeSyncToken)
+                      await navigator.clipboard.writeText(snippet)
+                      setCopiedConsoleSnippet(true)
+                      setTimeout(() => setCopiedConsoleSnippet(false), 2500)
+                    }}
+                    className="pill-btn px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm"
+                  >
+                    {copiedConsoleSnippet ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedConsoleSnippet ? 'Copied' : 'Copy Script'}</span>
+                  </button>
+                )}
+              </div>
+              <ol className="text-[11px] text-[var(--foreground)] space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>Log in to SLCM and go to the <strong>Attendance</strong> page.</li>
+                <li>Press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">F12</kbd> (or right click anywhere &rarr; <em>Inspect</em>) and click the <strong>Console</strong> tab.</li>
+                <li>Paste the script and press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Enter</kbd>.</li>
+                <li>If you were already on Attendance, click another tab (like <strong>Home</strong>) and click back to <strong>Attendance</strong> so the network request fires.</li>
+                <li>A banner will appear at the top confirming the attendance numbers have been synced to Roll Book!</li>
+              </ol>
+            </div>
+
+            {/* Method 2: Bookmarks Bar */}
+            <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] space-y-2.5">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-bold uppercase">
+                  Bookmarks Bar
+                </span>
+                <span className="text-xs font-bold text-[var(--foreground)]">One-Click Bookmark</span>
+              </div>
+              <ol className="text-[11px] text-[var(--muted-foreground)] space-y-1.5 list-decimal list-inside leading-relaxed">
+                <li>Drag the <span className="font-bold text-teal-600 dark:text-teal-400">🔖 Sync Roll Book</span> button to your browser&apos;s Bookmarks bar (Press <kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">Ctrl+Shift+B</kbd> if hidden).</li>
+                <li>In your SLCM tab, click the bookmark.</li>
+                <li>Navigate into Attendance or switch tabs to capture the live data.</li>
+              </ol>
+            </div>
+
+            {/* Method 3: Mobile Bookmark */}
+            <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] space-y-2.5">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold uppercase">
+                  Mobile Phone
+                </span>
+                <span className="text-xs font-bold text-[var(--foreground)]">Mobile Safari / Chrome</span>
+              </div>
+              <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                Bookmark any page in your mobile browser, edit the bookmark URL, and replace it with the code from <strong>Copy Bookmarklet Code</strong>. On SLCM, type the bookmark title into the address bar to trigger it!
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end pt-2 border-t border-[var(--border)]">
+              <button
+                type="button"
+                onClick={() => setIsBookmarkModalOpen(false)}
+                className="pill-btn px-5 py-2 bg-[var(--card)] text-[var(--foreground)] text-xs font-bold border-2 border-[var(--border)] hover:bg-[var(--muted)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              >
+                Got it
               </button>
             </div>
           </div>
