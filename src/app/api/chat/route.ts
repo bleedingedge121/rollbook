@@ -5,6 +5,7 @@ import { calculateAttendance, toDateString, WEEKDAYS } from '@/lib/attendance'
 import { formatDate, formatTime, formatSlotTime } from '@/lib/formatters'
 import { addDays, subDays, format, isBefore, isSameDay } from 'date-fns'
 import { requireUser } from '@/lib/session'
+import { autoApplySync, parsePastedTableText, SyncedCourse } from '@/lib/reconcile'
 
 function parseIsoDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
@@ -54,8 +55,53 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey })
 
+    let didSync = false
+    let syncedCourseCount = 0
+    let proactiveSyncNotification = ''
+
+    const lastUserMsg = Array.isArray(messages)
+      ? messages.filter((m: any) => m.role === 'user').pop()?.content || ''
+      : ''
+
+    const parsedFromChat = parsePastedTableText(lastUserMsg)
+    if (parsedFromChat && parsedFromChat.length >= 2) {
+      try {
+        const syncResult = await autoApplySync(userId, parsedFromChat, new Date().toISOString())
+        didSync = true
+        syncedCourseCount = syncResult.count
+        proactiveSyncNotification = `[SYSTEM NOTIFICATION: Roll Book detected and successfully synchronized ${syncResult.count} courses from the user's pasted SLCM attendance table directly into their database account. Updated courses: ${syncResult.applied.join(', ')}. Please confirm to the user that their attendance figures have been updated in Roll Book, and provide a clear, encouraging breakdown of their subjects, present/total classes, and current percentages!]`
+      } catch (syncErr) {
+        console.error('Proactive table sync error:', syncErr)
+      }
+    }
+
     // Define function declarations for tools
     const toolDeclarations = [
+      {
+        name: 'sync_attendance_data',
+        description:
+          'Synchronize attendance figures directly into Roll Book database from parsed course attendance records (e.g. when the user pastes raw SLCM attendance data, tables, or asks to update their attendance numbers).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            courses: {
+              type: Type.ARRAY,
+              description: 'List of courses with name, optional code, present count, and absent count.',
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING, description: 'Course name' },
+                  code: { type: Type.STRING, description: 'Course code (e.g. SMS_1102)' },
+                  present: { type: Type.NUMBER, description: 'Total classes attended/present' },
+                  absent: { type: Type.NUMBER, description: 'Total classes missed/absent' },
+                },
+                required: ['name', 'present', 'absent'],
+              },
+            },
+          },
+          required: ['courses'],
+        },
+      },
       {
         name: 'get_attendance_summary',
         description:
@@ -163,6 +209,26 @@ export async function POST(req: Request) {
 
     // Tool execution functions scoped to authenticated user
     const executeTool = async (name: string, args: any) => {
+      if (name === 'sync_attendance_data') {
+        const { courses } = args
+        if (!Array.isArray(courses) || courses.length === 0) {
+          return { error: 'No course data provided to synchronize.' }
+        }
+        try {
+          const syncResult = await autoApplySync(userId, courses, new Date().toISOString())
+          didSync = true
+          syncedCourseCount = syncResult.count
+          return {
+            success: true,
+            syncedCount: syncResult.count,
+            appliedCourses: syncResult.applied,
+            message: `Successfully synchronized ${syncResult.count} courses into Roll Book database.`,
+          }
+        } catch (syncErr: any) {
+          return { error: `Failed to synchronize courses: ${syncErr?.message || syncErr}` }
+        }
+      }
+
       if (name === 'get_attendance_summary') {
         const [courses, attendance] = await Promise.all([
           prisma.course.findMany({ where: { userId } }),
@@ -505,14 +571,21 @@ RULES:
 4. If asked to list holidays, call \`list_holidays\`. If asked to remove a holiday, call \`delete_holiday\`.
 5. All times must be formatted in 12-hour format with lowercase am/pm (e.g. 9:00 am, 2:30 pm), and all dates must be formatted strictly in dd/mm/yyyy (e.g. 19/09/2026).
 6. Be concise, punchy, clear, and supportive. Use a witty, dignified tone.
-7. NEVER address the user as "Sir", "Ma'am", or similar honorifics. Speak to them directly as a smart, capable peer.`
+7. NEVER address the user as "Sir", "Ma'am", or similar honorifics. Speak to them directly as a smart, capable peer.
+8. If the user pastes attendance data, an SLCM table, or asks to update their attendance from text, call \`sync_attendance_data\` to save it directly to their Roll Book database account if not already synced. If a [SYSTEM NOTIFICATION] indicates Roll Book already synchronized the courses, celebrate the sync, confirm how many courses were updated, and provide an encouraging, organized breakdown of their subjects, present/total classes, and current percentages.`
 
     // Format messages for Gemini
     const contents: any[] = []
-    for (const msg of messages) {
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i]
+      const isLast = i === messages.length - 1
+      let text = msg.content
+      if (isLast && msg.role === 'user' && proactiveSyncNotification) {
+        text = `${text}\n\n${proactiveSyncNotification}`
+      }
       contents.push({
         role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }],
+        parts: [{ text }],
       })
     }
 
@@ -605,7 +678,11 @@ RULES:
     }).catch(() => {})
 
     const replyText = response?.text || 'I checked your records, but could not produce a response.'
-    return NextResponse.json({ reply: replyText })
+    return NextResponse.json({
+      reply: replyText,
+      synced: didSync,
+      syncedCount: syncedCourseCount,
+    })
   } catch (err: any) {
     console.error('Chat API error:', err)
     if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED')) {

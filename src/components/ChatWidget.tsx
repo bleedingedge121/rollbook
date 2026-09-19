@@ -27,7 +27,7 @@ export const ChatWidget: React.FC = () => {
     {
       role: 'assistant',
       content:
-        "Hello! I'm your Roll Book attendance advisor. Ask me anything about your current percentages, safe-to-skip buffers, recovery streaks, or upcoming timetable schedule.",
+        "Hello! I'm your Roll Book attendance advisor. Ask me anything about your current percentages, safe-to-skip buffers, recovery streaks, or upcoming timetable schedule. You can also paste your copied SLCM attendance table directly here to sync!",
     },
   ])
   const [input, setInput] = useState('')
@@ -66,6 +66,14 @@ export const ChatWidget: React.FC = () => {
         ...prev,
         { role: 'assistant', content: data.reply || 'No response received.' },
       ])
+
+      if (data?.synced) {
+        window.dispatchEvent(
+          new CustomEvent('rollbook:synced', {
+            detail: { count: data.syncedCount },
+          })
+        )
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -249,20 +257,26 @@ export const ChatWidget: React.FC = () => {
                 e.preventDefault()
                 handleSend()
               }}
-              className="p-3 bg-[var(--card)] border-t-2 border-[var(--border)] flex items-center gap-2"
+              className="p-3 bg-[var(--card)] border-t-2 border-[var(--border)] flex items-end gap-2"
             >
-              <input
-                type="text"
+              <textarea
                 value={input}
+                rows={1}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about your attendance..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder="Ask advisor or paste SLCM table..."
                 disabled={isLoading}
-                className="flex-1 bg-[var(--background)] border-2 border-[var(--border)] rounded-full px-3.5 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-teal-500 transition-colors font-sans"
+                className="flex-1 bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl px-3.5 py-2 text-xs text-[var(--foreground)] placeholder-[var(--muted-foreground)] focus:outline-none focus:border-teal-500 transition-colors font-sans resize-none max-h-24 overflow-y-auto leading-normal"
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim()}
-                className="p-2 rounded-full bg-teal-600 hover:bg-teal-500 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] disabled:opacity-40 transition-transform active:scale-95"
+                className="p-2.5 rounded-full bg-teal-600 hover:bg-teal-500 text-white border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] disabled:opacity-40 transition-transform active:scale-95 shrink-0 mb-0.5"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>

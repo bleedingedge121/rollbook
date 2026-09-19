@@ -113,6 +113,14 @@ export default function App() {
       }
     } catch {}
     fetchData()
+
+    const handleSyncEvent = () => {
+      fetchData()
+    }
+    window.addEventListener('rollbook:synced', handleSyncEvent)
+    return () => {
+      window.removeEventListener('rollbook:synced', handleSyncEvent)
+    }
   }, [fetchData])
 
   const handleRefresh = async () => {

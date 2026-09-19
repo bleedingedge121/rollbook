@@ -77,15 +77,15 @@ Roll Book offers multiple ways to ingest your live portal attendance figures:
                   │                 SLCM Portal (Salesforce)               │
                   └───────────┬────────────────────────────────┬───────────┘
                               │                                │
-                 [Option A: Laptop F12]            [Option B: Mobile Copy]
+            [Option A: AI Chatbot / Mobile Copy]     [Option B: Laptop F12]
                               │                                │
-             Run 5-sec script in Console          Select & copy attendance table
+                 Copy table directly from SLCM       Run 5-sec script in Console
                               │                                │
-             Banner captures 10 courses           Smart parser extracts figures
+                 Paste into AI Chat Advisor          Banner captures 10 courses
                               │                                │
                               └───────────────┬────────────────┘
                                               │
-                                   Paste into Roll Book
+                                   Instant Sync & Parse
                                               │
                                  ┌────────────▼───────────┐
                                  │   Neon PostgreSQL DB   │
@@ -94,7 +94,25 @@ Roll Book offers multiple ways to ingest your live portal attendance figures:
                                 Instant Cloud Sync to All Devices
 ```
 
-#### Option A: Laptop Browser Console (5 Seconds — Recommended)
+#### Option A: AI Chatbot Direct Table Paste (Fastest on Mobile & Laptop)
+
+*Zero code, zero scripts, zero extensions. Works right inside mobile Safari, mobile Chrome, or desktop.*
+
+1. Open SLCM in your phone or laptop browser and navigate to the **Attendance** page.
+2. Select and copy the attendance table (or the entire page text containing your subjects, codes, total classes, and present counts).
+3. Open Roll Book and tap the **AI Attendance Advisor** floating button in the bottom right corner.
+4. Paste the copied text directly into the chat message box and hit **Send** (or press Enter).
+5. The Roll Book engine immediately detects the courses, parses the attended/total classes, synchronizes the numbers straight into your database, and the AI provides a personalized summary of your attendance health.
+6. Your entire Roll Book dashboard instantly refreshes with updated percentages, safe skip counts, and recovery targets!
+
+#### Option B: Settings Paste Box (Manual Ingest)
+
+1. Copy your SLCM attendance table or exported JSON.
+2. In Roll Book, open **Command & Sync** $\rightarrow$ **Paste Attendance Data**.
+3. Paste the text into the box and click **Apply Attendance Data**.
+4. The smart regex parser matches each subject and updates your database baseline.
+
+#### Option C: Laptop Browser Console (5 Seconds — 100% Accurate)
 
 *Zero installations, zero repo cloning, and zero terminal commands.*
 
@@ -106,20 +124,10 @@ Roll Book offers multiple ways to ingest your live portal attendance figures:
 5. Paste the script (<kbd>Ctrl+V</kbd> or <kbd>Cmd+V</kbd>) and press <kbd>Enter</kbd>.
 6. In SLCM, click another tab (like **Home**) and click back to **Attendance** to trigger the network request.
 7. An emerald Roll Book banner will appear at the top of SLCM confirming your subjects were captured. Click **Copy JSON**.
-8. Return to Roll Book, paste the copied text into the **Paste Attendance Data** box, and click **Apply Attendance Data**.
+8. Return to Roll Book, paste the copied JSON into the AI chat or the **Paste Attendance Data** box, and click **Apply Attendance Data**.
 9. All your course totals, attended counts, and percentages are now synchronized!
 
-#### Option B: Mobile Phone Direct Table Copy
-
-*Perfect when you are away from your laptop and only have your phone.*
-
-1. Open SLCM in your phone's browser (Safari or Chrome) and navigate to the Attendance table.
-2. Tap and drag across the table to select and copy the text rows (subject names, codes, attended, and total numbers).
-3. Switch back to Roll Book on your phone.
-4. Go to **Command & Sync**, paste the copied text into the **Paste Attendance Data** box, and tap **Apply Attendance Data**.
-5. Roll Book's smart regex parser automatically detects subject codes, names, attended, and absent counts and updates your database baseline.
-
-#### Option C: Automated Desktop Scraper (Node.js)
+#### Option D: Automated Desktop Scraper (Node.js)
 
 *For developers who prefer an automated headless browser runner.*
 

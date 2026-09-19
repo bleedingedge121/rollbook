@@ -21,9 +21,105 @@ export interface CourseMergeSelection {
  * into structured SyncedCourse records.
  */
 export function parsePastedTableText(text: string): SyncedCourse[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+
+  // 1. Try parsing direct JSON
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      const list = Array.isArray(parsed) ? parsed : parsed.courses || parsed.data || parsed.records || []
+      if (Array.isArray(list) && list.length > 0 && typeof list[0] === 'object') {
+        const mapped = list
+          .map((item) => ({
+            name: String(item.name || item.courseName || item.title || '').trim(),
+            code: String(item.code || item.courseCode || '').trim().toUpperCase(),
+            present: Math.max(0, Math.round(Number(item.present ?? item.attended ?? 0))),
+            absent: Math.max(0, Math.round(Number(item.absent ?? 0))),
+          }))
+          .filter((c) => c.name.length >= 2 || c.code.length >= 2)
+        if (mapped.length > 0) return mapped
+      }
+    } catch {}
+  }
+
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
   const results: SyncedCourse[] = []
+  const codeRegex = /^([A-Z]{2,5}[_-]?\d{3,4}[A-Z]?)$/i
 
+  // 2. Try vertical multi-line extraction (SLCM mobile/web copy)
+  // Usually appears as:
+  // [Course Name]
+  // [Course Code]
+  // [Total Classes]
+  // [Present]
+  // [Absent]
+  // [Percentage]
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const match = line.match(codeRegex)
+    if (match) {
+      const code = match[1].toUpperCase()
+      // Look backwards for course name
+      let name = ''
+      for (let k = i - 1; k >= Math.max(0, i - 3); k--) {
+        const prev = lines[k]
+        if (
+          !/sorted|classes|present|absent|none|semester|academic|year|navigation|mode|attendance|roll|select|percentage/i.test(
+            prev
+          ) &&
+          !codeRegex.test(prev)
+        ) {
+          name = prev
+          break
+        }
+      }
+      if (!name) name = code
+
+      // Look forward for numeric lines (Total, Present, Absent, Percentage)
+      const numbers: number[] = []
+      let j = i + 1
+      while (j < lines.length && numbers.length < 4) {
+        const nextLine = lines[j]
+        if (codeRegex.test(nextLine)) break // next course started
+        const numVal = parseFloat(nextLine.replace(/%/g, ''))
+        if (!isNaN(numVal) && /^[\d.]+$/.test(nextLine.replace(/%/g, ''))) {
+          numbers.push(numVal)
+        } else if (numbers.length >= 2) {
+          break
+        }
+        j++
+      }
+
+      if (numbers.length >= 2) {
+        let present = 0
+        let absent = 0
+        if (numbers.length >= 3) {
+          const total = Math.round(numbers[0])
+          present = Math.round(numbers[1])
+          absent = Math.round(numbers[2])
+          // Sanity check: if present + absent != total, check if layout was [Present, Absent, Total]
+          if (present + absent !== total && numbers.length >= 3) {
+            if (Math.round(numbers[0]) + Math.round(numbers[1]) === Math.round(numbers[2])) {
+              present = Math.round(numbers[0])
+              absent = Math.round(numbers[1])
+            }
+          }
+        } else {
+          present = Math.round(numbers[0])
+          absent = Math.round(numbers[1])
+        }
+
+        results.push({ name, code, present, absent })
+      }
+    }
+  }
+
+  if (results.length > 0) {
+    return results
+  }
+
+  // 3. Fallback: horizontal single-line row parsing
   for (const line of lines) {
     if (/course\s*name|classes\s*attended|sl\s*no|subject\s*title|attendance\s*percentage/i.test(line)) continue
 
@@ -61,6 +157,26 @@ export function parsePastedTableText(text: string): SyncedCourse[] {
 
     if (name.length >= 3) {
       results.push({ name, code, present, absent })
+    }
+  }
+
+  if (results.length > 0) {
+    return results
+  }
+
+  // 4. Fallback: space-collapsed continuous text streams
+  const streamRegex = /(?:^|\s)(.+?)\s+([A-Z]{2,5}[_-]?\d{3,4}[A-Z]?)\s+(\d+)\s+(\d+)\s+(\d+)(?:\s+[\d.]+)?(?=\s+[A-Za-z\s–—]+[A-Z]{2,5}[_-]?\d{3,4}|$)/gi
+  let streamMatch: RegExpExecArray | null
+  while ((streamMatch = streamRegex.exec(trimmed)) !== null) {
+    const rawName = streamMatch[1]
+      .replace(/.*(?:sorted:?\s*none|attendance\s*percentage|roll\s*number|course\s*code)/i, '')
+      .replace(/[|\t–—]/g, ' ')
+      .trim()
+    const code = streamMatch[2].toUpperCase()
+    const present = Number(streamMatch[4])
+    const absent = Number(streamMatch[5])
+    if (rawName.length >= 2) {
+      results.push({ name: rawName, code, present, absent })
     }
   }
 
