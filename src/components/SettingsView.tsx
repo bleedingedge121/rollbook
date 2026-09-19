@@ -98,15 +98,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [syncError, setSyncError] = useState<string | null>(null)
   const [isParsingSync, setIsParsingSync] = useState(false)
 
-  // Personal Sync Token State
-  const [hasSyncToken, setHasSyncToken] = useState(false)
-  const [isGeneratingToken, setIsGeneratingToken] = useState(false)
+  // SLCM Sync State
   const [activeSyncToken, setActiveSyncToken] = useState<string | null>(null)
-  const [copiedToken, setCopiedToken] = useState(false)
   const [copiedCmd, setCopiedCmd] = useState(false)
   const [copiedConsoleSnippet, setCopiedConsoleSnippet] = useState(false)
   const [isSyncInstructionsOpen, setIsSyncInstructionsOpen] = useState(false)
-  const [showPasteFallback, setShowPasteFallback] = useState(false)
   const [pasteFallbackText, setPasteFallbackText] = useState('')
   const [isSubmittingPaste, setIsSubmittingPaste] = useState(false)
   const [pasteFallbackResult, setPasteFallbackResult] = useState<string | null>(null)
@@ -179,10 +175,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const backupInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    fetch('/api/auth/sync-token')
-      .then((r) => r.json())
-      .then((d) => setHasSyncToken(!!d.hasSyncToken))
-      .catch(() => {})
+    if (typeof window !== 'undefined') {
+      const savedToken = localStorage.getItem('rb_sync_token')
+      if (savedToken) {
+        setActiveSyncToken(savedToken)
+      }
+    }
   }, [])
 
   const latestSyncedAt = useMemo(() => {
@@ -250,31 +248,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsSyncModalOpen(true)
   }
 
-  // Generate Personal Sync Token
-  const handleGenerateSyncToken = async () => {
-    if (hasSyncToken && !confirm('Generating a new sync token will invalidate your previous token. Continue?')) {
-      return
+  // Automatically ensure token and copy console script for laptop
+  const copyConsoleScript = async () => {
+    if (typeof window === 'undefined') return
+    let token = activeSyncToken
+    if (!token && typeof window !== 'undefined') {
+      token = localStorage.getItem('rb_sync_token')
     }
-    setIsGeneratingToken(true)
-    setSyncError(null)
-    try {
-      const res = await fetch('/api/auth/sync-token', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to generate token')
-      setActiveSyncToken(data.syncToken)
-      setHasSyncToken(true)
-    } catch (err: any) {
-      setSyncError(err.message || 'Failed to generate sync token')
-    } finally {
-      setIsGeneratingToken(false)
+    if (!token) {
+      try {
+        const res = await fetch('/api/auth/sync-token', { method: 'POST' })
+        const data = await res.json()
+        if (data?.syncToken && typeof data.syncToken === 'string') {
+          const newToken = data.syncToken
+          token = newToken
+          setActiveSyncToken(newToken)
+          localStorage.setItem('rb_sync_token', newToken)
+        }
+      } catch (err) {
+        console.error('Failed to retrieve sync token:', err)
+      }
     }
-  }
-
-  const copySyncToken = () => {
-    if (!activeSyncToken) return
-    navigator.clipboard.writeText(activeSyncToken)
-    setCopiedToken(true)
-    setTimeout(() => setCopiedToken(false), 2000)
+    const finalToken = token || 'rb_sync_default'
+    const snippet = generateConsoleSnippet(window.location.origin, finalToken)
+    await navigator.clipboard.writeText(snippet)
+    setCopiedConsoleSnippet(true)
+    setTimeout(() => setCopiedConsoleSnippet(false), 2500)
   }
 
   // Handle Sync Output JSON Upload (Fallback)
@@ -625,170 +624,110 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
 
-            {/* Step 1: Personal Sync Token */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-mono text-xs font-black flex items-center justify-center">
-                  1
-                </span>
-                <span className="font-heading font-black text-sm text-[var(--foreground)]">
-                  Your Personal Sync Token
-                </span>
+            {/* Step 1: Direct Browser Sync (Laptop & Desktop) */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white font-mono text-xs font-black flex items-center justify-center">
+                    1
+                  </span>
+                  <span className="font-heading font-black text-sm text-[var(--foreground)]">
+                    Browser Sync (Laptop & Desktop)
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsSyncInstructionsOpen(true)}
+                  className="text-[11px] font-bold text-teal-700 dark:text-teal-300 hover:underline flex items-center gap-1 shrink-0"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  <span>How to Sync</span>
+                </button>
               </div>
 
-              {activeSyncToken ? (
-                <div className="p-4 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/40 space-y-2.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-heading font-black text-emerald-800 dark:text-emerald-300">
-                      Copy your sync token now:
-                    </span>
-                    <span className="font-mono font-bold text-rose-600 dark:text-rose-400 text-[11px]">
-                      ⚠️ Save this now! It will never be shown again.
-                    </span>
+              <div className="p-4 sm:p-5 rounded-2xl bg-[var(--background)] border-2 border-indigo-500/30 shadow-[3px_3px_0px_var(--shadow-color)] space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-heading font-bold text-xs text-[var(--foreground)]">
+                      Instant 5-Second Console Script
+                    </h3>
+                    <p className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
+                      Extracts verified attendance directly from your logged-in SLCM tab.
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-[var(--background)] p-3 rounded-xl font-mono text-xs font-bold text-[var(--foreground)] border-2 border-[var(--border)] select-all truncate">
-                      {activeSyncToken}
-                    </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
                     <button
-                      onClick={copySyncToken}
-                      className="pill-btn px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors"
+                      type="button"
+                      onClick={copyConsoleScript}
+                      className="pill-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
                     >
-                      {copiedToken ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copiedToken ? 'Copied!' : 'Copy Token'}
+                      {copiedConsoleSnippet ? <Check className="w-3.5 h-3.5 text-white" /> : <Code className="w-3.5 h-3.5" />}
+                      <span>{copiedConsoleSnippet ? 'Script Copied to Clipboard!' : '💻 Copy Console Script (Laptop)'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsSyncInstructionsOpen(true)}
+                      className="pill-btn px-3 py-2 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold border-2 border-[var(--border)] flex items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      <span>Instructions</span>
                     </button>
                   </div>
-
-                  <div className="pt-3 border-t-2 border-emerald-500/30 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-[11px] font-heading font-bold text-emerald-800 dark:text-emerald-300">
-                        ⚡ Direct Browser Sync (Laptop & Desktop):
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setIsSyncInstructionsOpen(true)}
-                        className="text-[11px] font-bold text-teal-700 dark:text-teal-300 hover:underline flex items-center gap-1 shrink-0"
-                      >
-                        <HelpCircle className="w-3.5 h-3.5" />
-                        <span>How to Sync</span>
-                      </button>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Laptop F12 Console Option */}
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (typeof window === 'undefined' || !activeSyncToken) return
-                          const snippet = generateConsoleSnippet(window.location.origin, activeSyncToken)
-                          await navigator.clipboard.writeText(snippet)
-                          setCopiedConsoleSnippet(true)
-                          setTimeout(() => setCopiedConsoleSnippet(false), 2500)
-                        }}
-                        className="pill-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
-                      >
-                        {copiedConsoleSnippet ? <Check className="w-3.5 h-3.5 text-white" /> : <Code className="w-3.5 h-3.5" />}
-                        <span>{copiedConsoleSnippet ? 'Script Copied to Clipboard!' : '💻 Copy Console Script (Laptop)'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setIsSyncInstructionsOpen(true)}
-                        className="pill-btn px-3 py-2 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold border-2 border-[var(--border)] flex items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
-                      >
-                        <HelpCircle className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                        <span>Step-by-Step Instructions</span>
-                      </button>
-                    </div>
-
-                    <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-                      💡 Click <strong>Copy Console Script</strong>, go to your SLCM Attendance tab, open Console (<kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">F12</kbd>), paste and hit Enter. Copy the captured JSON and paste it below.
-                    </p>
-
-                    {/* Step 1 Paste Area: Apply data from SLCM Banner or Mobile Copy */}
-                    <div className="pt-3 border-t-2 border-emerald-500/20 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-heading font-bold text-[var(--foreground)] flex items-center gap-1.5">
-                          <span>📋 Paste Attendance Data (JSON or Copied Table Text)</span>
-                        </span>
-                        {pasteFallbackText && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPasteFallbackText('')
-                              setPasteFallbackResult(null)
-                            }}
-                            className="text-[10px] text-[var(--muted-foreground)] hover:text-rose-500"
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-                        Paste the JSON from the browser script, or paste text copied directly from your SLCM attendance table on phone or laptop:
-                      </p>
-                      <textarea
-                        value={pasteFallbackText}
-                        onChange={(e) => setPasteFallbackText(e.target.value)}
-                        placeholder="Paste JSON or raw attendance table rows here..."
-                        className="w-full h-24 bg-[var(--card)] border-2 border-[var(--border)] rounded-xl p-3 text-[11px] font-mono text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-[2px_2px_0px_var(--shadow-color)]"
-                      />
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={handlePasteFallbackSubmit}
-                          disabled={isSubmittingPaste || !pasteFallbackText.trim()}
-                          className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
-                        >
-                          {isSubmittingPaste ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                          <span>{isSubmittingPaste ? 'Applying...' : 'Apply Attendance Data'}</span>
-                        </button>
-                        {pasteFallbackResult && (
-                          <p className={`text-xs font-bold ${pasteFallbackResult.startsWith('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                            {pasteFallbackResult}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]">
-                  <div className="space-y-0.5">
-                    <div className="font-heading font-bold text-xs text-[var(--foreground)] flex items-center gap-1.5">
-                      {hasSyncToken ? (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span>Active Sync Token Configured</span>
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-4 h-4 text-amber-500" />
-                          <span>No Sync Token Configured</span>
-                        </>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-[var(--muted-foreground)]">
-                      {hasSyncToken
-                        ? 'Your account has a valid sync token. Generating a new one will replace it.'
-                        : 'Generate a token to allow your browser or desktop scraper to push attendance figures directly to your account.'}
-                    </p>
-                  </div>
 
+                <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed pt-1 border-t border-[var(--border)]">
+                  💡 Click <strong>Copy Console Script</strong>, go to your SLCM Attendance tab, open Console (<kbd className="px-1.5 py-0.5 bg-[var(--card)] border border-[var(--border)] rounded font-mono text-[10px]">F12</kbd>), paste and hit Enter. Click <strong>Copy JSON</strong> on the banner, then paste below.
+                </p>
+              </div>
+
+              {/* Step 1 Paste Area: Apply data from SLCM Banner or Mobile Copy */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-heading font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                    <span>📋 Paste Attendance Data (JSON or Copied Table Text)</span>
+                  </span>
+                  {pasteFallbackText && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasteFallbackText('')
+                        setPasteFallbackResult(null)
+                      }}
+                      className="text-[10px] text-[var(--muted-foreground)] hover:text-rose-500"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                  Paste the JSON from the browser script, or paste text copied directly from your SLCM attendance table on phone or laptop:
+                </p>
+                <textarea
+                  value={pasteFallbackText}
+                  onChange={(e) => setPasteFallbackText(e.target.value)}
+                  placeholder="Paste JSON or raw attendance table rows here..."
+                  className="w-full h-24 bg-[var(--card)] border-2 border-[var(--border)] rounded-xl p-3 text-[11px] font-mono text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-[2px_2px_0px_var(--shadow-color)]"
+                />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <button
-                    onClick={handleGenerateSyncToken}
-                    disabled={isGeneratingToken}
-                    className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shrink-0 transition-transform active:scale-95"
+                    type="button"
+                    onClick={handlePasteFallbackSubmit}
+                    disabled={isSubmittingPaste || !pasteFallbackText.trim()}
+                    className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
                   >
-                    <Zap className="w-3.5 h-3.5" />
-                    {isGeneratingToken
-                      ? 'Generating...'
-                      : hasSyncToken
-                      ? 'Regenerate Token'
-                      : 'Generate My Sync Token'}
+                    {isSubmittingPaste ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    <span>{isSubmittingPaste ? 'Applying...' : 'Apply Attendance Data'}</span>
                   </button>
+                  {pasteFallbackResult && (
+                    <p className={`text-xs font-bold ${pasteFallbackResult.startsWith('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                      {pasteFallbackResult}
+                    </p>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Step 2: Run Scraper on Desktop (Alternative) */}
@@ -1522,22 +1461,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </span>
                   <span className="text-xs font-bold text-[var(--foreground)]">5 Seconds</span>
                 </div>
-                {activeSyncToken && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (typeof window === 'undefined') return
-                      const snippet = generateConsoleSnippet(window.location.origin, activeSyncToken)
-                      await navigator.clipboard.writeText(snippet)
-                      setCopiedConsoleSnippet(true)
-                      setTimeout(() => setCopiedConsoleSnippet(false), 2500)
-                    }}
-                    className="pill-btn px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm"
-                  >
-                    {copiedConsoleSnippet ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedConsoleSnippet ? 'Copied' : 'Copy Script'}</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={copyConsoleScript}
+                  className="pill-btn px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition-transform active:scale-95"
+                >
+                  {copiedConsoleSnippet ? <Check className="w-3 h-3 text-white" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedConsoleSnippet ? 'Copied' : 'Copy Script'}</span>
+                </button>
               </div>
               <ol className="text-[11px] text-[var(--foreground)] space-y-1.5 list-decimal list-inside leading-relaxed">
                 <li>Log in to SLCM and open the <strong>Attendance</strong> page.</li>
