@@ -10,11 +10,15 @@ export async function GET() {
 
   let role: string | null = null
   if (user) {
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.userId },
-      select: { role: true },
-    })
-    role = dbUser?.role || 'user'
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { role: true },
+      })
+      role = dbUser?.role || 'user'
+    } catch {
+      role = 'user'
+    }
   }
 
   return NextResponse.json({

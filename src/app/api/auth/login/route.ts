@@ -10,6 +10,16 @@ export async function POST(req: Request) {
   try {
     const { username, password } = await req.json()
 
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json(
+        {
+          error:
+            'DATABASE_URL environment variable is missing on Vercel. Please add DATABASE_URL in Vercel Project Settings -> Environment Variables and redeploy.',
+        },
+        { status: 500 }
+      )
+    }
+
     if (!username || !password) {
       return NextResponse.json(
         { error: 'Username and password are required' },
