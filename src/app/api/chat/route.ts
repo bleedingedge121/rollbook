@@ -17,6 +17,15 @@ function formatIsoDate(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
+const CANDIDATE_MODELS = [
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.6-flash',
+  'gemini-flash-lite-latest',
+  'gemini-3-flash-preview',
+  'gemini-flash-latest',
+]
+
 export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
@@ -471,47 +480,44 @@ RULES:
       })
     }
 
-    const primaryModel = 'gemini-flash-latest'
-    const fallbackModel = 'gemini-2.0-flash'
+    let response: any = null
+    let activeModel = CANDIDATE_MODELS[0]
 
-    let response
-    try {
-      response = await ai.models.generateContent({
-        model: primaryModel,
-        contents,
-        config: {
-          systemInstruction,
-          tools: [{ functionDeclarations: toolDeclarations as any }],
-        },
-      })
-    } catch (modelErr: any) {
-      console.warn(`Primary model ${primaryModel} returned error, trying ${fallbackModel}:`, modelErr?.message)
-      response = await ai.models.generateContent({
-        model: fallbackModel,
-        contents,
-        config: {
-          systemInstruction,
-          tools: [{ functionDeclarations: toolDeclarations as any }],
-        },
-      })
+    for (const m of CANDIDATE_MODELS) {
+      try {
+        response = await ai.models.generateContent({
+          model: m,
+          contents,
+          config: {
+            systemInstruction,
+            tools: [{ functionDeclarations: toolDeclarations as any }],
+          },
+        })
+        activeModel = m
+        break
+      } catch (err: any) {
+        console.warn(`Model candidate ${m} failed:`, err?.status, err?.message?.slice(0, 100))
+      }
+    }
+
+    if (!response) {
+      throw new Error('All candidate Gemini models were unavailable.')
     }
 
     // Handle Function Calls Loop (up to 4 rounds)
     for (let round = 0; round < 4; round++) {
       const candidates = response.candidates
-      const firstPart = candidates?.[0]?.content?.parts?.[0]
+      const candidate = candidates?.[0]
+      const firstPart = candidate?.content?.parts?.find((p: any) => p.functionCall)
 
-      if (firstPart && 'functionCall' in firstPart && firstPart.functionCall) {
+      if (firstPart && firstPart.functionCall) {
         const { name, args } = firstPart.functionCall
         if (!name) break
 
         const toolResult = await executeTool(name, args || {})
 
-        // Append assistant tool call and tool response
-        contents.push({
-          role: 'model',
-          parts: [{ functionCall: { name, args } }],
-        })
+        // Append assistant's full content (retaining thoughtSignature and id) and user function response
+        contents.push(candidate.content)
         contents.push({
           role: 'user',
           parts: [
@@ -525,25 +531,14 @@ RULES:
         })
 
         // Call Gemini again with function output
-        try {
-          response = await ai.models.generateContent({
-            model: primaryModel,
-            contents,
-            config: {
-              systemInstruction,
-              tools: [{ functionDeclarations: toolDeclarations as any }],
-            },
-          })
-        } catch {
-          response = await ai.models.generateContent({
-            model: fallbackModel,
-            contents,
-            config: {
-              systemInstruction,
-              tools: [{ functionDeclarations: toolDeclarations as any }],
-            },
-          })
-        }
+        response = await ai.models.generateContent({
+          model: activeModel,
+          contents,
+          config: {
+            systemInstruction,
+            tools: [{ functionDeclarations: toolDeclarations as any }],
+          },
+        })
       } else {
         break
       }
@@ -552,14 +547,14 @@ RULES:
     const replyText = response.text || 'I checked your records, but could not produce a response.'
     return NextResponse.json({ reply: replyText })
   } catch (err: any) {
-    console.error('Chat error:', err)
+    console.error('Chat API error:', err)
     if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED')) {
       return NextResponse.json({
         reply: "I've reached the daily free tier usage limit for Google Gemini. Please try again in a little while!",
       })
     }
     return NextResponse.json({
-      reply: "The AI assistant is temporarily unavailable. Please verify your Gemini API key in `.env`.",
+      reply: `The AI assistant encountered an issue: ${err?.message || 'Please check server connection'}.`,
     })
   }
 }
