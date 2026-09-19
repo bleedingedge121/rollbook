@@ -54,9 +54,14 @@ function LoginForm() {
         <div className="flex flex-col items-center text-center space-y-2">
           <motion.div
             whileHover={{ scale: 1.08, rotate: -2 }}
-            className="w-14 h-14 rounded-2xl bg-teal-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)]"
+            className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] shrink-0 bg-[#212f3d]"
           >
-            <span className="font-heading font-black text-white text-xl tracking-wider">RB</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/icons/icon-192x192.png"
+              alt="Roll Book Logo"
+              className="w-full h-full object-cover"
+            />
           </motion.div>
           <div>
             <h1 className="text-2xl font-heading font-black text-[var(--foreground)] tracking-tight">

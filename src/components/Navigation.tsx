@@ -79,9 +79,14 @@ export const Navigation: React.FC<NavigationProps> = ({
               <motion.div
                 whileHover={prefersReducedMotion ? {} : { scale: 1.08, rotate: -2 }}
                 whileTap={prefersReducedMotion ? {} : { scale: 0.94 }}
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-teal-600 flex items-center justify-center border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] sm:shadow-[3px_3px_0px_var(--shadow-color)] font-heading font-black text-white tracking-widest text-xs sm:text-base shrink-0"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] sm:shadow-[3px_3px_0px_var(--shadow-color)] shrink-0 bg-[#212f3d]"
               >
-                RB
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/icons/icon-192x192.png"
+                  alt="Roll Book"
+                  className="w-full h-full object-cover"
+                />
               </motion.div>
               <div>
                 <div className="flex items-center gap-1.5 sm:gap-2">
