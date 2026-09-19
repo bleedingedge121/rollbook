@@ -25,6 +25,7 @@ export default function App() {
   const [allSlots, setAllSlots] = useState<TimetableSlot[]>([])
   const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [userRole, setUserRole] = useState<string>('user')
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [onboardingDismissed, setOnboardingDismissed] = useState(false)
@@ -36,19 +37,25 @@ export default function App() {
   // Fetch all core data in parallel
   const fetchData = useCallback(async () => {
     try {
-      const [coursesRes, slotsRes, attendanceRes, holidaysRes] = await Promise.all([
+      const [coursesRes, slotsRes, attendanceRes, holidaysRes, authRes] = await Promise.all([
         fetch('/api/courses'),
         fetch('/api/timetable'),
         fetch('/api/attendance'),
         fetch('/api/holidays'),
+        fetch('/api/auth/me'),
       ])
 
-      const [rawCourses, rawSlots, rawAttendance, rawHolidays] = await Promise.all([
+      const [rawCourses, rawSlots, rawAttendance, rawHolidays, authData] = await Promise.all([
         coursesRes.json(),
         slotsRes.json(),
         attendanceRes.json(),
         holidaysRes.json(),
+        authRes.json(),
       ])
+
+      if (authData?.role) {
+        setUserRole(authData.role)
+      }
 
       if (Array.isArray(rawCourses) && Array.isArray(rawAttendance)) {
         const enrichedCourses: CourseWithStats[] = rawCourses.map((c: any) => {
@@ -380,6 +387,7 @@ export default function App() {
             courses={courses}
             slots={allSlots}
             holidays={holidays}
+            userRole={userRole}
             onSaveCourse={handleSaveCourse}
             onDeleteCourse={handleDeleteCourse}
             onSaveSlot={handleSaveSlot}

@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     // Rate-limiting check per user (to protect shared API key)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { chatRequestCount: true, chatRequestDate: true },
+      select: { chatRequestCount: true, chatRequestDate: true, role: true },
     })
 
     const todayStr = formatIsoDate(new Date())
@@ -294,7 +294,7 @@ export async function POST(req: Request) {
         const today = new Date()
         const [slots, holidays, courses] = await Promise.all([
           prisma.timetableSlot.findMany({ where: { course: { userId } } }),
-          prisma.holiday.findMany({ where: { userId } }),
+          prisma.holiday.findMany(),
           prisma.course.findMany({ where: { userId } }),
         ])
 
@@ -343,7 +343,7 @@ export async function POST(req: Request) {
         const today = new Date()
         const [slots, holidays, courses, attendance] = await Promise.all([
           prisma.timetableSlot.findMany({ where: { course: { userId } } }),
-          prisma.holiday.findMany({ where: { userId } }),
+          prisma.holiday.findMany(),
           prisma.course.findMany({ where: { userId } }),
           prisma.attendanceRecord.findMany({ where: { course: { userId } } }),
         ])
@@ -392,8 +392,14 @@ export async function POST(req: Request) {
         return { unloggedSessions: unlogged, count: unlogged.length }
       }
 
-      // Add Holiday Tool (Single date or multi-day range)
+      // Add Holiday Tool (Single date or multi-day range) - Admin only
       if (name === 'add_holiday') {
+        if (user?.role !== 'admin') {
+          return {
+            error: 'Permission denied: Managing university calendar holidays is restricted to administrators. As a regular user, you can view the shared calendar, but only admins can add or change holidays.',
+          }
+        }
+
         const { date, startDate, endDate, label, type } = args
         const holidayLabel = (label || 'Holiday / No Class').trim()
         const holidayType = type === 'exam' ? 'exam' : 'holiday'
@@ -417,29 +423,29 @@ export async function POST(req: Request) {
           const results = await prisma.$transaction(
             dateList.map((d) =>
               prisma.holiday.upsert({
-                where: { userId_date: { userId, date: d } },
+                where: { date: d },
                 update: { label: holidayLabel, type: holidayType },
-                create: { userId, date: d, label: holidayLabel, type: holidayType },
+                create: { date: d, label: holidayLabel, type: holidayType },
               })
             )
           )
 
           return {
             success: true,
-            message: `Successfully declared ${holidayType === 'exam' ? 'Exam Days' : 'Holiday'} "${holidayLabel}" from ${formatDate(startDate)} to ${formatDate(endDate)} (${results.length} days total).`,
+            message: `Successfully declared ${holidayType === 'exam' ? 'Exam Days' : 'Holiday'} "${holidayLabel}" from ${formatDate(startDate)} to ${formatDate(endDate)} (${results.length} days total) for the entire university calendar.`,
             daysAdded: results.length,
           }
         }
 
         if (date) {
           const holiday = await prisma.holiday.upsert({
-            where: { userId_date: { userId, date } },
+            where: { date },
             update: { label: holidayLabel, type: holidayType },
-            create: { userId, date, label: holidayLabel, type: holidayType },
+            create: { date, label: holidayLabel, type: holidayType },
           })
           return {
             success: true,
-            message: `Successfully declared ${holidayType === 'exam' ? 'Exam Day' : 'Holiday'} "${holidayLabel}" on ${formatDate(date)}.`,
+            message: `Successfully declared ${holidayType === 'exam' ? 'Exam Day' : 'Holiday'} "${holidayLabel}" on ${formatDate(date)} for the entire university calendar.`,
             holiday,
           }
         }
@@ -448,26 +454,30 @@ export async function POST(req: Request) {
       }
 
       if (name === 'delete_holiday') {
+        if (user?.role !== 'admin') {
+          return {
+            error: 'Permission denied: Deleting university calendar holidays is restricted to administrators.',
+          }
+        }
+
         const { date, label } = args
         if (date) {
-          await prisma.holiday.deleteMany({ where: { userId, date } })
-          return { success: true, message: `Removed holiday status for ${formatDate(date)}.` }
+          await prisma.holiday.deleteMany({ where: { date } })
+          return { success: true, message: `Removed holiday status for ${formatDate(date)} from the university calendar.` }
         }
         if (label) {
           const res = await prisma.holiday.deleteMany({
             where: {
-              userId,
               label: { contains: label.trim() },
             },
           })
-          return { success: true, message: `Removed ${res.count} holiday entries matching "${label}".` }
+          return { success: true, message: `Removed ${res.count} holiday entries matching "${label}" from the university calendar.` }
         }
         return { error: 'Please specify a date or label name to delete.' }
       }
 
       if (name === 'list_holidays') {
         const holidays = await prisma.holiday.findMany({
-          where: { userId },
           orderBy: { date: 'asc' },
         })
         return {

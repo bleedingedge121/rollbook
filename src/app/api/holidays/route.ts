@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireUser } from '@/lib/session'
+import { requireUser, requireAdmin } from '@/lib/session'
 import { addDays, isBefore, isSameDay } from 'date-fns'
 
 function parseIsoDate(str: string): Date {
@@ -15,14 +15,12 @@ function formatIsoDate(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
-export async function GET() {
-  const auth = await requireUser()
+export async function GET(req?: Request) {
+  const auth = await requireUser(req)
   if (auth instanceof NextResponse) return auth
-  const { userId } = auth
 
   try {
     const holidays = await prisma.holiday.findMany({
-      where: { userId },
       orderBy: { date: 'asc' },
     })
     return NextResponse.json(holidays)
@@ -33,9 +31,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireUser(req)
+  const auth = await requireAdmin(req)
   if (auth instanceof NextResponse) return auth
-  const { userId } = auth
 
   try {
     const body = await req.json()
@@ -63,17 +60,16 @@ export async function POST(req: Request) {
         current = addDays(current, 1)
       }
 
-      // Upsert all dates in the range atomically for this user
+      // Upsert all dates in the range atomically
       const results = await prisma.$transaction(
         dateList.map((d) =>
           prisma.holiday.upsert({
-            where: { userId_date: { userId, date: d } },
+            where: { date: d },
             update: {
               label: holidayLabel,
               type: holidayType,
             },
             create: {
-              userId,
               date: d,
               label: holidayLabel,
               type: holidayType,
@@ -91,13 +87,12 @@ export async function POST(req: Request) {
     }
 
     const holiday = await prisma.holiday.upsert({
-      where: { userId_date: { userId, date } },
+      where: { date },
       update: {
         label: holidayLabel,
         type: holidayType,
       },
       create: {
-        userId,
         date,
         label: holidayLabel,
         type: holidayType,
@@ -112,9 +107,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const auth = await requireUser(req)
+  const auth = await requireAdmin(req)
   if (auth instanceof NextResponse) return auth
-  const { userId } = auth
 
   try {
     const url = new URL(req.url)
@@ -139,7 +133,6 @@ export async function DELETE(req: Request) {
     const result = await prisma.holiday.deleteMany({
       where: {
         id: { in: idsToDelete },
-        userId,
       },
     })
 
@@ -149,3 +142,4 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'Failed to delete holidays' }, { status: 500 })
   }
 }
+

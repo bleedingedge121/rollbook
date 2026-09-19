@@ -14,9 +14,9 @@ model User {
   syncToken        String?   @unique
   chatRequestCount Int       @default(0)
   chatRequestDate  String?
+  role             String    @default("user") // "user" | "admin"
   createdAt        DateTime  @default(now())
   courses          Course[]
-  holidays         Holiday[]
 }
 
 model Course {
@@ -72,13 +72,10 @@ model AttendanceRecord {
 
 model Holiday {
   id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      String   // "YYYY-MM-DD"
+  date      String   @unique // "YYYY-MM-DD"
   label     String   // e.g. "Diwali Break", "Mid-Term Exams"
   type      String   @default("holiday") // "holiday" | "exam"
   createdAt DateTime @default(now())
 
-  @@unique([userId, date])
-  @@index([userId])
+  @@index([date])
 }

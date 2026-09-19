@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 export interface SessionUser {
   userId: string
   username: string
+  role?: string
 }
 
 /**
@@ -70,3 +71,32 @@ export async function verifyCourseOwnership(
   })
   return Boolean(course)
 }
+
+/**
+ * Validates that the request comes from an authenticated user with 'admin' role.
+ * Returns { userId, username, role } if valid, or a 401/403 NextResponse if unauthorized/forbidden.
+ */
+export async function requireAdmin(
+  req?: Request
+): Promise<{ userId: string; username: string; role: string } | NextResponse> {
+  const sessionUserOrResponse = await requireUser(req)
+  if (sessionUserOrResponse instanceof NextResponse) {
+    return sessionUserOrResponse
+  }
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: sessionUserOrResponse.userId },
+    select: { id: true, username: true, role: true },
+  })
+
+  if (!dbUser || dbUser.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
+  }
+
+  return {
+    userId: dbUser.id,
+    username: dbUser.username,
+    role: dbUser.role,
+  }
+}
+

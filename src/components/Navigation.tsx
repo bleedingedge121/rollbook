@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Settings,
   ShieldCheck,
+  Shield,
   RefreshCw,
   LogOut,
   Sun,
@@ -38,6 +39,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [currentUsername, setCurrentUsername] = useState<string | null>(null)
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
   const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
@@ -47,6 +49,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       .then((data) => {
         if (data?.authenticated && data?.username) {
           setCurrentUsername(data.username)
+          setCurrentUserRole(data.role || 'user')
         }
       })
       .catch(() => {})
@@ -175,12 +178,26 @@ export const Navigation: React.FC<NavigationProps> = ({
               />
             </motion.button>
 
+            {/* Admin Console Link for Admin Users */}
+            {currentUserRole === 'admin' && (
+              <motion.a
+                href="/admin"
+                whileHover={prefersReducedMotion ? {} : { scale: 1.08 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
+                title="Admin Management Panel"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white bg-indigo-600 hover:bg-indigo-500 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-xs font-bold font-mono transition-all"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Admin</span>
+              </motion.a>
+            )}
+
             {currentUsername && (
               <div
-                title={`Logged in as ${currentUsername}`}
+                title={`Logged in as ${currentUsername}${currentUserRole === 'admin' ? ' (Admin)' : ''}`}
                 className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-[var(--border)] text-xs font-mono font-bold bg-[var(--card)] shadow-[2px_2px_0px_var(--shadow-color)]"
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className={`w-2 h-2 rounded-full ${currentUserRole === 'admin' ? 'bg-indigo-500' : 'bg-emerald-500'}`} />
                 <span className="max-w-[100px] truncate">{currentUsername}</span>
               </div>
             )}

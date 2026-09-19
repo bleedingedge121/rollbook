@@ -48,13 +48,7 @@ async function main() {
     data: { userId: user.id },
   }).catch(() => ({ count: 0 }))
 
-  // Assign any orphaned holidays to this user
-  const holidaysUpdated = await prisma.holiday.updateMany({
-    where: { userId: '' },
-    data: { userId: user.id },
-  }).catch(() => ({ count: 0 }))
-
-  console.log(`✓ Assigned ${coursesUpdated.count} courses and ${holidaysUpdated.count} holidays to user "${user.username}".`)
+  console.log(`✓ Assigned ${coursesUpdated.count} courses to user "${user.username}".`)
   console.log(`\nMigration complete! You can now log in as "${user.username}".\n`)
 }
 

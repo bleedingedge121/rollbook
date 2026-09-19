@@ -57,7 +57,7 @@ async function run() {
   await prisma.attendanceRecord.deleteMany({ where: { course: { user: { username: { in: ['test_alice', 'test_bob'] } } } } })
   await prisma.timetableSlot.deleteMany({ where: { course: { user: { username: { in: ['test_alice', 'test_bob'] } } } } })
   await prisma.course.deleteMany({ where: { user: { username: { in: ['test_alice', 'test_bob'] } } } })
-  await prisma.holiday.deleteMany({ where: { user: { username: { in: ['test_alice', 'test_bob'] } } } })
+  await prisma.holiday.deleteMany({ where: { date: '2026-10-02' } })
   await prisma.user.deleteMany({ where: { username: { in: ['test_alice', 'test_bob'] } } })
 
   // 1. Password validation (min 8 chars)
@@ -142,22 +142,19 @@ async function run() {
   assert(aliceAttRes.status === 201, 'Alice logs attendance on her course')
   const aliceAtt = await aliceAttRes.json()
 
-  // 8. Alice creates holiday
+  // 8. Non-admin user cannot create holiday (Admin only)
   const aliceHolReq = createMockRequest('http://localhost:3000/api/holidays', 'POST', aliceToken, {
     date: '2026-10-02',
     label: 'Gandhi Jayanti',
   })
   const aliceHolRes = await postHolidays(aliceHolReq)
-  assert(aliceHolRes.status === 201, 'Alice adds holiday')
-  const aliceHol = await aliceHolRes.json()
+  assert(aliceHolRes.status === 403, 'Alice (regular user) cannot create holiday (returns 403)')
 
-  // 9. Bob creates holiday on same date (Compound unique check)
-  const bobHolReq = createMockRequest('http://localhost:3000/api/holidays', 'POST', bobToken, {
-    date: '2026-10-02',
-    label: 'Holiday for Bob',
-  })
-  const bobHolRes = await postHolidays(bobHolReq)
-  assert(bobHolRes.status === 201, 'Bob adds holiday on same date (compound unique works)')
+  // 9. Admin creates global holiday
+  await prisma.user.update({ where: { id: aliceId }, data: { role: 'admin' } })
+  const adminHolRes = await postHolidays(aliceHolReq)
+  assert(adminHolRes.status === 201, 'Admin can create global holiday (returns 201)')
+  const aliceHol = await adminHolRes.json()
 
   // 10. Data Isolation: Bob reading courses
   const bobGetCoursesReq = createMockRequest('http://localhost:3000/api/courses', 'GET', bobToken)
@@ -209,10 +206,10 @@ async function run() {
   const bobAttackSlotDelRes = await deleteTimetableById(bobAttackSlotDel, { params: Promise.resolve({ id: aliceSlot.id }) })
   assert(bobAttackSlotDelRes.status === 403, 'Bob cannot delete Alice timetable slot (returns 403)')
 
-  // 15. Cross-Tenant Attacks: Bob deleting Alice's holiday
+  // 15. Cross-Tenant Attacks: Bob (non-admin) deleting holiday
   const bobAttackHolDel = createMockRequest(`http://localhost:3000/api/holidays/${aliceHol.id}`, 'DELETE', bobToken)
   const bobAttackHolDelRes = await deleteHolidayById(bobAttackHolDel, { params: Promise.resolve({ id: aliceHol.id }) })
-  assert(bobAttackHolDelRes.status === 403, 'Bob cannot delete Alice holiday (returns 403)')
+  assert(bobAttackHolDelRes.status === 403, 'Bob (non-admin) cannot delete holiday (returns 403)')
 
   // 16. Reset Isolation: Bob calls reset -> Alice's data must remain intact!
   const bobResetReq = createMockRequest('http://localhost:3000/api/reset', 'POST', bobToken, { seedSample: false })
@@ -229,7 +226,7 @@ async function run() {
   await prisma.attendanceRecord.deleteMany({ where: { course: { user: { username: { in: ['test_alice', 'test_bob'] } } } } })
   await prisma.timetableSlot.deleteMany({ where: { course: { user: { username: { in: ['test_alice', 'test_bob'] } } } } })
   await prisma.course.deleteMany({ where: { user: { username: { in: ['test_alice', 'test_bob'] } } } })
-  await prisma.holiday.deleteMany({ where: { user: { username: { in: ['test_alice', 'test_bob'] } } } })
+  await prisma.holiday.deleteMany({ where: { date: '2026-10-02' } })
   await prisma.user.deleteMany({ where: { username: { in: ['test_alice', 'test_bob'] } } })
 
   console.log(`\n======================================================`)

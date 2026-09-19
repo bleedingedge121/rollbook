@@ -16,16 +16,18 @@ Built with Next.js 16 App Router, React 19, Prisma, PostgreSQL (Neon-ready for s
 
 ## 🌟 Core Highlights
 
-1. **Strict Per-User Data Isolation**: Each friend has their own private account. Courses, timetable schedules, attendance logs, and declared holidays are isolated per user. Cross-account mutations and queries are strictly rejected with `403 Forbidden`.
-2. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
-3. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory without corrupting your verified history.
-4. **Secure Reverse-Push SLCM Attendance Sync**: A lightweight desktop runner (`scraper/agent.js`) authenticates with your student credentials and Microsoft MFA on your machine, then securely pushes verified figures directly to `{APP_URL}/api/sync/push` using your Personal Sync Token. Eliminates all browser Mixed Content and Local Network Access restrictions.
-5. **AI Attendance Advisor (Google Gemini Free Tier)**: Built-in intelligent advisor powered by `@google/genai` (`gemini-flash-latest`) with 7 deterministic database tools—querying summaries, course details, unlogged classes, upcoming schedules, and declaring holidays directly into the user's data without hallucinations. Features per-user daily rate limiting to protect shared free tier limits.
-6. **Compound Multi-Tenant Uniqueness**: Users can register identical subject codes (e.g. `MAT101`) and holiday dates without unique constraint collisions.
-7. **Playful Geometric Design System (Dual Light/Dark Mode)**: High-contrast neo-brutalist sticker styling with Electric Teal primary accents (`#0D9488` light / `#2DD4BF` dark), chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
-8. **1-Click Section Onboarding**: Automatically imports all subjects and weekly timetable schedules for 22 MIT Bengaluru CSE Stream sections (`C01`–`C22`).
-9. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
-10. **Zero-Cost Hosting Ready**: Architected for free-tier hosting on **Vercel** with a free serverless PostgreSQL database from **Neon**.
+1. **Strict Per-User Data Isolation**: Each friend has their own private account. Courses, timetable schedules, attendance logs, and personal sync tokens are strictly isolated per user. Cross-account mutations and queries are rejected with `403 Forbidden`.
+2. **Shared Global Academic Calendar**: Holidays, recesses, and exam dates are shared across all users in your section as a single academic calendar. Editable only by administrators and visible in read-only mode to regular users.
+3. **Dedicated Admin Console (`/admin`)**: Administrators can manage the shared holiday calendar, inspect user accounts and attendance baselines, perform per-user data resets, and permanently delete accounts with typed-username safety confirmations.
+4. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
+5. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory without corrupting your verified history.
+6. **Secure Reverse-Push SLCM Attendance Sync**: A lightweight desktop runner (`scraper/agent.js`) authenticates with your student credentials and Microsoft MFA on your machine, then securely pushes verified figures directly to `{APP_URL}/api/sync/push` using your Personal Sync Token. Eliminates all browser Mixed Content and Local Network Access restrictions.
+7. **AI Attendance Advisor (Google Gemini Free Tier)**: Built-in intelligent advisor powered by `@google/genai` (`gemini-flash-latest`) with deterministic database tools—querying summaries, course details, unlogged classes, upcoming schedules, and managing calendar events directly without hallucinations. Features per-user daily rate limiting to protect shared free tier limits.
+8. **Compound Multi-Tenant Uniqueness**: Users can register identical subject codes (e.g. `MAT101`) without unique constraint collisions.
+9. **Playful Geometric Design System (Dual Light/Dark Mode)**: High-contrast neo-brutalist sticker styling with Electric Teal primary accents (`#0D9488` light / `#2DD4BF` dark), chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
+10. **1-Click Section Onboarding**: Automatically imports all subjects and weekly timetable schedules for 22 MIT Bengaluru CSE Stream sections (`C01`–`C22`).
+11. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
+12. **Zero-Cost Hosting Ready**: Architected for free-tier hosting on **Vercel** with a free serverless PostgreSQL database from **Neon**.
 
 ---
 
@@ -107,6 +109,18 @@ npm run scraper:agent
 ```
 
 Open **[http://localhost:3000](http://localhost:3000)** in your browser. Click **Sign Up** to create your personal account!
+
+### 6. Promoting an Account to Admin
+To grant administrator access to an account (enabling the `/admin` console and global holiday management):
+```bash
+npx tsx scripts/make-admin.ts <username>
+```
+Once promoted, a **Shield** icon appears in the top navigation bar, granting access to the **Admin Console** (`/admin`) for:
+- Declaring and modifying global university calendar holidays & exam ranges.
+- Viewing the user directory, registered courses, and last portal sync timestamps.
+- Inspecting student courses and attendance baselines without needing their passwords.
+- Wiping corrupted/test course records and resetting AI rate limit quotas.
+- Permanently deleting user accounts with typed-confirmation safeguards.
 
 ---
 

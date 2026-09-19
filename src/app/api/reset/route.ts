@@ -22,9 +22,6 @@ export async function POST(req: Request) {
       prisma.course.deleteMany({
         where: { userId },
       }),
-      prisma.holiday.deleteMany({
-        where: { userId },
-      }),
     ])
 
     if (seedSample) {

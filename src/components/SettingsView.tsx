@@ -22,6 +22,7 @@ import {
   Layers,
   Sparkles,
   ShieldCheck,
+  Shield,
   Zap,
   Copy,
   Check,
@@ -40,6 +41,7 @@ interface SettingsViewProps {
   courses: CourseWithStats[]
   slots: TimetableSlot[]
   holidays?: Holiday[]
+  userRole?: string
   onSaveCourse: (courseData: any) => Promise<void>
   onDeleteCourse: (courseId: string) => Promise<void>
   onSaveSlot: (slotData: any) => Promise<void>
@@ -63,6 +65,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   courses,
   slots,
   holidays = [],
+  userRole = 'user',
   onSaveCourse,
   onDeleteCourse,
   onSaveSlot,
@@ -911,125 +914,153 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </p>
             </div>
 
-            {/* Add Holiday Form with Range Toggle */}
-            <form
-              onSubmit={handleCreateHoliday}
-              className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4.5 space-y-4 shadow-[3px_3px_0px_var(--shadow-color)]"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-heading font-bold uppercase tracking-wider text-[var(--foreground)] flex items-center gap-1.5 font-mono">
-                  <Plus className="w-3.5 h-3.5 text-teal-600" /> Declare Holiday or Exam Date
-                </div>
-
-                {/* Single Day vs Date Range Toggle */}
-                <div className="flex items-center p-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-[11px] font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setHolidayMode('single')}
-                    className={`px-3 py-1 rounded-full transition-colors ${
-                      holidayMode === 'single'
-                        ? 'bg-teal-600 text-white shadow-sm'
-                        : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
-                    }`}
-                  >
-                    Single Day
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setHolidayMode('range')}
-                    className={`px-3 py-1 rounded-full transition-colors ${
-                      holidayMode === 'range'
-                        ? 'bg-teal-600 text-white shadow-sm'
-                        : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
-                    }`}
-                  >
-                    Date Range
-                  </button>
+            {/* Admin vs Non-Admin Notice & Form */}
+            {userRole !== 'admin' ? (
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-indigo-500/10 border-2 border-indigo-500/30 text-xs shadow-[2px_2px_0px_var(--shadow-color)]">
+                <Shield className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-heading font-black text-[var(--foreground)]">Shared University Calendar</div>
+                  <p className="text-[var(--muted-foreground)] leading-relaxed">
+                    Holidays, recesses, and exam dates are shared across all registered students in this section. Holiday declarations and edits are managed centrally by administrators. You can view all confirmed events below.
+                  </p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {holidayMode === 'single' ? (
-                  <div>
-                    <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Date</label>
-                    <input
-                      type="date"
-                      value={newHolidayDate}
-                      onChange={(e) => setNewHolidayDate(e.target.value)}
-                      required
-                      className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
-                    />
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl bg-indigo-500/10 border-2 border-indigo-500/30 text-xs shadow-[2px_2px_0px_var(--shadow-color)]">
+                  <div className="flex items-center gap-2 font-mono font-bold text-indigo-700 dark:text-indigo-300">
+                    <Shield className="w-4 h-4 flex-shrink-0" />
+                    <span>Admin Mode: Changes made here apply globally to all students in this section.</span>
                   </div>
-                ) : (
-                  <div className="sm:col-span-1 grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Start Date</label>
-                      <input
-                        type="date"
-                        value={newHolidayStartDate}
-                        onChange={(e) => setNewHolidayStartDate(e.target.value)}
-                        required
-                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-2.5 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">End Date</label>
-                      <input
-                        type="date"
-                        value={newHolidayEndDate}
-                        onChange={(e) => setNewHolidayEndDate(e.target.value)}
-                        required
-                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-2.5 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Reason / Label</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Diwali Break, Mid-Term Exam"
-                    value={newHolidayLabel}
-                    onChange={(e) => setNewHolidayLabel(e.target.value)}
-                    required
-                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Type</label>
-                  <select
-                    value={newHolidayType}
-                    onChange={(e) => setNewHolidayType(e.target.value as any)}
-                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-bold"
+                  <a
+                    href="/admin"
+                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold font-mono text-[11px] transition-colors self-start sm:self-auto flex-shrink-0"
                   >
-                    <option value="holiday">🌴 Holiday / Recess</option>
-                    <option value="exam">📝 Exam Day / Assessment</option>
-                  </select>
+                    Open Admin Console →
+                  </a>
                 </div>
-              </div>
 
-              <div className="flex justify-end pt-1">
-                <motion.button
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
-                  type="submit"
-                  disabled={
-                    isSubmittingHoliday ||
-                    !newHolidayLabel.trim() ||
-                    (holidayMode === 'single' ? !newHolidayDate : !newHolidayStartDate || !newHolidayEndDate)
-                  }
-                  className="pill-btn px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
+                {/* Add Holiday Form with Range Toggle */}
+                <form
+                  onSubmit={handleCreateHoliday}
+                  className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4.5 space-y-4 shadow-[3px_3px_0px_var(--shadow-color)]"
                 >
-                  {isSubmittingHoliday
-                    ? 'Saving...'
-                    : holidayMode === 'range'
-                    ? 'Add Holiday Range'
-                    : 'Add Date'}
-                </motion.button>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-heading font-bold uppercase tracking-wider text-[var(--foreground)] flex items-center gap-1.5 font-mono">
+                      <Plus className="w-3.5 h-3.5 text-teal-600" /> Declare Holiday or Exam Date
+                    </div>
+
+                    {/* Single Day vs Date Range Toggle */}
+                    <div className="flex items-center p-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-[11px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setHolidayMode('single')}
+                        className={`px-3 py-1 rounded-full transition-colors ${
+                          holidayMode === 'single'
+                            ? 'bg-teal-600 text-white shadow-sm'
+                            : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                        }`}
+                      >
+                        Single Day
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHolidayMode('range')}
+                        className={`px-3 py-1 rounded-full transition-colors ${
+                          holidayMode === 'range'
+                            ? 'bg-teal-600 text-white shadow-sm'
+                            : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                        }`}
+                      >
+                        Date Range
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {holidayMode === 'single' ? (
+                      <div>
+                        <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Date</label>
+                        <input
+                          type="date"
+                          value={newHolidayDate}
+                          onChange={(e) => setNewHolidayDate(e.target.value)}
+                          required
+                          className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
+                        />
+                      </div>
+                    ) : (
+                      <div className="sm:col-span-1 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Start Date</label>
+                          <input
+                            type="date"
+                            value={newHolidayStartDate}
+                            onChange={(e) => setNewHolidayStartDate(e.target.value)}
+                            required
+                            className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-2.5 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">End Date</label>
+                          <input
+                            type="date"
+                            value={newHolidayEndDate}
+                            onChange={(e) => setNewHolidayEndDate(e.target.value)}
+                            required
+                            className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-2.5 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Reason / Label</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Diwali Break, Mid-Term Exam"
+                        value={newHolidayLabel}
+                        onChange={(e) => setNewHolidayLabel(e.target.value)}
+                        required
+                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Type</label>
+                      <select
+                        value={newHolidayType}
+                        onChange={(e) => setNewHolidayType(e.target.value as any)}
+                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-bold"
+                      >
+                        <option value="holiday">🌴 Holiday / Recess</option>
+                        <option value="exam">📝 Exam Day / Assessment</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <motion.button
+                      whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
+                      whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
+                      type="submit"
+                      disabled={
+                        isSubmittingHoliday ||
+                        !newHolidayLabel.trim() ||
+                        (holidayMode === 'single' ? !newHolidayDate : !newHolidayStartDate || !newHolidayEndDate)
+                      }
+                      className="pill-btn px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
+                    >
+                      {isSubmittingHoliday
+                        ? 'Saving...'
+                        : holidayMode === 'range'
+                        ? 'Add Holiday Range'
+                        : 'Add Date'}
+                    </motion.button>
+                  </div>
+                </form>
               </div>
-            </form>
+            )}
 
             {/* List of Declared Holidays (Grouped Range View) */}
             <div className="space-y-3">
@@ -1075,13 +1106,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleDeleteHolidayGroup(group)}
-                        className="p-1.5 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-[var(--muted)] transition-colors"
-                        title={`Delete ${group.label}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {userRole === 'admin' && (
+                        <button
+                          onClick={() => handleDeleteHolidayGroup(group)}
+                          className="p-1.5 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-[var(--muted)] transition-colors"
+                          title={`Delete ${group.label}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
