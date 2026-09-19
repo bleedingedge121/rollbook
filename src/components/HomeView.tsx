@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { toDateString, WEEKDAYS } from '@/lib/attendance'
+import { formatDate } from '@/lib/formatters'
 import { motion, AnimatePresence, Variants, useReducedMotion } from 'framer-motion'
 
 interface HomeViewProps {
@@ -93,7 +94,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   }, [courses])
 
-  // Find unlogged past classes from the last 7 days (memoized)
+  // Find unlogged past classes from the last 7 days (memoized, excludes simple mode courses)
   const unloggedPastItems = useMemo(() => {
     const items: {
       date: string
@@ -116,7 +117,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       const scheduled = allSlots.filter((s) => s.weekday === pastWeekday)
       for (const slot of scheduled) {
         const course = courses.find((c) => c.id === slot.courseId)
-        if (!course) continue
+        if (!course || course.trackingMode === 'simple') continue
 
         // If course has a synced snapshot and the past date is on or before syncedAt date, skip it
         if (course.syncedAt) {
@@ -381,7 +382,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <h2 className="text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
                 Today’s Flight Schedule
                 <span className="text-xs font-mono font-normal text-[var(--muted-foreground)]">
-                  ({WEEKDAYS[currentWeekday]}, {today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})
+                  ({WEEKDAYS[currentWeekday]}, {formatDate(today)})
                 </span>
               </h2>
               <p className="text-xs text-[var(--muted-foreground)]">
@@ -461,7 +462,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       <div className="flex items-center gap-2">
                         <span
                           className="w-3 h-3 rounded-full border border-[var(--border)] shrink-0"
-                          style={{ backgroundColor: course?.color || '#8B5CF6' }}
+                          style={{ backgroundColor: course?.color || '#0D9488' }}
                         />
                         <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)]">
                           {course?.code}
@@ -594,7 +595,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               >
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] font-mono">
-                    <span className="font-bold text-amber-600 dark:text-amber-400">{item.date}</span>
+                    <span className="font-bold text-amber-600 dark:text-amber-400">{formatDate(item.date)}</span>
                     <span>{item.slot.label}</span>
                   </div>
                   <div className="font-heading font-bold text-xs text-[var(--foreground)] truncate">

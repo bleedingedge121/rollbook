@@ -19,8 +19,11 @@ import {
   Sparkles,
   Zap,
   Filter,
+  Sliders,
+  Minus,
 } from 'lucide-react'
 import { CourseWithStats, AttendanceRecord } from '@/types'
+import { formatDate } from '@/lib/formatters'
 import {
   ResponsiveContainer,
   LineChart,
@@ -37,6 +40,7 @@ interface SubjectsViewProps {
   onDeleteCourse: (courseId: string) => Promise<void>
   onLogAttendance: (courseId: string, date: string, status: 'present' | 'absent', note?: string) => Promise<void>
   onDeleteAttendance: (recordId: string) => Promise<void>
+  onUpdateCourseDirect?: (courseData: any) => Promise<void>
 }
 
 export const SubjectsView: React.FC<SubjectsViewProps> = ({
@@ -46,6 +50,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
   onDeleteCourse,
   onLogAttendance,
   onDeleteAttendance,
+  onUpdateCourseDirect,
 }) => {
   const [selectedCourse, setSelectedCourse] = useState<CourseWithStats | null>(null)
   const [filterMode, setFilterMode] = useState<'all' | 'safe' | 'critical'>('all')
@@ -64,6 +69,54 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
     return courses
   }, [courses, filterMode])
 
+  // Stepper handlers for Simple Mode
+  const handleSimpleCountChange = async (
+    course: CourseWithStats,
+    field: 'attended' | 'held',
+    delta: number
+  ) => {
+    if (!onUpdateCourseDirect) return
+    const currentHeld = course.simpleHeld || 0
+    const currentAttended = course.simpleAttended || 0
+
+    let newHeld = currentHeld
+    let newAttended = currentAttended
+
+    if (field === 'attended') {
+      newAttended = Math.max(0, currentAttended + delta)
+      if (newAttended > newHeld) newHeld = newAttended
+    } else {
+      newHeld = Math.max(0, currentHeld + delta)
+      if (newAttended > newHeld) newAttended = newHeld
+    }
+
+    await onUpdateCourseDirect({
+      id: course.id,
+      name: course.name,
+      code: course.code,
+      requiredPercent: course.requiredPercent,
+      color: course.color,
+      trackingMode: 'simple',
+      simpleHeld: newHeld,
+      simpleAttended: newAttended,
+    })
+  }
+
+  const handleToggleTrackingMode = async (course: CourseWithStats) => {
+    if (!onUpdateCourseDirect) return
+    const nextMode = course.trackingMode === 'simple' ? 'detailed' : 'simple'
+    await onUpdateCourseDirect({
+      id: course.id,
+      name: course.name,
+      code: course.code,
+      requiredPercent: course.requiredPercent,
+      color: course.color,
+      trackingMode: nextMode,
+      simpleHeld: course.simpleHeld || course.stats.total,
+      simpleAttended: course.simpleAttended || course.stats.present,
+    })
+  }
+
   // Generate historical sparkline data for a course (memoized per course)
   const generateTrendData = (records: AttendanceRecord[]) => {
     if (!records || records.length === 0) return []
@@ -80,7 +133,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
       const pct = Number(((presentSoFar / totalSoFar) * 100).toFixed(1))
       return {
         index: index + 1,
-        date: rec.date,
+        date: formatDate(rec.date),
         percentage: pct,
         status: rec.status,
       }
@@ -138,7 +191,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
             Registered Subjects
           </h1>
           <p className="text-xs sm:text-sm text-[var(--muted-foreground)] mt-1">
-            Confirmed attendance analytics, safe skip buffers, and audit trails per course.
+            Confirmed attendance analytics, safe skip buffers, and flexible tracking modes.
           </p>
         </div>
 
@@ -212,6 +265,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
         >
           {filteredCourses.map((course) => {
             const { stats } = course
+            const isSimpleMode = course.trackingMode === 'simple'
             const trendData = generateTrendData(course.attendance || [])
 
             return (
@@ -221,7 +275,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                 whileHover={prefersReducedMotion ? {} : { y: -3, rotate: -0.5 }}
                 className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-6 flex flex-col justify-between space-y-5 shadow-[5px_5px_0px_var(--shadow-color)] relative group transition-all"
               >
-                {/* Course Header */}
+                {/* Course Header & Mode Switch */}
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 min-w-0">
@@ -233,6 +287,17 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                         <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-full bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)]">
                           {course.code}
                         </span>
+                        <button
+                          onClick={() => handleToggleTrackingMode(course)}
+                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border transition-colors ${
+                            isSimpleMode
+                              ? 'bg-amber-400/20 text-amber-700 dark:text-amber-300 border-amber-500/40'
+                              : 'bg-[var(--muted)] text-[var(--muted-foreground)] border-[var(--border)] hover:text-[var(--foreground)]'
+                          }`}
+                          title="Click to toggle between Detailed (Calendar) and Simple (Counter) mode"
+                        >
+                          {isSimpleMode ? '⚡ Simple Count' : '📅 Detailed Log'}
+                        </button>
                       </div>
                       <h2 className="text-base font-heading font-black text-[var(--foreground)] leading-snug truncate max-w-[220px]">
                         {course.name}
@@ -300,33 +365,92 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     />
                   </div>
 
-                  {/* Stats Counter Bar */}
-                  <div className="grid grid-cols-3 gap-2 text-center bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-2.5 font-mono shadow-[2px_2px_0px_var(--shadow-color)]">
-                    <div>
-                      <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)]">
-                        Attended
+                  {/* SIMPLE MODE: Interactive Direct Stepper Controls */}
+                  {isSimpleMode ? (
+                    <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-3 space-y-2.5 font-mono shadow-[2px_2px_0px_var(--shadow-color)]">
+                      <div className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase flex items-center justify-between">
+                        <span>Total Counter Controls</span>
+                        <span className="text-amber-600 dark:text-amber-400">⚡ Live Bunk-Me</span>
                       </div>
-                      <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                        {stats.present}
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Attended Stepper */}
+                        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-2 flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] text-[var(--muted-foreground)] block">Attended</span>
+                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                              {course.simpleAttended || 0}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleSimpleCountChange(course, 'attended', -1)}
+                              className="w-6 h-6 rounded-lg bg-[var(--background)] border border-[var(--border)] flex items-center justify-center font-bold text-xs hover:bg-[var(--muted)] transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleSimpleCountChange(course, 'attended', 1)}
+                              className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-xs hover:bg-emerald-400 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Total Held Stepper */}
+                        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-2 flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] text-[var(--muted-foreground)] block">Total Held</span>
+                            <span className="text-sm font-black text-[var(--foreground)]">
+                              {course.simpleHeld || 0}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleSimpleCountChange(course, 'held', -1)}
+                              className="w-6 h-6 rounded-lg bg-[var(--background)] border border-[var(--border)] flex items-center justify-center font-bold text-xs hover:bg-[var(--muted)] transition-colors"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleSimpleCountChange(course, 'held', 1)}
+                              className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-bold text-xs hover:bg-teal-500 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)]">
-                        Absent
+                  ) : (
+                    /* DETAILED MODE: Stats Counter Bar */
+                    <div className="grid grid-cols-3 gap-2 text-center bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-2.5 font-mono shadow-[2px_2px_0px_var(--shadow-color)]">
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)]">
+                          Attended
+                        </div>
+                        <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          {stats.present}
+                        </div>
                       </div>
-                      <div className="text-sm font-black text-rose-600 dark:text-rose-400">
-                        {stats.absent}
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)]">
+                          Absent
+                        </div>
+                        <div className="text-sm font-black text-rose-600 dark:text-rose-400">
+                          {stats.absent}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)]">
+                          Held
+                        </div>
+                        <div className="text-sm font-black text-[var(--foreground)]">
+                          {stats.total}
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)]">
-                        Held
-                      </div>
-                      <div className="text-sm font-black text-[var(--foreground)]">
-                        {stats.total}
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Skip / Recovery Margin Line */}
                   <div
@@ -340,8 +464,8 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     <span className="font-mono text-[11px] leading-relaxed">{stats.statusText}</span>
                   </div>
 
-                  {/* Mini Sparkline Chart */}
-                  {trendData.length > 1 && (
+                  {/* Mini Sparkline Chart for Detailed Mode */}
+                  {!isSimpleMode && trendData.length > 1 && (
                     <div className="space-y-1 pt-1">
                       <div className="flex items-center justify-between text-[11px] text-[var(--muted-foreground)] font-mono">
                         <span className="flex items-center gap-1 font-bold">
@@ -383,16 +507,18 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                   )}
                 </div>
 
-                {/* Footer History Trigger */}
-                <motion.button
-                  whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
-                  whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
-                  onClick={() => setSelectedCourse(course)}
-                  className="w-full py-2.5 px-4 rounded-full bg-[var(--background)] hover:bg-[var(--muted)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] flex items-center justify-center gap-1.5 transition-all shadow-[2px_2px_0px_var(--shadow-color)]"
-                >
-                  <History className="w-3.5 h-3.5 text-teal-600" />
-                  View & Edit Attendance Log ({course.attendance?.length || 0})
-                </motion.button>
+                {/* Footer History Trigger (Detailed Mode only) */}
+                {!isSimpleMode && (
+                  <motion.button
+                    whileHover={prefersReducedMotion ? {} : { scale: 1.02 }}
+                    whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+                    onClick={() => setSelectedCourse(course)}
+                    className="w-full py-2.5 px-4 rounded-full bg-[var(--background)] hover:bg-[var(--muted)] border-2 border-[var(--border)] text-xs font-bold text-[var(--foreground)] flex items-center justify-center gap-1.5 transition-all shadow-[2px_2px_0px_var(--shadow-color)]"
+                  >
+                    <History className="w-3.5 h-3.5 text-teal-600" />
+                    View & Edit Attendance Log ({course.attendance?.length || 0})
+                  </motion.button>
+                )}
               </motion.div>
             )
           })}
@@ -526,7 +652,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                                 {rec.status}
                               </span>
                               <span className="font-mono text-[var(--foreground)] font-bold">
-                                {rec.date}
+                                {formatDate(rec.date)}
                               </span>
                               {rec.note && (
                                 <span className="text-[var(--muted-foreground)] truncate max-w-[200px]">

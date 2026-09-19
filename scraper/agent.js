@@ -1,4 +1,4 @@
-// agent.js — Local scraper bridge server on http://localhost:4747
+// agent.js — Local scraper bridge server on http://127.0.0.1:4747
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -6,10 +6,12 @@ const { runLogin } = require('./login');
 const { runScrape } = require('./sync');
 
 const PORT = 4747;
+const HOST = '127.0.0.1';
 const AUTH_PATH = path.resolve(__dirname, 'auth.json');
+const ALLOWED_ORIGIN = process.env.AGENT_ALLOWED_ORIGIN || 'http://localhost:3000';
 
 function setCorsHeaders(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
@@ -96,9 +98,10 @@ const server = http.createServer(async (req, res) => {
   res.end(JSON.stringify({ error: 'Endpoint not found' }));
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   console.log(`\n========================================`);
-  console.log(`🚀 SLCM Scraper Agent listening on http://localhost:${PORT}`);
+  console.log(`🚀 SLCM Scraper Agent listening on http://${HOST}:${PORT}`);
+  console.log(`Restricted to origin: ${ALLOWED_ORIGIN}`);
   console.log(`Ready for 1-Click Sync requests from Roll Book.`);
   console.log(`========================================\n`);
 });

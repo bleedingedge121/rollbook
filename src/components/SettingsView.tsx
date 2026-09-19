@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import {
   BookOpen,
   Calendar,
@@ -25,9 +25,11 @@ import {
   Zap,
   Copy,
   Check,
+  Sliders,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
+import { formatDate, formatDateTime } from '@/lib/formatters'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
@@ -42,9 +44,19 @@ interface SettingsViewProps {
   onDeleteCourse: (courseId: string) => Promise<void>
   onSaveSlot: (slotData: any) => Promise<void>
   onDeleteSlot: (slotId: string) => Promise<void>
-  onSaveHoliday?: (holidayData: { date: string; label: string; type?: string }) => Promise<void>
+  onSaveHoliday?: (holidayData: { date?: string; startDate?: string; endDate?: string; label: string; type?: string }) => Promise<void>
   onDeleteHoliday?: (id: string) => Promise<void>
   onRefreshAll: () => Promise<void>
+}
+
+interface HolidayGroup {
+  key: string
+  label: string
+  type: string
+  startDate: string
+  endDate: string
+  count: number
+  ids: string[]
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -84,8 +96,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [agentStatusNote, setAgentStatusNote] = useState<string | null>(null)
   const [copiedCmd, setCopiedCmd] = useState(false)
 
-  // Add Holiday Form State
+  // Add Holiday Form State (Single vs Range)
+  const [holidayMode, setHolidayMode] = useState<'single' | 'range'>('single')
   const [newHolidayDate, setNewHolidayDate] = useState('')
+  const [newHolidayStartDate, setNewHolidayStartDate] = useState('')
+  const [newHolidayEndDate, setNewHolidayEndDate] = useState('')
   const [newHolidayLabel, setNewHolidayLabel] = useState('')
   const [newHolidayType, setNewHolidayType] = useState<'holiday' | 'exam'>('holiday')
   const [isSubmittingHoliday, setIsSubmittingHoliday] = useState(false)
@@ -99,6 +114,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // File input refs
   const fileInputRef = useRef<HTMLInputElement>(null)
   const backupInputRef = useRef<HTMLInputElement>(null)
+
+  // Group consecutive holidays with identical label/type into date ranges
+  const groupedHolidays = useMemo<HolidayGroup[]>(() => {
+    if (!holidays || holidays.length === 0) return []
+    const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date))
+    const groups: HolidayGroup[] = []
+
+    for (const h of sorted) {
+      const last = groups[groups.length - 1]
+      if (last && last.label === h.label && last.type === h.type) {
+        // Check if consecutive day
+        const prevEnd = new Date(last.endDate)
+        const current = new Date(h.date)
+        const diffDays = Math.round((current.getTime() - prevEnd.getTime()) / (1000 * 3600 * 24))
+        if (diffDays === 1) {
+          last.endDate = h.date
+          last.count += 1
+          last.ids.push(h.id)
+          continue
+        }
+      }
+
+      groups.push({
+        key: `${h.id}_${h.date}`,
+        label: h.label,
+        type: h.type,
+        startDate: h.date,
+        endDate: h.date,
+        count: 1,
+        ids: [h.id],
+      })
+    }
+
+    return groups
+  }, [holidays])
 
   // Process Sync Payload directly
   const processSyncPayload = async (json: any) => {
@@ -219,22 +269,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     await onRefreshAll()
   }
 
-  // Handle Create Holiday
+  // Handle Create Holiday / Holiday Range
   const handleCreateHoliday = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newHolidayDate || !newHolidayLabel.trim() || !onSaveHoliday) return
+    if (!newHolidayLabel.trim() || !onSaveHoliday) return
 
     setIsSubmittingHoliday(true)
     try {
-      await onSaveHoliday({
-        date: newHolidayDate,
-        label: newHolidayLabel.trim(),
-        type: newHolidayType,
-      })
-      setNewHolidayDate('')
+      if (holidayMode === 'range') {
+        if (!newHolidayStartDate || !newHolidayEndDate) return
+        await onSaveHoliday({
+          startDate: newHolidayStartDate,
+          endDate: newHolidayEndDate,
+          label: newHolidayLabel.trim(),
+          type: newHolidayType,
+        })
+        setNewHolidayStartDate('')
+        setNewHolidayEndDate('')
+      } else {
+        if (!newHolidayDate) return
+        await onSaveHoliday({
+          date: newHolidayDate,
+          label: newHolidayLabel.trim(),
+          type: newHolidayType,
+        })
+        setNewHolidayDate('')
+      }
       setNewHolidayLabel('')
+      await onRefreshAll()
     } finally {
       setIsSubmittingHoliday(false)
+    }
+  }
+
+  // Handle Delete Grouped Holiday Range
+  const handleDeleteHolidayGroup = async (group: HolidayGroup) => {
+    const desc =
+      group.count > 1
+        ? `${group.label} (${formatDate(group.startDate)} to ${formatDate(group.endDate)}, ${group.count} days)`
+        : `${group.label} (${formatDate(group.startDate)})`
+
+    if (!confirm(`Remove ${desc}?`)) return
+
+    try {
+      const res = await fetch(`/api/holidays?ids=${group.ids.join(',')}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete holidays')
+      }
+      await onRefreshAll()
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
     }
   }
 
@@ -587,6 +674,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <span className="font-heading font-bold text-sm text-[var(--foreground)]">
                           {course.name}
                         </span>
+                        {course.trackingMode === 'simple' && (
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-700 dark:text-amber-300 border border-amber-500/40">
+                            Simple Mode
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-[var(--muted-foreground)] mt-0.5 font-mono">
                         Required: <strong className="text-[var(--foreground)]">{course.requiredPercent}%</strong>
@@ -750,28 +842,82 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </p>
             </div>
 
-            {/* Add Holiday Form */}
+            {/* Add Holiday Form with Range Toggle */}
             <form
               onSubmit={handleCreateHoliday}
-              className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4.5 space-y-3.5 shadow-[3px_3px_0px_var(--shadow-color)]"
+              className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4.5 space-y-4 shadow-[3px_3px_0px_var(--shadow-color)]"
             >
-              <div className="text-xs font-heading font-bold uppercase tracking-wider text-[var(--foreground)] flex items-center gap-1.5 font-mono">
-                <Plus className="w-3.5 h-3.5 text-teal-600" /> Declare Holiday or Exam Date
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-heading font-bold uppercase tracking-wider text-[var(--foreground)] flex items-center gap-1.5 font-mono">
+                  <Plus className="w-3.5 h-3.5 text-teal-600" /> Declare Holiday or Exam Date
+                </div>
+
+                {/* Single Day vs Date Range Toggle */}
+                <div className="flex items-center p-0.5 rounded-full bg-[var(--card)] border border-[var(--border)] text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setHolidayMode('single')}
+                    className={`px-3 py-1 rounded-full transition-colors ${
+                      holidayMode === 'single'
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    Single Day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHolidayMode('range')}
+                    className={`px-3 py-1 rounded-full transition-colors ${
+                      holidayMode === 'range'
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    Date Range
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {holidayMode === 'single' ? (
+                  <div>
+                    <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Date</label>
+                    <input
+                      type="date"
+                      value={newHolidayDate}
+                      onChange={(e) => setNewHolidayDate(e.target.value)}
+                      required
+                      className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div className="sm:col-span-1 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Start Date</label>
+                      <input
+                        type="date"
+                        value={newHolidayStartDate}
+                        onChange={(e) => setNewHolidayStartDate(e.target.value)}
+                        required
+                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-2.5 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">End Date</label>
+                      <input
+                        type="date"
+                        value={newHolidayEndDate}
+                        onChange={(e) => setNewHolidayEndDate(e.target.value)}
+                        required
+                        className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-2.5 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={newHolidayDate}
-                    onChange={(e) => setNewHolidayDate(e.target.value)}
-                    required
-                    className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1">Reason / Label</label>
+                  <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Reason / Label</label>
                   <input
                     type="text"
                     placeholder="e.g. Diwali Break, Mid-Term Exam"
@@ -781,8 +927,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     className="w-full bg-[var(--card)] border-2 border-[var(--border)] rounded-xl px-3 py-2 text-xs text-[var(--foreground)] focus:outline-none focus:border-teal-500"
                   />
                 </div>
+
                 <div>
-                  <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1">Type</label>
+                  <label className="text-[11px] text-[var(--muted-foreground)] font-bold block mb-1 font-mono">Type</label>
                   <select
                     value={newHolidayType}
                     onChange={(e) => setNewHolidayType(e.target.value as any)}
@@ -799,60 +946,73 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   whileHover={prefersReducedMotion ? {} : { scale: 1.05 }}
                   whileTap={prefersReducedMotion ? {} : { scale: 0.95 }}
                   type="submit"
-                  disabled={isSubmittingHoliday || !newHolidayDate || !newHolidayLabel.trim()}
-                  className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
+                  disabled={
+                    isSubmittingHoliday ||
+                    !newHolidayLabel.trim() ||
+                    (holidayMode === 'single' ? !newHolidayDate : !newHolidayStartDate || !newHolidayEndDate)
+                  }
+                  className="pill-btn px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 transition-colors"
                 >
-                  {isSubmittingHoliday ? 'Saving...' : 'Add Date'}
+                  {isSubmittingHoliday
+                    ? 'Saving...'
+                    : holidayMode === 'range'
+                    ? 'Add Holiday Range'
+                    : 'Add Date'}
                 </motion.button>
               </div>
             </form>
 
-            {/* List of Declared Holidays */}
+            {/* List of Declared Holidays (Grouped Range View) */}
             <div className="space-y-3">
-              <div className="text-xs font-heading font-black uppercase tracking-wider text-[var(--foreground)] font-mono">
-                Registered Holidays & Exams ({holidays.length})
+              <div className="text-xs font-heading font-black uppercase tracking-wider text-[var(--foreground)] font-mono flex items-center justify-between">
+                <span>Registered Calendar Events ({groupedHolidays.length} entries, {holidays.length} days total)</span>
               </div>
 
-              {holidays.length === 0 ? (
+              {groupedHolidays.length === 0 ? (
                 <div className="text-xs text-[var(--muted-foreground)] p-6 bg-[var(--background)] rounded-2xl border-2 border-dashed border-[var(--border)] text-center font-mono">
                   No holidays or exam days registered yet.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {holidays.map((h) => (
+                  {groupedHolidays.map((group) => (
                     <div
-                      key={h.id}
+                      key={group.key}
                       className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 flex items-center justify-between gap-3 text-xs shadow-[2px_2px_0px_var(--shadow-color)]"
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
-                              h.type === 'exam'
+                              group.type === 'exam'
                                 ? 'bg-purple-400 text-slate-900 border-[var(--border)]'
                                 : 'bg-amber-400 text-slate-900 border-[var(--border)]'
                             }`}
                           >
-                            {h.type === 'exam' ? 'Exam' : 'Holiday'}
+                            {group.type === 'exam' ? 'Exam' : 'Holiday'}
                           </span>
-                          <span className="font-mono text-[var(--foreground)] font-bold">{h.date}</span>
+                          <span className="font-mono text-[var(--foreground)] font-bold">
+                            {group.count > 1
+                              ? `${formatDate(group.startDate)} → ${formatDate(group.endDate)}`
+                              : formatDate(group.startDate)}
+                          </span>
+                          {group.count > 1 && (
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-[var(--card)] border border-[var(--border)] text-[var(--muted-foreground)]">
+                              {group.count} days
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[var(--foreground)] font-heading font-bold truncate">{h.label}</div>
+                        <div className="text-[var(--foreground)] font-heading font-bold truncate">
+                          {group.label}
+                        </div>
                       </div>
 
-                      {onDeleteHoliday && (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Remove holiday for ${h.date} (${h.label})?`)) {
-                              onDeleteHoliday(h.id)
-                            }
-                          }}
-                          className="p-1.5 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-[var(--muted)] transition-colors"
-                          title="Delete holiday"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleDeleteHolidayGroup(group)}
+                        className="p-1.5 rounded-full text-[var(--muted-foreground)] hover:text-rose-500 hover:bg-[var(--muted)] transition-colors"
+                        title={`Delete ${group.label}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>

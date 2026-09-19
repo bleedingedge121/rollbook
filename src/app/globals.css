@@ -32,19 +32,19 @@
     --dot-color: rgba(30, 41, 59, 0.08);
   }
 
-  /* DARK MODE: Warm Charcoal Paper with Vibrant Luminous Teal Accent */
+  /* DARK MODE: Warm Charcoal Paper with Raised Contrast, Ambient Glow & 3D Top-Edge Highlight */
   .dark {
     --background: #15131A;
     --foreground: #F5F3FF;
-    --card: #1E1B26;
+    --card: #24202E; /* Raised for visible contrast against #15131A */
     --card-foreground: #F5F3FF;
-    --popover: #1E1B26;
+    --popover: #24202E;
     --popover-foreground: #F5F3FF;
     --primary: #2DD4BF; /* Luminous Teal-400 */
     --primary-foreground: #15131A;
     --secondary: #F472B6; /* Bubblegum Pink */
     --secondary-foreground: #FFFFFF;
-    --muted: #282433;
+    --muted: #2E293B;
     --muted-foreground: #A19DAC;
     --accent: #2DD4BF; /* Primary Teal Accent */
     --accent-foreground: #15131A;
@@ -52,13 +52,13 @@
     --quaternary: #34D399; /* Mint Green */
     --destructive: #FB7185;
     --destructive-foreground: #FFFFFF;
-    --border: #3A3545;
-    --input: #3A3545;
+    --border: #3E384D;
+    --input: #3E384D;
     --ring: #2DD4BF;
     --radius: 1rem;
-    --shadow-color: #0D0B12;
-    --shadow-offset: 4px;
-    --dot-color: rgba(245, 243, 255, 0.06);
+    --shadow-color: #0A0810;
+    --shadow-offset: 5px; /* Deeper physical displacement for dark mode */
+    --dot-color: rgba(245, 243, 255, 0.07);
   }
 
   body {
@@ -120,6 +120,14 @@
 .pill-btn:active {
   transform: translateY(1.5px) translateX(1.5px);
   box-shadow: 1px 1px 0px var(--shadow-color);
+}
+
+/* Dark Mode 3D Edge Highlights & Ambient Glow */
+.dark .sticker-card,
+.dark .pill-btn,
+.dark [class*="rounded-3xl"][class*="border-2"],
+.dark [class*="rounded-2xl"][class*="border-2"] {
+  box-shadow: 4px 4px 0px var(--shadow-color), 0 0 20px rgba(45, 212, 191, 0.06);
 }
 
 .badge-rotated-left {
