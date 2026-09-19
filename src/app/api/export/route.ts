@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUser } from '@/lib/session'
 
 export async function GET(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const { searchParams } = new URL(req.url)
     const format = searchParams.get('format') || 'json'
 
     const courses = await prisma.course.findMany({
+      where: { userId },
       include: {
         timetableSlots: true,
         attendance: true,
@@ -44,6 +50,10 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const body = await req.json()
     if (!body.courses || !Array.isArray(body.courses)) {
@@ -56,17 +66,24 @@ export async function POST(req: Request) {
     let restoredCount = 0
     for (const item of body.courses) {
       if (!item.name || !item.code) continue
+      const courseCode = item.code.toUpperCase().trim()
 
       const course = await prisma.course.upsert({
-        where: { code: item.code.toUpperCase() },
+        where: {
+          userId_code: {
+            userId,
+            code: courseCode,
+          },
+        },
         update: {
           name: item.name,
           requiredPercent: item.requiredPercent || 75.0,
           color: item.color || '#3b82f6',
         },
         create: {
+          userId,
           name: item.name,
-          code: item.code.toUpperCase(),
+          code: courseCode,
           requiredPercent: item.requiredPercent || 75.0,
           color: item.color || '#3b82f6',
         },

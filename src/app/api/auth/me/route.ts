@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { verifySessionToken, SESSION_COOKIE_NAME, usingDefaultCredentials, getConfiguredUsername } from '@/lib/auth'
+import { getSessionUser, SESSION_COOKIE_NAME } from '@/lib/auth'
 
 export async function GET() {
-  const token = cookies().get(SESSION_COOKIE_NAME)?.value
-  const authed = await verifySessionToken(token)
+  const cookieStore = await cookies()
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+  const user = await getSessionUser(token)
+
   return NextResponse.json({
-    authenticated: authed,
-    usingDefaultCredentials: usingDefaultCredentials(),
-    username: authed ? getConfiguredUsername() : null,
+    authenticated: Boolean(user),
+    username: user ? user.username : null,
+    userId: user ? user.userId : null,
   })
 }

@@ -1,13 +1,20 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUser } from '@/lib/session'
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
+  const { id } = await params
+
   try {
-    const course = await prisma.course.findUnique({
-      where: { id: params.id },
+    const course = await prisma.course.findFirst({
+      where: { id, userId },
       include: {
         timetableSlots: {
           orderBy: [{ weekday: 'asc' }, { label: 'asc' }],
@@ -19,6 +26,14 @@ export async function GET(
     })
 
     if (!course) {
+      // Check if it exists for another user to return 403
+      const existsElsewhere = await prisma.course.findUnique({
+        where: { id },
+        select: { id: true },
+      })
+      if (existsElsewhere) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
@@ -31,14 +46,32 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
+  const { id } = await params
+
   try {
+    const existing = await prisma.course.findUnique({
+      where: { id },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+    }
+
+    if (existing.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const body = await req.json()
     const { name, code, requiredPercent, color, trackingMode, simpleHeld, simpleAttended } = body
 
     const updated = await prisma.course.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(name && { name: name.trim() }),
         ...(code && { code: code.trim().toUpperCase() }),
@@ -56,7 +89,7 @@ export async function PUT(
   } catch (error: any) {
     if (error?.code === 'P2002') {
       return NextResponse.json(
-        { error: 'A course with this code already exists' },
+        { error: 'A course with this code already exists in your account' },
         { status: 400 }
       )
     }
@@ -67,11 +100,29 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
+  const { id } = await params
+
   try {
+    const existing = await prisma.course.findUnique({
+      where: { id },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+    }
+
+    if (existing.userId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     await prisma.course.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ success: true })

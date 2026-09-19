@@ -1,6 +1,6 @@
 # Roll Book Architecture & Data Engine
 
-This document outlines the technical architecture, data model, security layer, and API design of **Roll Book**.
+This document outlines the technical architecture, multi-user data model, security layer, and API design of **Roll Book**.
 
 ---
 
@@ -19,11 +19,11 @@ Traditional attendance trackers infer attendance by automatically ticking off sl
 
 ## 🗄️ Database Schema (`prisma/schema.prisma`)
 
-Roll Book uses SQLite via Prisma for zero-latency, local-first persistence:
+Roll Book uses PostgreSQL via Prisma for scalable multi-user persistence:
 
 ```prisma
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -31,19 +31,38 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model User {
+  id               String    @id @default(cuid())
+  username         String    @unique
+  passwordHash     String
+  chatRequestCount Int       @default(0)
+  chatRequestDate  String?
+  createdAt        DateTime  @default(now())
+  courses          Course[]
+  holidays         Holiday[]
+}
+
 model Course {
   id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
-  code            String             @unique
+  code            String
   requiredPercent Float              @default(75.0)
-  color           String             @default("#3b82f6")
+  color           String             @default("#0D9488")
   syncedPresent   Int?               @default(0)
   syncedAbsent    Int?               @default(0)
   syncedAt        DateTime?
+  trackingMode    String             @default("detailed") // "detailed" | "simple"
+  simpleHeld      Int?               @default(0)
+  simpleAttended  Int?               @default(0)
   timetableSlots  TimetableSlot[]
   attendance      AttendanceRecord[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+
+  @@unique([userId, code])
+  @@index([userId])
 }
 
 model TimetableSlot {
@@ -57,6 +76,7 @@ model TimetableSlot {
   updatedAt DateTime @updatedAt
 
   @@index([weekday])
+  @@index([courseId])
 }
 
 model AttendanceRecord {
@@ -75,85 +95,79 @@ model AttendanceRecord {
 
 model Holiday {
   id        String   @id @default(cuid())
-  date      String   @unique // ISO YYYY-MM-DD
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String   // ISO YYYY-MM-DD
   label     String   // e.g. "Diwali Break", "Mid-Term Exams"
   type      String   @default("holiday") // "holiday" | "exam"
   createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
 }
 ```
 
----
-
-## 🔐 Authentication & Session Security (`src/middleware.ts` & `src/lib/auth.ts`)
-
-- **Single-Account Local Prototype**: Built for local or self-hosted deployment.
-- **Web Crypto HMAC-SHA256**: Uses `crypto.subtle` for token signing and validation, running natively across both Node.js API routes and the Next.js Edge Middleware runtime.
-- **Protected Surface**: All pages and API endpoints require a valid `rollbook_session` cookie; unauthorized requests receive a clean `401 Unauthorized` (for APIs) or are redirected to `/login`.
-- **Default Credentials**: `admin` / `rollbook` (customizable via `APP_USERNAME`, `APP_PASSWORD`, `APP_SESSION_SECRET` in `.env`).
+### Multi-Tenant Compound Indexes
+- **`Course: @@unique([userId, code])`**: Ensures each user can have their own course catalog without conflicts when multiple friends take the same course (e.g. `CSE101`).
+- **`Holiday: @@unique([userId, date])`**: Allows different users to record university holidays and exam periods on the same dates independently.
 
 ---
 
-## 🧭 One-Click Onboarding Wizard (`src/components/OnboardingWizard.tsx`)
+## 🔐 Multi-User Security & Session Management
 
-When launching with an empty database, Roll Book automatically presents an onboarding wizard:
-1. **Welcome**: Introduces the system's core capabilities.
-2. **Section Selection**: One-tap selection from 22 preloaded MIT Bengaluru CSE sections (`C01`–`C22`).
-3. **Confirmation**: Instantly populates the 10 corresponding subjects and weekly timetable schedule.
-4. **Completion**: Direct transition to the dashboard with an optional prompt for SLCM sync.
+- **Password Hashing**: Passwords are encrypted using `bcryptjs` with 10 salt rounds. Passwords require a minimum length of 8 characters.
+- **Username Normalization**: All usernames are normalized to lowercase on write and lookup, preventing duplicate account collisions and casing lockouts.
+- **Web Crypto HMAC-SHA256**: Uses `crypto.subtle` for token signing and validation, ensuring 100% compatibility across both Node.js API routes and the Next.js Edge Middleware runtime.
+- **Edge Middleware (`src/middleware.ts`)**: All routes are protected by default except public paths (`/login`, `/api/auth/login`, `/api/auth/signup`, `/api/auth/me`). Unauthenticated API requests receive `401 Unauthorized`.
+- **Session Helpers (`src/lib/session.ts`)**:
+  - `requireUser(req)` extracts and verifies the caller's session token, returning their `{ userId, username }` or a 401 response.
+  - `verifyCourseOwnership(courseId, userId)` checks that a target course belongs to the authenticated user before executing writes or reads, returning `403 Forbidden` if mismatched.
 
 ---
 
-## 🔌 API Endpoints
+## 🔌 Scoped API Endpoints
 
 ### 1. Authentication (`/api/auth`)
-- `POST /api/auth/login` — Verifies credentials and sets signed HTTP-only session cookie.
-- `POST /api/auth/logout` — Invalidates session cookie and redirects.
-- `GET /api/auth/me` — Checks current authentication state and default credential status.
+- `POST /api/auth/signup` — Registers a new account (validates unique lowercase username, min 8 char password, hashes password, sets session cookie).
+- `POST /api/auth/login` — Verifies credentials against the database and sets signed HTTP-only session cookie.
+- `POST /api/auth/logout` — Clears the session cookie.
+- `GET /api/auth/me` — Returns the current authenticated user's ID and username.
 
 ### 2. Courses (`/api/courses`)
-- `GET /api/courses` — Returns all courses with timetable slots and historical attendance records.
-- `POST /api/courses` — Creates a new course `{ name, code, requiredPercent, color }`.
-- `PUT /api/courses/[id]` — Updates an existing course.
-- `DELETE /api/courses/[id]` — Deletes a course and cascades deletion to associated slots and attendance records.
+- `GET /api/courses` — Returns all courses for the authenticated user.
+- `POST /api/courses` — Creates a course tied to `userId`.
+- `GET /api/courses/[id]` — Returns course details if owned by caller (403 if belonging to another user).
+- `PUT /api/courses/[id]` — Updates an existing course if owned by caller.
+- `DELETE /api/courses/[id]` — Deletes a course and cascades deletion to associated slots and records.
 
 ### 3. Timetable (`/api/timetable`)
-- `GET /api/timetable` — Returns all recurring schedule slots.
-- `POST /api/timetable` — Creates a slot `{ courseId, weekday, label, room }`.
-- `PUT /api/timetable/[id]` — Updates slot details.
+- `GET /api/timetable` — Returns all timetable slots for the user's courses.
+- `POST /api/timetable` — Creates a slot after verifying course ownership.
+- `PUT /api/timetable/[id]` — Updates slot details (checks ownership of course).
 - `DELETE /api/timetable/[id]` — Deletes a timetable slot.
 
-### 4. Official Sections (`/api/sections`)
-- `GET /api/sections` — Returns metadata for all 22 official department sections.
-- `POST /api/sections/apply` — Generates a preview diff or applies the section's timetable slots to the database.
+### 4. Attendance Records (`/api/attendance`)
+- `GET /api/attendance` — Returns records filtered by caller's courses.
+- `POST /api/attendance` — Logs attendance (verifies `courseId` belongs to caller).
+- `PUT /api/attendance/[id]` — Edits an existing record (verifies ownership).
+- `DELETE /api/attendance/[id]` — Deletes a record (verifies ownership).
 
-### 5. Attendance Records (`/api/attendance`)
-- `GET /api/attendance` — Query records filtered by `courseId`, `date`, `startDate`, `endDate`, or `month`.
-- `POST /api/attendance` — Creates or batch-creates confirmed attendance logs `{ courseId, date, status, note }`.
-- `PUT /api/attendance/[id]` — Edits an existing record.
-- `DELETE /api/attendance/[id]` — Deletes a record.
+### 5. Holidays & Exam Days (`/api/holidays`)
+- `GET /api/holidays` — Returns caller's declared holidays.
+- `POST /api/holidays` — Upserts single or range holidays under `userId_date`.
+- `DELETE /api/holidays/[id]` — Deletes a holiday declaration owned by caller.
 
-### 6. Sync & Reconciliation (`/api/sync/reconcile`)
-- `POST /api/sync/reconcile` — Accepts `{ courses, syncedAt, apply, merges }`.
-  - When `apply: false`, runs fuzzy matching against existing subjects and returns merge candidates with diff metrics.
-  - When `apply: true`, writes verified baseline snapshots to `syncedPresent`/`syncedAbsent` without fabricating fake calendar records.
+### 6. AI Attendance Advisor (`/api/chat`)
+- `POST /api/chat` — Google Gemini (`@google/genai`) AI endpoint using `gemini-flash-latest` with native database tools (`get_attendance_summary`, `get_course_detail`, `get_upcoming_classes`, `get_unlogged_sessions`, `add_holiday`, `delete_holiday`, `list_holidays`). All tools are scoped to the caller's `userId`. Enforces a 50 request/day quota per user.
 
-### 7. Database Reset & Danger Zone (`/api/reset`)
-- `POST /api/reset` — Atomic deletion of all courses, slots, and attendance records (`seedSample: boolean` option to reload baseline).
+### 7. Sync & Sections
+- `GET /api/sections` — Returns official section list.
+- `POST /api/sections/apply` — Applies section timetable slots strictly to caller's account.
+- `POST /api/sync/reconcile` — Computes SLCM diff and applies baseline updates strictly to caller's subjects.
 
-### 8. Holidays & Exam Days (`/api/holidays`)
-- `GET /api/holidays` — Returns all declared holidays and exam dates.
-- `POST /api/holidays` — Declares or updates a holiday `{ date, label, type }`.
-- `DELETE /api/holidays/[id]` — Deletes a holiday declaration.
+### 8. Database Reset (`/api/reset`)
+- `POST /api/reset` — Atomically clears **only** the authenticated caller's data (courses, slots, attendance, holidays), leaving all other users unaffected.
 
-### 9. AI Attendance Advisor (`/api/chat`)
-- `POST /api/chat` — Google Gemini (`@google/genai`) AI endpoint with native function/tool calling against Prisma database (`get_attendance_summary`, `get_course_detail`, `get_upcoming_classes`, `get_unlogged_sessions`).
-
-### 10. SLCM Scraper Agent Bridge (`http://localhost:4747`)
-- `GET /status` — Checks if `auth.json` is present and valid.
-- `POST /sync` — Headlessly captures portal attendance via Playwright (prompts SSO browser if unauthenticated) and directly returns `{ courses, syncedAt, capturedVia }`.
-- `POST /login` — Launches interactive browser for Microsoft SSO & MFA authentication.
-
-### 11. Data Portability (`/api/export`)
-- `GET /api/export?format=csv` — Downloads complete attendance audit trail as spreadsheet CSV.
-- `GET /api/export?format=json` — Generates a full database backup snapshot.
-- `POST /api/export` — Restores database state from a backup JSON file.
+### 9. Data Portability (`/api/export`)
+- `GET /api/export` — Exports CSV or JSON backup of caller's data.
+- `POST /api/export` — Restores data snapshot under caller's `userId`.

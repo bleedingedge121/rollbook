@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { normalizeText, normalizeCode, calculateSimilarity } from '@/lib/courseMatch'
+import { requireUser } from '@/lib/session'
 
 interface SyncedCourse {
   name: string
@@ -25,6 +26,10 @@ interface ReconcileRequest {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const body: ReconcileRequest = await req.json()
     const { courses: incomingCourses, syncedAt, apply, merges } = body
@@ -37,6 +42,7 @@ export async function POST(req: Request) {
     }
 
     const dbCourses = await prisma.course.findMany({
+      where: { userId },
       include: {
         attendance: true,
       },
@@ -54,6 +60,7 @@ export async function POST(req: Request) {
           // Create new course with verified baseline
           const newCourse = await prisma.course.create({
             data: {
+              userId,
               name: merge.incomingName,
               code: (merge.incomingCode || merge.incomingName.slice(0, 6)).toUpperCase().trim(),
               requiredPercent: 75.0,

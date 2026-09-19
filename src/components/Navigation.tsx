@@ -37,10 +37,19 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null)
   const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
     setMounted(true)
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.authenticated && data?.username) {
+          setCurrentUsername(data.username)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const navItems = [
@@ -165,6 +174,16 @@ export const Navigation: React.FC<NavigationProps> = ({
                 strokeWidth={2.5}
               />
             </motion.button>
+
+            {currentUsername && (
+              <div
+                title={`Logged in as ${currentUsername}`}
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full border-2 border-[var(--border)] text-xs font-mono font-bold bg-[var(--card)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="max-w-[100px] truncate">{currentUsername}</span>
+              </div>
+            )}
 
             {/* Logout Button */}
             <motion.button

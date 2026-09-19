@@ -1,29 +1,8 @@
-// Lightweight local-prototype auth. This is NOT multi-tenant auth — it's a
-// single shared login gate for one person's local instance (matches "host
-// locally, just needs a login screen" scope). Credentials come from env vars
-// with dev-friendly fallbacks so the app works out of the box.
-//
-// Uses Web Crypto (crypto.subtle) rather than Node's `crypto` module so the
-// same code runs both in middleware (Edge runtime) and in API routes (Node
-// runtime) without special-casing.
+import bcrypt from 'bcryptjs'
+import { prisma } from '@/lib/prisma'
 
 const SESSION_COOKIE = 'rollbook_session'
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days
-
-export const DEFAULT_USERNAME = 'admin'
-export const DEFAULT_PASSWORD = 'rollbook'
-
-export function getConfiguredUsername(): string {
-  return process.env.APP_USERNAME || DEFAULT_USERNAME
-}
-
-export function getConfiguredPassword(): string {
-  return process.env.APP_PASSWORD || DEFAULT_PASSWORD
-}
-
-export function usingDefaultCredentials(): boolean {
-  return !process.env.APP_USERNAME || !process.env.APP_PASSWORD
-}
 
 function getSecret(): string {
   return (
@@ -61,9 +40,10 @@ async function hmac(data: string): Promise<string> {
   return base64UrlEncode(new Uint8Array(sig))
 }
 
-export async function createSessionToken(username: string): Promise<string> {
+export async function createSessionToken(userId: string, username: string): Promise<string> {
   const payload = JSON.stringify({
-    u: username,
+    sub: userId,
+    u: username.toLowerCase().trim(),
     exp: Date.now() + SESSION_MAX_AGE_SECONDS * 1000,
   })
   const payloadEncoded = base64UrlEncode(new TextEncoder().encode(payload))
@@ -71,27 +51,64 @@ export async function createSessionToken(username: string): Promise<string> {
   return `${payloadEncoded}.${signature}`
 }
 
-export async function verifySessionToken(token: string | undefined | null): Promise<boolean> {
-  if (!token) return false
+export async function getSessionUser(
+  token: string | undefined | null
+): Promise<{ userId: string; username: string } | null> {
+  if (!token) return null
   const parts = token.split('.')
-  if (parts.length !== 2) return false
+  if (parts.length !== 2) return null
   const [payloadEncoded, signature] = parts
 
   const expectedSig = await hmac(payloadEncoded)
-  if (expectedSig !== signature) return false
+  if (expectedSig !== signature) return null
 
   try {
     const payloadJson = new TextDecoder().decode(base64UrlDecode(payloadEncoded))
     const payload = JSON.parse(payloadJson)
-    if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return false
-    return true
+    if (typeof payload.exp !== 'number' || Date.now() > payload.exp) return null
+    if (!payload.sub || typeof payload.sub !== 'string') return null
+    return {
+      userId: payload.sub,
+      username: payload.u || '',
+    }
   } catch {
-    return false
+    return null
   }
 }
 
-export function checkCredentials(username: string, password: string): boolean {
-  return username === getConfiguredUsername() && password === getConfiguredPassword()
+export async function getSessionUserId(token: string | undefined | null): Promise<string | null> {
+  const user = await getSessionUser(token)
+  return user ? user.userId : null
+}
+
+export async function verifySessionToken(token: string | undefined | null): Promise<boolean> {
+  const userId = await getSessionUserId(token)
+  return userId !== null
+}
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10)
+}
+
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash)
+}
+
+export async function checkCredentials(
+  username: string,
+  password: string
+): Promise<{ id: string; username: string } | null> {
+  if (!username || !password) return null
+  const normalizedUsername = username.toLowerCase().trim()
+  const user = await prisma.user.findUnique({
+    where: { username: normalizedUsername },
+  })
+  if (!user) return null
+
+  const isValid = await bcrypt.compare(password, user.passwordHash)
+  if (!isValid) return null
+
+  return { id: user.id, username: user.username }
 }
 
 export const SESSION_COOKIE_NAME = SESSION_COOKIE

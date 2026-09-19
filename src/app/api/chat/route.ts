@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { calculateAttendance, toDateString, WEEKDAYS } from '@/lib/attendance'
 import { formatDate, formatTime } from '@/lib/formatters'
 import { addDays, subDays, format, isBefore, isSameDay } from 'date-fns'
+import { requireUser } from '@/lib/session'
 
 function parseIsoDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
@@ -17,16 +18,14 @@ function formatIsoDate(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
-const CANDIDATE_MODELS = [
-  'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-3.6-flash',
-  'gemini-flash-lite-latest',
-  'gemini-3-flash-preview',
-  'gemini-flash-latest',
-]
+const MODEL_NAME = 'gemini-flash-latest'
+const MAX_DAILY_CHAT_REQUESTS = 50
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const { messages } = await req.json()
 
@@ -35,6 +34,21 @@ export async function POST(req: Request) {
       return NextResponse.json({
         reply:
           "Gemini API key is not configured yet. Please add `GEMINI_API_KEY` to your `.env` file (you can get a free key instantly from https://aistudio.google.com with no credit card required).",
+      })
+    }
+
+    // Rate-limiting check per user (to protect shared API key)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { chatRequestCount: true, chatRequestDate: true },
+    })
+
+    const todayStr = formatIsoDate(new Date())
+    const currentCount = user?.chatRequestDate === todayStr ? (user.chatRequestCount || 0) : 0
+
+    if (currentCount >= MAX_DAILY_CHAT_REQUESTS) {
+      return NextResponse.json({
+        reply: `You have reached your daily limit of ${MAX_DAILY_CHAT_REQUESTS} AI advisor questions for today. This shared quota helps keep Roll Book free and reliable for all users. Please try again tomorrow!`,
       })
     }
 
@@ -147,12 +161,12 @@ export async function POST(req: Request) {
       },
     ]
 
-    // Tool execution functions
+    // Tool execution functions scoped to authenticated user
     const executeTool = async (name: string, args: any) => {
       if (name === 'get_attendance_summary') {
         const [courses, attendance] = await Promise.all([
-          prisma.course.findMany(),
-          prisma.attendanceRecord.findMany(),
+          prisma.course.findMany({ where: { userId } }),
+          prisma.attendanceRecord.findMany({ where: { course: { userId } } }),
         ])
 
         const summary = courses.map((c) => {
@@ -226,12 +240,15 @@ export async function POST(req: Request) {
       if (name === 'get_course_detail') {
         const { courseCode } = args
         const course = await prisma.course.findFirst({
-          where: { code: { equals: courseCode.trim() } },
+          where: {
+            code: { equals: (courseCode || '').trim().toUpperCase() },
+            userId,
+          },
           include: { attendance: true, timetableSlots: true },
         })
 
         if (!course) {
-          return { error: `Course with code "${courseCode}" was not found.` }
+          return { error: `Course with code "${courseCode}" was not found in your account.` }
         }
 
         if (course.trackingMode === 'simple') {
@@ -276,9 +293,9 @@ export async function POST(req: Request) {
         const numDays = args.days || 5
         const today = new Date()
         const [slots, holidays, courses] = await Promise.all([
-          prisma.timetableSlot.findMany(),
-          prisma.holiday.findMany(),
-          prisma.course.findMany(),
+          prisma.timetableSlot.findMany({ where: { course: { userId } } }),
+          prisma.holiday.findMany({ where: { userId } }),
+          prisma.course.findMany({ where: { userId } }),
         ])
 
         const schedule: any[] = []
@@ -325,10 +342,10 @@ export async function POST(req: Request) {
       if (name === 'get_unlogged_sessions') {
         const today = new Date()
         const [slots, holidays, courses, attendance] = await Promise.all([
-          prisma.timetableSlot.findMany(),
-          prisma.holiday.findMany(),
-          prisma.course.findMany(),
-          prisma.attendanceRecord.findMany(),
+          prisma.timetableSlot.findMany({ where: { course: { userId } } }),
+          prisma.holiday.findMany({ where: { userId } }),
+          prisma.course.findMany({ where: { userId } }),
+          prisma.attendanceRecord.findMany({ where: { course: { userId } } }),
         ])
 
         const unlogged: any[] = []
@@ -400,9 +417,9 @@ export async function POST(req: Request) {
           const results = await prisma.$transaction(
             dateList.map((d) =>
               prisma.holiday.upsert({
-                where: { date: d },
+                where: { userId_date: { userId, date: d } },
                 update: { label: holidayLabel, type: holidayType },
-                create: { date: d, label: holidayLabel, type: holidayType },
+                create: { userId, date: d, label: holidayLabel, type: holidayType },
               })
             )
           )
@@ -416,9 +433,9 @@ export async function POST(req: Request) {
 
         if (date) {
           const holiday = await prisma.holiday.upsert({
-            where: { date },
+            where: { userId_date: { userId, date } },
             update: { label: holidayLabel, type: holidayType },
-            create: { date, label: holidayLabel, type: holidayType },
+            create: { userId, date, label: holidayLabel, type: holidayType },
           })
           return {
             success: true,
@@ -433,18 +450,26 @@ export async function POST(req: Request) {
       if (name === 'delete_holiday') {
         const { date, label } = args
         if (date) {
-          await prisma.holiday.deleteMany({ where: { date } })
+          await prisma.holiday.deleteMany({ where: { userId, date } })
           return { success: true, message: `Removed holiday status for ${formatDate(date)}.` }
         }
         if (label) {
-          const res = await prisma.holiday.deleteMany({ where: { label: { contains: label.trim() } } })
+          const res = await prisma.holiday.deleteMany({
+            where: {
+              userId,
+              label: { contains: label.trim() },
+            },
+          })
           return { success: true, message: `Removed ${res.count} holiday entries matching "${label}".` }
         }
         return { error: 'Please specify a date or label name to delete.' }
       }
 
       if (name === 'list_holidays') {
-        const holidays = await prisma.holiday.findMany({ orderBy: { date: 'asc' } })
+        const holidays = await prisma.holiday.findMany({
+          where: { userId },
+          orderBy: { date: 'asc' },
+        })
         return {
           total: holidays.length,
           holidays: holidays.map((h) => ({
@@ -481,27 +506,28 @@ RULES:
     }
 
     let response: any = null
-    let activeModel = CANDIDATE_MODELS[0]
 
-    for (const m of CANDIDATE_MODELS) {
-      try {
-        response = await ai.models.generateContent({
-          model: m,
-          contents,
-          config: {
-            systemInstruction,
-            tools: [{ functionDeclarations: toolDeclarations as any }],
-          },
+    try {
+      response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents,
+        config: {
+          systemInstruction,
+          tools: [{ functionDeclarations: toolDeclarations as any }],
+        },
+      })
+    } catch (modelErr: any) {
+      if (
+        modelErr?.status === 404 ||
+        modelErr?.message?.includes('404') ||
+        modelErr?.message?.includes('not found') ||
+        modelErr?.message?.includes('NOT_FOUND')
+      ) {
+        return NextResponse.json({
+          reply: `The AI model (${MODEL_NAME}) is temporarily unavailable. Please check your Gemini configuration or try again shortly.`,
         })
-        activeModel = m
-        break
-      } catch (err: any) {
-        console.warn(`Model candidate ${m} failed:`, err?.status, err?.message?.slice(0, 100))
       }
-    }
-
-    if (!response) {
-      throw new Error('All candidate Gemini models were unavailable.')
+      throw modelErr
     }
 
     // Handle Function Calls Loop (up to 4 rounds)
@@ -516,7 +542,7 @@ RULES:
 
         const toolResult = await executeTool(name, args || {})
 
-        // Append assistant's full content (retaining thoughtSignature and id) and user function response
+        // Append assistant's full content and user function response
         contents.push(candidate.content)
         contents.push({
           role: 'user',
@@ -531,26 +557,59 @@ RULES:
         })
 
         // Call Gemini again with function output
-        response = await ai.models.generateContent({
-          model: activeModel,
-          contents,
-          config: {
-            systemInstruction,
-            tools: [{ functionDeclarations: toolDeclarations as any }],
-          },
-        })
+        try {
+          response = await ai.models.generateContent({
+            model: MODEL_NAME,
+            contents,
+            config: {
+              systemInstruction,
+              tools: [{ functionDeclarations: toolDeclarations as any }],
+            },
+          })
+        } catch (followupErr: any) {
+          if (
+            followupErr?.status === 404 ||
+            followupErr?.message?.includes('404') ||
+            followupErr?.message?.includes('not found') ||
+            followupErr?.message?.includes('NOT_FOUND')
+          ) {
+            return NextResponse.json({
+              reply: `The AI model (${MODEL_NAME}) encountered an availability error during tool execution. Please try again shortly.`,
+            })
+          }
+          throw followupErr
+        }
       } else {
         break
       }
     }
 
-    const replyText = response.text || 'I checked your records, but could not produce a response.'
+    // Record request count for user
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        chatRequestCount: currentCount + 1,
+        chatRequestDate: todayStr,
+      },
+    }).catch(() => {})
+
+    const replyText = response?.text || 'I checked your records, but could not produce a response.'
     return NextResponse.json({ reply: replyText })
   } catch (err: any) {
     console.error('Chat API error:', err)
     if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED')) {
       return NextResponse.json({
         reply: "I've reached the daily free tier usage limit for Google Gemini. Please try again in a little while!",
+      })
+    }
+    if (
+      err?.status === 404 ||
+      err?.message?.includes('404') ||
+      err?.message?.includes('not found') ||
+      err?.message?.includes('NOT_FOUND')
+    ) {
+      return NextResponse.json({
+        reply: `The AI model (${MODEL_NAME}) is currently unavailable or was not found. Please verify your GEMINI_API_KEY or try again shortly.`,
       })
     }
     return NextResponse.json({

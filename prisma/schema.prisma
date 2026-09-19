@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -7,10 +7,23 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model User {
+  id               String    @id @default(cuid())
+  username         String    @unique
+  passwordHash     String
+  chatRequestCount Int       @default(0)
+  chatRequestDate  String?
+  createdAt        DateTime  @default(now())
+  courses          Course[]
+  holidays         Holiday[]
+}
+
 model Course {
   id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
-  code            String             @unique
+  code            String
   requiredPercent Float              @default(75.0)
   color           String             @default("#0D9488")
   syncedPresent   Int?               @default(0)
@@ -23,6 +36,9 @@ model Course {
   attendance      AttendanceRecord[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+
+  @@unique([userId, code])
+  @@index([userId])
 }
 
 model TimetableSlot {
@@ -36,6 +52,7 @@ model TimetableSlot {
   updatedAt DateTime @updatedAt
 
   @@index([weekday])
+  @@index([courseId])
 }
 
 model AttendanceRecord {
@@ -54,10 +71,13 @@ model AttendanceRecord {
 
 model Holiday {
   id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   date      String   // "YYYY-MM-DD"
   label     String   // e.g. "Diwali Break", "Mid-Term Exams"
   type      String   @default("holiday") // "holiday" | "exam"
   createdAt DateTime @default(now())
 
-  @@unique([date])
+  @@unique([userId, date])
+  @@index([userId])
 }

@@ -1,35 +1,38 @@
 # Roll Book 📖
 
-[![Next.js](https://img.shields.io/badge/Next.js-14.2-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.3-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.3-blue?style=flat-square&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.22-2d3748?style=flat-square&logo=prisma)](https://www.prisma.io/)
 [![Playwright](https://img.shields.io/badge/Playwright-1.49-45ba4b?style=flat-square&logo=playwright)](https://playwright.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-**Roll Book** is an intelligent attendance tracker, forecasting lab, and academic trajectory management suite designed with a strict principle: **never assume a lecture happened just because the timetable says it should have.**
+**Roll Book** is an intelligent, multi-user university attendance tracker, forecasting lab, and academic trajectory management suite designed with a strict principle: **never assume a lecture happened just because the timetable says it should have.**
+
+Built with Next.js 16 App Router, React 19, Prisma, PostgreSQL (Neon-ready for serverless deployment on Vercel), and Google Gemini AI.
 
 ---
 
 ## 🌟 Core Highlights
 
-1. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
-2. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory (rendered with dashed indicators and trend curves) without corrupting your verified history.
-3. **1-Click Live SLCM Attendance Sync**: Native local scraper bridge (`scraper/agent.js` on `http://localhost:4747`). Click "Sync Now" in the UI and Roll Book talks to the local agent, executes the Playwright session, and reconciles courses directly without manual file picking.
-4. **Playful Geometric Design System (Dual Light/Dark Mode)**: High-contrast neo-brutalist sticker styling with Electric Teal primary accents (`#0D9488` light / `#2DD4BF` dark), chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
-5. **AI Attendance Advisor (Google Gemini Free Tier)**: Built-in intelligent chatbot powered by `@google/genai` (Gemini 2.5 Flash) with deterministic function/tool calling directly into SQLite data—never hallucinating numbers.
-6. **1-Click Batch Actions**: Fast bulk marking for today's lectures, past backlog audit items, and future planning days with a single tap.
-7. **Holiday & Exam Declaration Engine**: Built-in calendar registry for official university recesses and examination days with automatic exclusion from past unlogged audits and future class simulations.
-8. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
-9. **1-Click Section Onboarding**: Automatically imports all subjects and weekly timetable schedules for 22 MIT Bengaluru CSE Stream sections (`C01`–`C22`).
-10. **Local Single-Account Auth**: Protected by Web Crypto HMAC-SHA256 session middleware with out-of-the-box local credentials.
-11. **Local-First & Portable**: Powered by SQLite via Prisma with zero external cloud dependencies. Full CSV exports and JSON backup/restore built in.
+1. **Strict Per-User Data Isolation**: Each friend has their own private account. Courses, timetable schedules, attendance logs, and declared holidays are isolated per user. Cross-account mutations and queries are strictly rejected with `403 Forbidden`.
+2. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
+3. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory without corrupting your verified history.
+4. **1-Click Live SLCM Attendance Sync**: Native local scraper bridge (`scraper/agent.js` on `http://127.0.0.1:4747`). Click "Sync Now" in the UI and Roll Book communicates with the local agent, executes the Playwright session, and reconciles courses directly without manual file picking. Hardened with loopback restriction and CORS origin validation.
+5. **AI Attendance Advisor (Google Gemini Free Tier)**: Built-in intelligent advisor powered by `@google/genai` (`gemini-flash-latest`) with 7 deterministic database tools—querying summaries, course details, unlogged classes, upcoming schedules, and declaring holidays directly into the user's data without hallucinations. Features per-user daily rate limiting to protect shared free tier limits.
+6. **Compound Multi-Tenant Uniqueness**: Users can register identical subject codes (e.g. `MAT101`) and holiday dates without unique constraint collisions.
+7. **Playful Geometric Design System (Dual Light/Dark Mode)**: High-contrast neo-brutalist sticker styling with Electric Teal primary accents (`#0D9488` light / `#2DD4BF` dark), chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
+8. **1-Click Section Onboarding**: Automatically imports all subjects and weekly timetable schedules for 22 MIT Bengaluru CSE Stream sections (`C01`–`C22`).
+9. **Deterministic Math Engine**: Computes exact skippable buffers (how many classes you can afford to miss) or mandatory recovery streaks (how many consecutive attendances you need to restore compliance).
+10. **Zero-Cost Hosting Ready**: Architected for free-tier hosting on **Vercel** with a free serverless PostgreSQL database from **Neon**.
 
 ---
 
-## 📚 In-Depth Documentation
+## 📚 Documentation Index
 
-- 🏛️ **[System Architecture & Data Engine](docs/ARCHITECTURE.md)**: Deep dive into the database schema, auth middleware, actual vs. planning mode separation, and API specifications.
+- 🚀 **[Vercel & Neon Free Deployment Guide](DEPLOYMENT.md)**: Complete step-by-step walkthrough to host Roll Book on Vercel with Neon PostgreSQL for free.
+- 🏛️ **[System Architecture & Data Engine](docs/ARCHITECTURE.md)**: Deep dive into the database schema, multi-user auth, API specifications, and data scoping.
 - 📐 **[Mathematical Formulations & Proofs](docs/FORMULAS.md)**: Mathematical derivations and proofs for Safe Zone skippable margins, recovery streaks, and projected trajectory simulations.
 - 🤖 **[SLCM 2.0 Scraper & Bridge Guide](docs/SLCM_SCRAPER_GUIDE.md)**: Complete guide on Salesforce Experience Cloud authentication, multi-semester Apex response interception, and troubleshooting.
 
@@ -51,61 +54,70 @@ Calculates the exact number of future consecutive classes you must attend to res
 
 $$\text{Must Attend Next} = \left\lceil \frac{R \times \text{Total Held} - \text{Present}}{1 - R} \right\rceil$$
 
-*(If $R = 100\%$ and any class has been missed, the system cleanly identifies that $100\%$ is mathematically unachievable rather than crashing.)*
-
 ---
 
-## 🚀 Getting Started
+## 🚀 Quickstart (Local Development)
 
 ### 1. Prerequisites
 - Node.js `18.x` or later (tested on Node v22)
+- PostgreSQL database (local, Docker, or Neon free tier)
 - npm / pnpm / yarn
 
-### 2. Installation & Setup
+### 2. Clone & Install
 ```bash
-# Clone the repository
 git clone https://github.com/bleedingedge121/rollbook.git
 cd rollbook
-
-# Install dependencies
 npm install
-
-# Push SQLite schema
-npx prisma db push
 ```
 
 ### 3. Environment Configuration
-Create or verify your `.env` file (optional; default credentials work automatically):
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+Set your environment variables in `.env`:
 ```env
-DATABASE_URL="file:./dev.db"
-APP_USERNAME=admin
-APP_PASSWORD=rollbook
-APP_SESSION_SECRET=change-this-to-a-long-random-string
-GEMINI_API_KEY=your-gemini-api-key-here
+# PostgreSQL connection string (Local or Neon)
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/rollbook?schema=public"
+
+# Secret used to sign HMAC SHA-256 session tokens (any long random string)
+APP_SESSION_SECRET="your-random-32-char-secret-string"
+
+# Google Gemini API Key (Free from https://aistudio.google.com)
+GEMINI_API_KEY="your-gemini-api-key"
+
+# Scraper allowed origin (defaults to http://localhost:3000)
+AGENT_ALLOWED_ORIGIN="http://localhost:3000"
 ```
 
-### 4. Start Development Server & Local Sync Agent
-In terminal 1 (Next.js App):
+### 4. Sync Database Schema
+```bash
+npx prisma db push
+```
+
+### 5. Start Application & Sync Bridge
+In Terminal 1 (Next.js App):
 ```bash
 npm run dev
 ```
 
-In terminal 2 (Local SLCM Sync Bridge):
+In Terminal 2 (Local SLCM Scraper Bridge):
 ```bash
 npm run scraper:agent
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** in your browser and sign in with **`admin`** / **`rollbook`**.
+Open **[http://localhost:3000](http://localhost:3000)** in your browser. Click **Sign Up** to create your personal account!
 
 ---
 
-## 🧭 First-Time Setup & Onboarding
+## ☁️ Deploying to Vercel (100% Free)
 
-If your database is empty, the **Onboarding Wizard** will appear automatically:
-1. Tap **"Choose My Section"**.
-2. Select your section (e.g. **`C06`**).
-3. Confirm—your subjects and weekly schedule will be populated instantly.
-4. Tap **"Sync Now (1-Click)"** to immediately pull your verified attendance baseline from SLCM.
+Roll Book can be hosted permanently for free using:
+1. **Neon** (`neon.tech`): Free tier provides 512MB PostgreSQL storage with automatic connection pooling.
+2. **Vercel** (`vercel.com`): Free Hobby tier hosts Next.js applications with zero server maintenance.
+3. **Google AI Studio** (`aistudio.google.com`): Free Gemini API key with generous daily quota.
+
+👉 Follow the full **[DEPLOYMENT.md](DEPLOYMENT.md)** guide for step-by-step instructions.
 
 ---
 
@@ -142,53 +154,45 @@ RollBook/
 │   ├── FORMULAS.md           # Mathematical models and boundary proofs
 │   └── SLCM_SCRAPER_GUIDE.md # Salesforce Aura interception guide
 ├── prisma/
-│   ├── schema.prisma         # Course, TimetableSlot, AttendanceRecord, Holiday models
-│   └── seed.js               # Sample semester seed data
+│   ├── schema.prisma         # Multi-tenant PostgreSQL Prisma schema
+│   └── seed.js               # Sample semester seed script
+├── scripts/
+│   ├── migrate-to-multiuser.ts # One-time data migration script
+│   └── test-multiuser-isolation.ts # Automated cross-tenant security test suite
 ├── scraper/
-│   ├── agent.js              # Local HTTP bridge server (http://localhost:4747)
+│   ├── agent.js              # Local loopback HTTP bridge server (http://127.0.0.1:4747)
 │   ├── login.js              # Modular SSO/MFA Playwright login
 │   ├── sync.js               # Modular headless getCOPList response listener
-│   ├── package.json          # Scraper dependencies
-│   └── README.md             # Scraper quickstart
+│   └── package.json          # Scraper dependencies
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   ├── attendance/   # Attendance record CRUD & bulk logger
-│   │   │   ├── auth/         # Login, logout, session check
-│   │   │   ├── chat/         # Google Gemini AI Attendance Advisor
-│   │   │   ├── courses/      # Subject management
-│   │   │   ├── export/       # CSV and JSON backup/restore
-│   │   │   ├── holidays/     # Holiday and exam-day registry
-│   │   │   ├── reset/        # Full database atomic reset
+│   │   │   ├── attendance/   # Scoped attendance records CRUD & batch logger
+│   │   │   ├── auth/         # Login, signup, logout, session check
+│   │   │   ├── chat/         # Google Gemini AI Attendance Advisor (7 tools, quota protected)
+│   │   │   ├── courses/      # Scoped course management
+│   │   │   ├── export/       # Scoped CSV and JSON backup/restore
+│   │   │   ├── holidays/     # Scoped holiday and exam-day registry
+│   │   │   ├── reset/        # Per-user database reset
 │   │   │   ├── sections/     # Official department section schedules
-│   │   │   ├── sync/         # SLCM reconciliation diff engine
-│   │   │   └── timetable/    # Weekly slot management
-│   │   ├── login/            # High-contrast login page
-│   │   ├── globals.css       # Playful Geometric design tokens & CSS variables
+│   │   │   ├── sync/         # Scoped SLCM reconciliation diff engine
+│   │   │   └── timetable/    # Scoped weekly slot management
+│   │   ├── login/            # Dual-mode Sign In / Sign Up page
+│   │   ├── globals.css       # Neo-brutalist design tokens & CSS variables
 │   │   ├── layout.tsx        # Shell with Outfit and Plus Jakarta Sans fonts
 │   │   └── page.tsx          # App orchestrator
-│   ├── components/
-│   │   ├── Navigation.tsx    # Header, stats badge, theme switcher, and sign-out
-│   │   ├── HomeView.tsx      # Dashboard with Today's schedule and past audit
-│   │   ├── SubjectsView.tsx  # Cards, sparklines & audit trail
-│   │   ├── CalendarView.tsx  # Month matrix & live planning simulator
-│   │   ├── SettingsView.tsx  # Timetable editor, 1-click sync bridge, reset
-│   │   ├── ChatWidget.tsx    # Google Gemini AI Attendance Advisor widget
-│   │   ├── OnboardingWizard.tsx # 1-click section setup flow with SLCM sync prompt
-│   │   ├── CourseModal.tsx
-│   │   ├── SlotModal.tsx
-│   │   ├── SectionImportModal.tsx # Department timetable selector
-│   │   ├── SyncModal.tsx     # SLCM diff & merge selector
-│   │   └── ThemeProvider.tsx # next-themes client provider
+│   ├── components/           # UI views, modals, and navigation
 │   ├── lib/
 │   │   ├── attendance.ts     # Deterministic math engine
-│   │   ├── auth.ts           # HMAC-SHA256 Web Crypto session token helpers
+│   │   ├── auth.ts           # Web Crypto session tokens & bcrypt password hashing
 │   │   ├── courseMatch.ts    # Normalized & fuzzy course matcher
 │   │   ├── officialTimetable.ts # 22 section schedules (C01-C22)
-│   │   └── prisma.ts         # Prisma Client singleton
+│   │   ├── prisma.ts         # Prisma Client singleton
+│   │   └── session.ts        # requireUser & verifyCourseOwnership helpers
 │   ├── middleware.ts         # Edge session protection middleware
 │   └── types/
 │       └── index.ts          # Shared TypeScript types
+├── DEPLOYMENT.md             # Vercel & Neon free deployment guide
 └── package.json
 ```
 

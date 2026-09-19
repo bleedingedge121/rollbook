@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUser, verifyCourseOwnership } from '@/lib/session'
 
 export async function GET(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const { searchParams } = new URL(req.url)
     const courseId = searchParams.get('courseId')
@@ -10,7 +15,9 @@ export async function GET(req: Request) {
     const endDate = searchParams.get('endDate')
     const month = searchParams.get('month') // e.g. "2026-09"
 
-    const whereClause: any = {}
+    const whereClause: any = {
+      course: { userId },
+    }
     if (courseId) whereClause.courseId = courseId
     if (date) whereClause.date = date
     if (startDate && endDate) {
@@ -46,11 +53,27 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const body = await req.json()
 
     // Handle batch logging if passed an array
     if (Array.isArray(body.records)) {
+      // Validate all courses belong to this user first
+      for (const rec of body.records) {
+        if (!rec.courseId) continue
+        const isOwned = await verifyCourseOwnership(rec.courseId, userId)
+        if (!isOwned) {
+          return NextResponse.json(
+            { error: `Forbidden: Course "${rec.courseId}" does not belong to you.` },
+            { status: 403 }
+          )
+        }
+      }
+
       const created = []
       for (const rec of body.records) {
         if (!rec.courseId || !rec.date || !rec.status) continue
@@ -91,6 +114,15 @@ export async function POST(req: Request) {
       )
     }
 
+    // Verify course ownership
+    const isOwned = await verifyCourseOwnership(courseId, userId)
+    if (!isOwned) {
+      return NextResponse.json(
+        { error: 'Forbidden: Course does not belong to you' },
+        { status: 403 }
+      )
+    }
+
     // Delete existing record for this course + date to avoid duplicates
     await prisma.attendanceRecord.deleteMany({
       where: {
@@ -122,6 +154,10 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const { searchParams } = new URL(req.url)
     const date = searchParams.get('date')
@@ -134,7 +170,19 @@ export async function DELETE(req: Request) {
       )
     }
 
-    const whereClause: any = {}
+    if (courseId) {
+      const isOwned = await verifyCourseOwnership(courseId, userId)
+      if (!isOwned) {
+        return NextResponse.json(
+          { error: 'Forbidden: Course does not belong to you' },
+          { status: 403 }
+        )
+      }
+    }
+
+    const whereClause: any = {
+      course: { userId },
+    }
     if (date) whereClause.date = date
     if (courseId) whereClause.courseId = courseId
 

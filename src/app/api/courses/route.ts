@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUser } from '@/lib/session'
 
 export async function GET() {
+  const auth = await requireUser()
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const courses = await prisma.course.findMany({
+      where: { userId },
       include: {
         timetableSlots: {
           orderBy: [{ weekday: 'asc' }, { label: 'asc' }],
@@ -23,6 +29,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const body = await req.json()
     const { name, code, requiredPercent, color } = body
@@ -36,6 +46,7 @@ export async function POST(req: Request) {
 
     const course = await prisma.course.create({
       data: {
+        userId,
         name: name.trim(),
         code: code.trim().toUpperCase(),
         requiredPercent: requiredPercent ? parseFloat(requiredPercent) : 75.0,
@@ -47,7 +58,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     if (error?.code === 'P2002') {
       return NextResponse.json(
-        { error: 'A course with this code already exists' },
+        { error: 'A course with this code already exists in your account' },
         { status: 400 }
       )
     }

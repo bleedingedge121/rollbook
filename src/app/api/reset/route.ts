@@ -1,20 +1,34 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUser } from '@/lib/session'
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const body = await req.json().catch(() => ({}))
     const { seedSample } = body
 
-    // Execute atomic deletion of all user records
+    // Execute atomic deletion of only this user's records
     await prisma.$transaction([
-      prisma.attendanceRecord.deleteMany(),
-      prisma.timetableSlot.deleteMany(),
-      prisma.course.deleteMany(),
+      prisma.attendanceRecord.deleteMany({
+        where: { course: { userId } },
+      }),
+      prisma.timetableSlot.deleteMany({
+        where: { course: { userId } },
+      }),
+      prisma.course.deleteMany({
+        where: { userId },
+      }),
+      prisma.holiday.deleteMany({
+        where: { userId },
+      }),
     ])
 
     if (seedSample) {
-      // Re-seed standard initial course baseline if requested
+      // Re-seed standard initial course baseline for this user
       const coursesData = [
         {
           name: 'Engineering Physics',
@@ -74,6 +88,7 @@ export async function POST(req: Request) {
       for (const item of coursesData) {
         const course = await prisma.course.create({
           data: {
+            userId,
             name: item.name,
             code: item.code,
             requiredPercent: item.requiredPercent,
@@ -97,8 +112,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: seedSample
-        ? 'All data reset and sample subjects reloaded successfully.'
-        : 'All data has been completely cleared.',
+        ? 'Your data was reset and sample subjects reloaded successfully.'
+        : 'Your data has been completely cleared.',
     })
   } catch (error) {
     console.error('Reset database error:', error)

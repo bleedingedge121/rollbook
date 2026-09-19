@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { OFFICIAL_SECTIONS } from '@/lib/officialTimetable'
 import { findBestMatch, normalizeCode } from '@/lib/courseMatch'
+import { requireUser } from '@/lib/session'
 
 interface ApplyRequest {
   section: string
@@ -11,6 +12,10 @@ interface ApplyRequest {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const body: ApplyRequest = await req.json()
     const { section, apply, merges } = body
@@ -21,6 +26,7 @@ export async function POST(req: Request) {
     }
 
     const existingCourses = await prisma.course.findMany({
+      where: { userId },
       select: { id: true, name: true, code: true },
     })
 
@@ -59,7 +65,9 @@ export async function POST(req: Request) {
       let targetId: string | null = null
 
       if (decision && decision !== 'NEW' && decision !== 'SKIP') {
-        targetId = decision
+        // Ensure the specified course belongs to this user
+        const isUserCourse = existingCourses.some((ec) => ec.id === decision)
+        targetId = isUserCourse ? decision : null
       } else if (decision === 'NEW') {
         targetId = null // force create below
       } else {
@@ -71,6 +79,7 @@ export async function POST(req: Request) {
       if (!targetId) {
         const created = await prisma.course.create({
           data: {
+            userId,
             name: c.name,
             code: normalizeCode(c.code),
             requiredPercent: 75.0,
@@ -84,11 +93,14 @@ export async function POST(req: Request) {
     }
 
     // Replace timetable slots ONLY for the courses touched by this section import,
-    // so unrelated courses' manually-entered slots are untouched.
+    // ensuring they belong to this user.
     const touchedCourseIds = Array.from(new Set(Object.values(shortToCourseId)))
     if (touchedCourseIds.length > 0) {
       await prisma.timetableSlot.deleteMany({
-        where: { courseId: { in: touchedCourseIds } },
+        where: {
+          courseId: { in: touchedCourseIds },
+          course: { userId },
+        },
       })
     }
 

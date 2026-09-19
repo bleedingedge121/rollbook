@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireUser, verifyCourseOwnership } from '@/lib/session'
 
 export async function GET() {
+  const auth = await requireUser()
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const slots = await prisma.timetableSlot.findMany({
+      where: {
+        course: { userId },
+      },
       include: {
         course: {
           select: {
@@ -29,6 +37,10 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+  const { userId } = auth
+
   try {
     const body = await req.json()
     const { courseId, weekday, label, room } = body
@@ -37,6 +49,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: 'courseId, weekday (0-6), and label are required' },
         { status: 400 }
+      )
+    }
+
+    const isOwned = await verifyCourseOwnership(courseId, userId)
+    if (!isOwned) {
+      return NextResponse.json(
+        { error: 'Forbidden: Course does not belong to you' },
+        { status: 403 }
       )
     }
 
