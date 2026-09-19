@@ -60,10 +60,25 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(password)
+
+    // Determine initial role:
+    // If username is 'admin', or in process.env.ADMIN_USERNAMES, or first registered user -> 'admin'
+    const adminList = (process.env.ADMIN_USERNAMES || '')
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+
+    const userCount = await prisma.user.count()
+    const shouldBeAdmin =
+      normalizedUsername === 'admin' ||
+      adminList.includes(normalizedUsername) ||
+      userCount === 0
+
     const user = await prisma.user.create({
       data: {
         username: normalizedUsername,
         passwordHash,
+        role: shouldBeAdmin ? 'admin' : 'user',
       },
     })
 
@@ -71,7 +86,7 @@ export async function POST(req: Request) {
     const res = NextResponse.json(
       {
         success: true,
-        user: { id: user.id, username: user.username },
+        user: { id: user.id, username: user.username, role: user.role },
       },
       { status: 201 }
     )
@@ -85,10 +100,34 @@ export async function POST(req: Request) {
     })
 
     return res
-  } catch (error) {
+  } catch (error: any) {
     console.error('Signup error:', error)
+    const rawMessage = error?.message || ''
+    let userMessage = 'Failed to create account. Please try again.'
+
+    if (
+      rawMessage.includes('column') ||
+      rawMessage.includes('does not exist') ||
+      rawMessage.includes('relation') ||
+      error?.code === 'P2022' ||
+      error?.code === 'P2021'
+    ) {
+      userMessage = 'Database schema is out of date. Please run "npx prisma db push" or redeploy on Vercel to sync schema.'
+    } else if (
+      rawMessage.includes('connect') ||
+      rawMessage.includes("Can't reach database") ||
+      rawMessage.includes('ETIMEDOUT') ||
+      rawMessage.includes('ECONNREFUSED') ||
+      error?.code === 'P1001'
+    ) {
+      userMessage = 'Cannot connect to database. Please check DATABASE_URL in your environment settings.'
+    } else if (rawMessage) {
+      const firstLine = rawMessage.split('\n')[0] || rawMessage
+      userMessage = `Signup failed: ${firstLine.slice(0, 150)}`
+    }
+
     return NextResponse.json(
-      { error: 'Failed to create account. Please try again.' },
+      { error: userMessage },
       { status: 500 }
     )
   }

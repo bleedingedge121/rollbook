@@ -97,7 +97,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 export async function checkCredentials(
   username: string,
   password: string
-): Promise<{ id: string; username: string } | null> {
+): Promise<{ id: string; username: string; role: string } | null> {
   if (!username || !password) return null
   const normalizedUsername = username.toLowerCase().trim()
   const user = await prisma.user.findUnique({
@@ -108,7 +108,7 @@ export async function checkCredentials(
   const isValid = await bcrypt.compare(password, user.passwordHash)
   if (!isValid) return null
 
-  return { id: user.id, username: user.username }
+  return { id: user.id, username: user.username, role: user.role }
 }
 
 export const SESSION_COOKIE_NAME = SESSION_COOKIE
