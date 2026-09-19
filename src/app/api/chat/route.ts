@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
     if (currentCount >= MAX_DAILY_CHAT_REQUESTS) {
       return NextResponse.json({
-        reply: `You have reached your daily limit of ${MAX_DAILY_CHAT_REQUESTS} AI advisor questions for today. This shared quota helps keep Roll Book free and reliable for all users. Please try again tomorrow!`,
+        reply: `You have reached your daily limit of ${MAX_DAILY_CHAT_REQUESTS} AI advisor questions for today. This limit helps keep Roll Book fast and reliable for all users. Please check back tomorrow!`,
       })
     }
 
@@ -610,7 +610,7 @@ RULES:
     console.error('Chat API error:', err)
     if (err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('RESOURCE_EXHAUSTED')) {
       return NextResponse.json({
-        reply: "I've reached the daily free tier usage limit for Google Gemini. Please try again in a little while!",
+        reply: "I've reached the daily request limit. Please try again shortly!",
       })
     }
     if (
@@ -620,11 +620,11 @@ RULES:
       err?.message?.includes('NOT_FOUND')
     ) {
       return NextResponse.json({
-        reply: `The AI model (${MODEL_NAME}) is currently unavailable or was not found. Please verify your GEMINI_API_KEY or try again shortly.`,
+        reply: 'The AI advisor is temporarily unavailable. Please try again shortly.',
       })
     }
     return NextResponse.json({
-      reply: `The AI assistant encountered an issue: ${err?.message || 'Please check server connection'}.`,
+      reply: 'The AI assistant encountered a temporary issue. Please try again shortly.',
     })
   }
 }

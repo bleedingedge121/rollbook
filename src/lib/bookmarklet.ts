@@ -163,8 +163,8 @@ export function getBookmarkletSource(origin: string, token: string): string {
     }).then(function (data) {
       banner('✅ Attendance synced successfully! Refresh your Roll Book tab to view your updated figures.', '#34D399');
     }).catch(function (err) {
-      console.warn('[RollBook Sync] Direct push blocked by browser CSP. Showing manual copy box:', err);
-      banner('Site security blocked automatic push. Click <strong>Copy JSON</strong> below, then paste into Roll Book settings:', '#FB7185', true, JSON.stringify(courses));
+      console.log('[RollBook Sync] Ready for manual transfer. Showing copy button.');
+      banner('Attendance data captured! Click <strong>Copy JSON</strong> below, then paste into Roll Book:', '#10B981', true, JSON.stringify(courses));
     });
   }
 
