@@ -31,6 +31,7 @@ import {
 import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
 import { formatDate, formatDateTime, formatSlotTime } from '@/lib/formatters'
+import { generateBookmarklet } from '@/lib/bookmarklet'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
@@ -99,6 +100,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [activeSyncToken, setActiveSyncToken] = useState<string | null>(null)
   const [copiedToken, setCopiedToken] = useState(false)
   const [copiedCmd, setCopiedCmd] = useState(false)
+  const [copiedBookmarklet, setCopiedBookmarklet] = useState(false)
+  const [showPasteFallback, setShowPasteFallback] = useState(false)
+  const [pasteFallbackText, setPasteFallbackText] = useState('')
+  const [isSubmittingPaste, setIsSubmittingPaste] = useState(false)
+  const [pasteFallbackResult, setPasteFallbackResult] = useState<string | null>(null)
+
+  const handlePasteFallbackSubmit = async () => {
+    setIsSubmittingPaste(true)
+    setPasteFallbackResult(null)
+    try {
+      const courses = JSON.parse(pasteFallbackText)
+      const res = await fetch('/api/sync/paste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courses, syncedAt: new Date().toISOString() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to apply pasted data')
+      setPasteFallbackResult(`✅ ${data.message}`)
+      setPasteFallbackText('')
+      await onRefreshAll()
+    } catch (err: any) {
+      setPasteFallbackResult(`❌ ${err?.message || 'Could not parse or apply that data'}`)
+    } finally {
+      setIsSubmittingPaste(false)
+    }
+  }
 
   // Add Holiday Form State (Single vs Range)
   const [holidayMode, setHolidayMode] = useState<'single' | 'range'>('single')
@@ -599,6 +627,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                       {copiedToken ? 'Copied!' : 'Copy Token'}
                     </button>
                   </div>
+
+                  <div className="pt-3 border-t-2 border-emerald-500/30 space-y-2">
+                    <p className="text-[11px] font-heading font-bold text-emerald-800 dark:text-emerald-300">
+                      📱 On your phone or a computer without the repo? Drag this to your bookmarks bar instead —
+                      no install, no terminal:
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={typeof window !== 'undefined' ? generateBookmarklet(window.location.origin, activeSyncToken) : '#'}
+                        onClick={(e) => {
+                          if (!e.defaultPrevented) e.preventDefault()
+                        }}
+                        className="inline-flex pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold cursor-grab active:cursor-grabbing select-none items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)]"
+                      >
+                        🔖 Sync Roll Book
+                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (typeof window === 'undefined') return
+                          const bm = generateBookmarklet(window.location.origin, activeSyncToken)
+                          await navigator.clipboard.writeText(bm)
+                          setCopiedBookmarklet(true)
+                          setTimeout(() => setCopiedBookmarklet(false), 2000)
+                        }}
+                        className="pill-btn px-3 py-2 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] text-xs font-bold border-2 border-[var(--border)] flex items-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)]"
+                      >
+                        {copiedBookmarklet ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedBookmarklet ? 'Code Copied!' : 'Copy Bookmarklet Code'}</span>
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-[var(--muted-foreground)] leading-relaxed">
+                      On mobile, copy the code above and save it as a bookmark URL. Then: log into SLCM normally, tap the bookmark, and click into the Attendance section.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]">
@@ -679,6 +742,48 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Fallback: paste bookmarklet output manually if auto-push was blocked */}
+            <div className="pt-4 border-t-2 border-[var(--border)] space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowPasteFallback((v) => !v)}
+                className="text-xs font-heading font-bold text-[var(--muted-foreground)] hover:text-[var(--foreground)] flex items-center gap-1.5 transition-colors text-left"
+              >
+                <span className="font-mono">{showPasteFallback ? '▾' : '▸'}</span>
+                <span>Bookmarklet showed you data to copy instead of syncing automatically?</span>
+              </button>
+              {showPasteFallback && (
+                <div className="space-y-3 p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] shadow-[3px_3px_0px_var(--shadow-color)]">
+                  <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                    Paste what the bookmarklet gave you below — this happens if the SLCM site&apos;s own security
+                    blocked the direct push, which is out of our control but easy to work around.
+                  </p>
+                  <textarea
+                    value={pasteFallbackText}
+                    onChange={(e) => setPasteFallbackText(e.target.value)}
+                    placeholder='[{"name":"...","code":"...","present":0,"absent":0}, ...]'
+                    className="w-full h-24 bg-[var(--card)] border-2 border-[var(--border)] rounded-xl p-3 text-[11px] font-mono text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-[2px_2px_0px_var(--shadow-color)]"
+                  />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handlePasteFallbackSubmit}
+                      disabled={isSubmittingPaste || !pasteFallbackText.trim()}
+                      className="pill-btn px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] transition-transform active:scale-95"
+                    >
+                      {isSubmittingPaste ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                      <span>{isSubmittingPaste ? 'Applying...' : 'Apply Pasted Data'}</span>
+                    </button>
+                    {pasteFallbackResult && (
+                      <p className={`text-xs font-bold ${pasteFallbackResult.startsWith('✅') ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                        {pasteFallbackResult}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Advanced Fallback: Manual File Upload */}

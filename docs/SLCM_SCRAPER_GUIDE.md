@@ -64,15 +64,25 @@ The script:
 3. Automatically posts the verified payload to `{APP_URL}/api/sync/push`.
 4. Your hosted Roll Book dashboard updates immediately!
 
-### Step 4: Manual Fallback (Offline JSON Import)
+### Step 4: Browser Bookmarklet Sync (Zero-Install, Mobile & Desktop)
+If you don't want to run Node.js or terminal commands:
+1. In Roll Book, open **Settings** $\rightarrow$ **Sync & Import** and click **Generate My Sync Token**.
+2. Drag the **🔖 Sync Roll Book** button to your browser bookmarks bar (or click **Copy Bookmarklet Code** on mobile).
+3. In a new tab, log into your university SLCM portal (`https://maheslcmtech.manipal.edu`).
+4. Click your **Sync Roll Book** bookmark. A subtle status pill will appear: *"Listening for attendance data…"*
+5. Click into the **Attendance** section on SLCM.
+6. The bookmarklet captures the live Salesforce Aura response and automatically pushes it to your Roll Book account!
+7. If the university site's Content Security Policy blocks the direct push, the bookmarklet presents the captured JSON with a **Copy** button. Expand **"Bookmarklet showed you data to copy instead?"** in Roll Book settings, paste it, and click **Apply Pasted Data**.
+
+### Step 5: Manual Fallback (Offline JSON Import)
 If you prefer offline manual import:
 1. Run `node sync.js` to output `scraper/sync-output.json`.
 2. Open Roll Book web app on your desktop browser.
-3. Go to **Settings** $\rightarrow$ **SLCM Sync Bridge**.
-4. Click **Load Synced Data (JSON)**, choose `scraper/sync-output.json`, and confirm the reconciliation diff.
+3. Go to **Settings** $\rightarrow$ **Sync & Import**.
+4. Click **Upload sync-output.json manually**, choose `scraper/sync-output.json`, and confirm the reconciliation diff.
 
 > [!NOTE]
-> **Scraper Execution Context**: Running the local Playwright scraper script requires a computer or terminal environment with Node.js to handle Microsoft MFA. However, the **Sync & Import** tab in Settings is accessible from both desktop and mobile devices, allowing students to view sync tokens, import department section timetables, or review portal reconciliation diffs from their phones.
+> **Scraper Execution Context**: Both the **Browser Bookmarklet** and the **Desktop Scraper (`node agent.js`)** use the same underlying personal sync token architecture. While the Playwright agent requires local Node.js, the Bookmarklet runs inside your active browser session on desktop or mobile with zero installation.
 
 ---
 

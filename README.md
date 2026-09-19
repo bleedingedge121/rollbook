@@ -21,7 +21,7 @@ Built with Next.js 16 App Router, React 19, Prisma, PostgreSQL (Neon-ready for s
 3. **Dedicated Admin Console (`/admin`)**: Administrators can manage the shared holiday calendar, inspect user accounts and attendance baselines, perform per-user data resets, and permanently delete accounts with typed-username safety confirmations.
 4. **Authentic Actual Mode**: Attendance statistics are derived *strictly* from verified portal snapshots and confirmed manual logs. Unlogged dates remain unlogged—never silently assumed or blended into statistics.
 5. **Predictive Planning Mode**: Driven by your recurring weekly timetable, allowing you to simulate *Plan to Attend* and *Plan to Skip* choices into the future and visualize your projected percentage trajectory without corrupting your verified history.
-6. **Secure Reverse-Push SLCM Attendance Sync**: A lightweight desktop runner (`scraper/agent.js`) authenticates with your student credentials and Microsoft MFA on your machine, then securely pushes verified figures directly to `{APP_URL}/api/sync/push` using your Personal Sync Token. Eliminates all browser Mixed Content and Local Network Access restrictions.
+6. **Zero-Install Browser Bookmarklet & Reverse-Push Sync**: Sync attendance directly from your browser with a 1-click drag-and-drop bookmarklet (`javascript:...`) running inside your logged-in SLCM tab, or use the desktop CLI runner (`scraper/agent.js`). Securely pushes live attendance figures to `/api/sync/push` with seamless fallback for CSP-restricted environments (`/api/sync/paste`).
 7. **AI Attendance Advisor (Google Gemini Free Tier)**: Built-in intelligent advisor powered by `@google/genai` (`gemini-flash-latest`) with deterministic database tools—querying summaries, course details, unlogged classes, upcoming schedules, and managing calendar events directly without hallucinations. Features per-user daily rate limiting to protect shared free tier limits.
 8. **Compound Multi-Tenant Uniqueness**: Users can register identical subject codes (e.g. `MAT101`) without unique constraint collisions.
 9. **Playful Geometric Design System (Dual Light/Dark Mode)**: High-contrast neo-brutalist sticker styling with Electric Teal primary accents (`#0D9488` light / `#2DD4BF` dark), chunky 2px borders, hard offset shadows, bouncy Framer Motion micro-interactions, Outfit display font, and instant theme switching via `next-themes`.
@@ -202,7 +202,7 @@ RollBook/
 │   │   │   ├── holidays/     # Shared global university academic calendar
 │   │   │   ├── reset/        # Per-user database reset
 │   │   │   ├── sections/     # Official department section schedules
-│   │   │   ├── sync/         # Scoped SLCM reconciliation diff engine & reverse push
+│   │   │   ├── sync/         # Scoped SLCM sync, reverse push, paste fallback & reconciliation
 │   │   │   └── timetable/    # Scoped weekly slot management
 │   │   ├── login/            # Dual-mode Sign In / Sign Up page
 │   │   ├── globals.css       # Neo-brutalist design tokens & CSS variables
@@ -212,6 +212,7 @@ RollBook/
 │   ├── lib/
 │   │   ├── attendance.ts     # Deterministic math engine
 │   │   ├── auth.ts           # Web Crypto session tokens & bcrypt password hashing
+│   │   ├── bookmarklet.ts    # Client-side SLCM Aura interceptor bookmarklet generator
 │   │   ├── courseMatch.ts    # Normalized & fuzzy course matcher
 │   │   ├── formatters.ts     # 12hr am/pm & dd/mm/yyyy date/time formatters
 │   │   ├── officialTimetable.ts # 22 section schedules (C01-C22)

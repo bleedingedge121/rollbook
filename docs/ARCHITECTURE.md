@@ -223,8 +223,9 @@ To bypass modern browser restrictions (Mixed Content and Local Network Access bl
 - `PUT /api/attendance/[id]` — Updates record status (`present` / `absent`) or note.
 - `DELETE /api/attendance/[id]` — Deletes an attendance record.
 
-### 7. SLCM Reverse Push (`/api/sync/push`)
-- `POST /api/sync/push` — Ingests attendance payload from desktop agent using `Authorization: Bearer <syncToken>`.
+### 7. SLCM Reverse Push & Bookmarklet Sync (`/api/sync/push`, `/api/sync/paste`)
+- `POST /api/sync/push` — Ingests attendance payload from desktop agent or client-side bookmarklet using `Authorization: Bearer <syncToken>`.
+- `POST /api/sync/paste` — Fallback ingestion endpoint authenticated via session cookie (`requireUser`) when the bookmarklet's direct push is blocked by external CSP. Reconciles incoming courses via `autoApplySync`.
 
 ### 8. AI Attendance Advisor (`/api/chat`)
 - `POST /api/chat` — Google Gemini (`@google/genai`) AI endpoint using `gemini-flash-latest` with native database tools (`get_attendance_summary`, `get_course_detail`, `get_upcoming_classes`, `get_unlogged_sessions`, `list_holidays`, `add_holiday`, `delete_holiday`).
