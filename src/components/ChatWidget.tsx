@@ -27,7 +27,7 @@ export const ChatWidget: React.FC = () => {
     {
       role: 'assistant',
       content:
-        "Hello, Sir! I'm your Roll Book attendance advisor. Ask me anything about your current percentages, safe-to-skip buffers, recovery streaks, or upcoming timetable schedule.",
+        "Hello! I'm your Roll Book attendance advisor. Ask me anything about your current percentages, safe-to-skip buffers, recovery streaks, or upcoming timetable schedule.",
     },
   ])
   const [input, setInput] = useState('')
@@ -150,7 +150,7 @@ export const ChatWidget: React.FC = () => {
                     Attendance Advisor
                   </h3>
                   <p className="text-[10px] text-[var(--muted-foreground)] font-mono">
-                    Google Gemini Free Tier • Real Data
+                    Attendance Intelligence
                   </p>
                 </div>
               </div>

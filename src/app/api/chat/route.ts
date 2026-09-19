@@ -504,7 +504,8 @@ RULES:
 3. If the user asks to add or declare a holiday, holiday break, recess, or exam day (e.g. "add a holiday on 25 Dec for Christmas", "add Diwali break from 2026-10-20 to 2026-10-24", "mark tomorrow as a holiday"), ALWAYS call the \`add_holiday\` tool with the corresponding date/dates and label.
 4. If asked to list holidays, call \`list_holidays\`. If asked to remove a holiday, call \`delete_holiday\`.
 5. All times must be formatted in 12-hour format with lowercase am/pm (e.g. 9:00 am, 2:30 pm), and all dates must be formatted strictly in dd/mm/yyyy (e.g. 19/09/2026).
-6. Be concise, punchy, clear, and supportive. Use a witty, dignified tone.`
+6. Be concise, punchy, clear, and supportive. Use a witty, dignified tone.
+7. NEVER address the user as "Sir", "Ma'am", or similar honorifics. Speak to them directly as a smart, capable peer.`
 
     // Format messages for Gemini
     const contents: any[] = []

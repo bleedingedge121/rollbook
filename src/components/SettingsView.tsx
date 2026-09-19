@@ -39,6 +39,7 @@ import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
 import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from './SyncModal'
 import { SectionImportModal } from './SectionImportModal'
+import { parsePastedTableText, SyncedCourse } from '@/lib/reconcile'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 
 interface SettingsViewProps {
@@ -121,7 +122,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       return
     }
     try {
-      const courses = JSON.parse(trimmed)
+      let courses: SyncedCourse[] = []
+
+      // 1. Try parsing JSON
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          courses = Array.isArray(parsed) ? parsed : parsed.courses || parsed.data || parsed.records || []
+        } catch {
+          // fallback to text parser
+        }
+      }
+
+      // 2. If not JSON or empty, try parsing as raw copied table rows
+      if (!courses || courses.length === 0) {
+        courses = parsePastedTableText(trimmed)
+      }
+
+      if (!courses || courses.length === 0) {
+        throw new Error('Could not find course attendance figures. Please paste valid JSON or copy rows directly from your SLCM attendance table.')
+      }
+
       const res = await fetch('/api/sync/paste', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,7 +154,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setPasteFallbackText('')
       await onRefreshAll()
     } catch (err: any) {
-      setPasteFallbackResult(`❌ ${err?.message || 'Could not parse or apply that data. Make sure it is valid course JSON.'}`)
+      setPasteFallbackResult(`❌ ${err?.message || 'Could not parse or apply that data. Make sure it is valid JSON or copied table text.'}`)
     } finally {
       setIsSubmittingPaste(false)
     }
@@ -605,6 +626,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             )}
 
+            {/* 🏫 Instant Setup: Section Template (C01 - C22) */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-[var(--background)] border-2 border-indigo-500/40 shadow-[4px_4px_0px_var(--shadow-color)] space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] shrink-0">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading font-black text-sm text-[var(--foreground)]">
+                      Instant Setup from Section Template (C01 – C22)
+                    </h3>
+                    <p className="text-[11px] text-[var(--muted-foreground)]">
+                      Perfect for mobile or new users: load all courses & weekly timetable in 1 click!
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsSectionModalOpen(true)}
+                  className="pill-btn px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_var(--shadow-color)] shrink-0 transition-transform active:scale-95"
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>Select My Section</span>
+                </button>
+              </div>
+            </div>
+
             {/* Step 1: Personal Sync Token */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -713,7 +762,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div className="pt-3 border-t-2 border-emerald-500/20 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-heading font-bold text-[var(--foreground)] flex items-center gap-1.5">
-                          <span>📋 Paste Attendance Data (from SLCM Banner)</span>
+                          <span>📋 Paste Attendance Data (JSON or Copied Table Text)</span>
                         </span>
                         {pasteFallbackText && (
                           <button
@@ -729,12 +778,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         )}
                       </div>
                       <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-                        When the SLCM banner captures your subjects, click its <strong>Copy JSON</strong> button and paste it below:
+                        Paste the JSON from the SLCM banner, OR copy the attendance table rows directly from your SLCM screen on mobile or laptop:
                       </p>
                       <textarea
                         value={pasteFallbackText}
                         onChange={(e) => setPasteFallbackText(e.target.value)}
-                        placeholder='[{"name":"...","code":"...","present":0,"absent":0}, ...]'
+                        placeholder='Paste JSON from banner, or copy and paste rows directly from your SLCM attendance table!'
                         className="w-full h-24 bg-[var(--card)] border-2 border-[var(--border)] rounded-xl p-3 text-[11px] font-mono text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-[2px_2px_0px_var(--shadow-color)]"
                       />
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3">

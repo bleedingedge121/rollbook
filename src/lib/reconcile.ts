@@ -17,6 +17,57 @@ export interface CourseMergeSelection {
 }
 
 /**
+ * Parses copied plain-text attendance tables (from mobile or desktop browser screens)
+ * into structured SyncedCourse records.
+ */
+export function parsePastedTableText(text: string): SyncedCourse[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const results: SyncedCourse[] = []
+
+  for (const line of lines) {
+    if (/course\s*name|classes\s*attended|sl\s*no|subject\s*title|attendance\s*percentage/i.test(line)) continue
+
+    const cleanLine = line.replace(/\b\d+(\.\d+)?%/g, '')
+    const numMatches = cleanLine.match(/\b\d+\b/g)
+    if (!numMatches || numMatches.length < 2) continue
+
+    const nums = numMatches.map(Number)
+    let present = 0
+    let absent = 0
+
+    const last = nums[nums.length - 1]
+    const secondLast = nums[nums.length - 2]
+
+    if (secondLast <= last && last <= 250) {
+      present = secondLast
+      absent = last - secondLast
+    } else {
+      present = secondLast
+      absent = last
+    }
+
+    const codeMatch = line.match(/\b([A-Z]{2,5}[_-]?\d{3,4}[A-Z]?)\b/i)
+    const code = codeMatch ? codeMatch[1].toUpperCase() : ''
+
+    let name = cleanLine
+      .replace(/\b\d+\b/g, '')
+      .replace(/[|\t–—]/g, ' ')
+      .trim()
+
+    if (code) {
+      name = name.replace(new RegExp(`\\b${code}\\b`, 'gi'), '').trim()
+    }
+    name = name.replace(/\s+/g, ' ').replace(/^[-_:,.\s]+|[-_:,.\s]+$/g, '').trim()
+
+    if (name.length >= 3) {
+      results.push({ name, code, present, absent })
+    }
+  }
+
+  return results
+}
+
+/**
  * Automatically applies an incoming course array directly to the user's courses,
  * matching existing courses by code or fuzzy name, or creating new ones.
  * Updates both synced baseline counts and simple counter counts.
