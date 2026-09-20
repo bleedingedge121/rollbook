@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireUser, requireAdmin } from '@/lib/session'
 import { addDays, isBefore, isSameDay } from 'date-fns'
+import { getOfficialCalendarDates } from '@/lib/academicCalendar'
 
 function parseIsoDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
@@ -20,13 +21,56 @@ export async function GET(req?: Request) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const holidays = await prisma.holiday.findMany({
+    let holidays = await prisma.holiday.findMany({
       orderBy: { date: 'asc' },
     })
+
+    // Ensure all official calendar events starting from Sep 20, 2026 are present
+    const officialDates = getOfficialCalendarDates('2026-09-20')
+    const existingDateSet = new Set(holidays.map((h) => h.date))
+    const missing = officialDates.filter((od) => !existingDateSet.has(od.date))
+
+    if (missing.length > 0) {
+      try {
+        await prisma.holiday.createMany({
+          data: missing.map((m) => ({
+            date: m.date,
+            label: m.label,
+            type: m.type,
+          })),
+          skipDuplicates: true,
+        })
+        holidays = await prisma.holiday.findMany({
+          orderBy: { date: 'asc' },
+        })
+      } catch (dbErr) {
+        console.warn('Could not auto-seed missing official calendar events into DB:', dbErr)
+        // Fallback: merge memory objects
+        for (const m of missing) {
+          holidays.push({
+            id: `official-${m.date}`,
+            date: m.date,
+            label: m.label,
+            type: m.type,
+            createdAt: new Date(),
+          } as any)
+        }
+        holidays.sort((a, b) => a.date.localeCompare(b.date))
+      }
+    }
+
     return NextResponse.json(holidays)
   } catch (error) {
     console.error('Failed to fetch holidays:', error)
-    return NextResponse.json({ error: 'Failed to fetch holidays' }, { status: 500 })
+    // Resilient fallback returning official calendar dates directly
+    const fallback = getOfficialCalendarDates('2026-09-20').map((m, idx) => ({
+      id: `official-${idx}-${m.date}`,
+      date: m.date,
+      label: m.label,
+      type: m.type,
+      createdAt: new Date().toISOString(),
+    }))
+    return NextResponse.json(fallback)
   }
 }
 

@@ -7,6 +7,7 @@ import { addDays, subDays, format, isBefore, isSameDay } from 'date-fns'
 import { requireUser } from '@/lib/session'
 import { autoApplySync, parsePastedTableText, SyncedCourse, autoHealUserCourses } from '@/lib/reconcile'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { getOfficialCalendarDates } from '@/lib/academicCalendar'
 
 function parseIsoDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
@@ -265,6 +266,28 @@ export async function POST(req: Request) {
       },
     ]
 
+    // Helper to retrieve DB holidays merged with official academic calendar (starting Sep 20, 2026)
+    const getMergedHolidays = async () => {
+      const dbHolidays = await prisma.holiday.findMany({ orderBy: { date: 'asc' } }).catch(() => [])
+      const official = getOfficialCalendarDates('2026-09-20')
+      const dbDateSet = new Set(dbHolidays.map((h) => h.date))
+
+      const merged = [...dbHolidays]
+      for (const off of official) {
+        if (!dbDateSet.has(off.date)) {
+          merged.push({
+            id: `official-${off.date}`,
+            date: off.date,
+            label: off.label,
+            type: off.type,
+            createdAt: new Date(),
+          } as any)
+        }
+      }
+
+      return merged.sort((a, b) => a.date.localeCompare(b.date))
+    }
+
     // Tool execution functions scoped to authenticated user
     const executeTool = async (name: string, args: any) => {
       if (name === 'sync_attendance_data') {
@@ -418,7 +441,7 @@ export async function POST(req: Request) {
         const today = new Date()
         const [slots, holidays, courses] = await Promise.all([
           prisma.timetableSlot.findMany({ where: { course: { userId } } }),
-          prisma.holiday.findMany(),
+          getMergedHolidays(),
           prisma.course.findMany({ where: { userId } }),
         ])
 
@@ -467,7 +490,7 @@ export async function POST(req: Request) {
         const today = new Date()
         const [slots, holidays, courses, attendance] = await Promise.all([
           prisma.timetableSlot.findMany({ where: { course: { userId } } }),
-          prisma.holiday.findMany(),
+          getMergedHolidays(),
           prisma.course.findMany({ where: { userId } }),
           prisma.attendanceRecord.findMany({ where: { course: { userId } } }),
         ])
@@ -601,9 +624,7 @@ export async function POST(req: Request) {
       }
 
       if (name === 'list_holidays') {
-        const holidays = await prisma.holiday.findMany({
-          orderBy: { date: 'asc' },
-        })
+        const holidays = await getMergedHolidays()
         return {
           total: holidays.length,
           holidays: holidays.map((h) => ({
@@ -632,7 +653,33 @@ RULES:
 7. NEVER address the user as "Sir", "Ma'am", or similar honorifics. Speak to them directly as a smart, capable peer.
 8. If the user pastes attendance data, an SLCM table, or asks to update their attendance from text, call \`sync_attendance_data\` to save it directly to their Roll Book database account if not already synced. If a [SYSTEM NOTIFICATION] indicates Roll Book already synchronized the courses, celebrate the sync, confirm how many courses were updated, and provide an encouraging, organized breakdown of their subjects, present/total classes, and current percentages.
 9. When the user sends or uploads one or more screenshots/images of an attendance portal or SLCM table (even if split across multiple screenshots covering the top and bottom of the table), inspect ALL images collectively. Deduplicate any overlapping course rows across multiple screenshots. Extract all course names, course codes (e.g. SMS_1102, CES_1102, CES_1111), total classes, present count, and absent count for every unique course found across all uploaded screenshots. Immediately call \`sync_attendance_data\` with the deduplicated list of courses to save them directly to the user's Roll Book account. Once synchronized, confirm the exact courses and numbers recorded, and provide an encouraging summary of their overall attendance health.
-10. CRITICAL COURSE SEPARATION: "PROGRAMMING FOR PROBLEM SOLVING" (PPS theory, code CES_1102) and "PROGRAMMING FOR PROBLEM SOLVING LAB" (PPS Lab practical, code CES_1111) are TWO COMPLETELY SEPARATE SUBJECTS with separate codes and separate attendance records. Always treat and synchronize them as two distinct courses.`
+10. CRITICAL COURSE SEPARATION: "PROGRAMMING FOR PROBLEM SOLVING" (PPS theory, code CES_1102) and "PROGRAMMING FOR PROBLEM SOLVING LAB" (PPS Lab practical, code CES_1111) are TWO COMPLETELY SEPARATE SUBJECTS with separate codes and separate attendance records. Always treat and synchronize them as two distinct courses.
+11. OFFICIAL ACADEMIC CALENDAR & HOLIDAYS (MIT Bengaluru 2026-2027, starting from September 20, 2026):
+- Confirmed College Holidays (in RED on calendar — NO classes):
+  * 02/10/2026: Gandhi Jayanti
+  * 20/10/2026: Vijaya Dashami
+  * 09/11/2026: Deepavali
+  * 25/12/2026: Christmas
+  * 15/01/2027: Makara Sankranthi
+  * 26/01/2027: Republic Day
+  * 22/02/2027: Holi
+  * 10/03/2027: Ramzan
+  * 26/03/2027: Good Friday
+  * 08/04/2027: Ugadi
+  * 17/05/2027: Bakrid
+- Examination Windows (NO regular timetable classes, exam periods):
+  * 23/09/2026 – 01/10/2026: Mid-Term Examinations
+  * 22/10/2026 – 23/10/2026 & 26/10/2026 – 29/10/2026: Re-Mid Term Examinations
+  * 30/10/2026 & 02/11/2026 – 06/11/2026: Lab End Semester Examinations
+  * 14/11/2026 – 28/11/2026: Tentative End Semester Examinations (Always explicitly label as Tentative)
+  * 18/12/2026 – 02/01/2027: Tentative Make-Up Examinations (Always explicitly label as Tentative)
+  * 03/03/2027 – 09/03/2027: Mid-Term Examinations (Even Semester)
+  * 27/03/2027 & 29/03/2027 – 02/04/2027: Re-Midterm Examinations
+  * 13/04/2027 – 19/04/2027: Lab End Semester Examinations
+  * 24/04/2027 – 08/05/2027: Tentative End Semester Examinations (Even Semester, Always explicitly label as Tentative)
+  * 12/06/2027 – 26/06/2027: Tentative Make-Up Examinations (Always explicitly label as Tentative)
+- CRITICAL CALENDAR FILTER: If an event is NOT in red on the calendar and NOT an exam (such as Teacher's Day, Engineer's Day, Falak, Tech Solstice, Re-quiz, Class Committee meetings, Last Instructional Day, Gratitude Day, Utsav, etc.), DO NOT believe or count it as a holiday! It is a normal instructional working day with regular scheduled classes.
+12. MARKDOWN FORMATTING: Always format your answers with clean, beautiful Markdown. Put headings on their own separate lines preceded by blank lines (e.g. \\n\\n### Heading\\n\\n). Put bullet points on separate lines (e.g. \\n* **Item:** details). Use bold for dates, course codes, and key metrics. Never squish headings, rules, or bullets into a single inline paragraph.`
 
     // Format messages for Gemini
     const contents: any[] = []

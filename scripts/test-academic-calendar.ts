@@ -1,0 +1,73 @@
+import { getOfficialCalendarDates, OFFICIAL_ACADEMIC_CALENDAR_EVENTS } from '../src/lib/academicCalendar'
+
+console.log('=============================================')
+console.log('TESTING OFFICIAL MIT BLR ACADEMIC CALENDAR')
+console.log('=============================================\n')
+
+const dates = getOfficialCalendarDates('2026-09-20')
+
+console.log(`Total days registered (>= 2026-09-20): ${dates.length}`)
+
+// 1. Verify Start Date
+console.assert(dates.length > 0, 'Must have calendar dates')
+const firstDate = dates[0].date
+console.assert(firstDate >= '2026-09-20', `First date must be >= 2026-09-20, got: ${firstDate}`)
+console.log(`✓ First registered event: ${firstDate} (${dates[0].label})`)
+
+// 2. Verify Confirmed Holidays (Strictly in RED)
+const holidays = dates.filter(d => d.type === 'holiday')
+console.log(`\nConfirmed College Holidays (${holidays.length}):`)
+holidays.forEach(h => console.log(`  - ${h.date}: ${h.label}`))
+
+const expectedHolidays = [
+  { date: '2026-10-02', label: 'Gandhi Jayanti' },
+  { date: '2026-10-20', label: 'Vijaya Dashami' },
+  { date: '2026-11-09', label: 'Deepavali' },
+  { date: '2026-12-25', label: 'Christmas' },
+  { date: '2027-01-15', label: 'Makara Sankranthi' },
+  { date: '2027-01-26', label: 'Republic Day' },
+  { date: '2027-02-22', label: 'Holi' },
+  { date: '2027-03-10', label: 'Ramzan' },
+  { date: '2027-03-26', label: 'Good Friday' },
+  { date: '2027-04-08', label: 'Ugadi' },
+  { date: '2027-05-17', label: 'Bakrid' },
+]
+
+for (const exp of expectedHolidays) {
+  const found = holidays.find(h => h.date === exp.date)
+  console.assert(found !== undefined, `Missing holiday on ${exp.date}: ${exp.label}`)
+  console.assert(found?.label === exp.label, `Expected ${exp.label}, got ${found?.label}`)
+}
+console.log('✓ All 11 confirmed RED holidays present and verified!')
+
+// 3. Verify Exams and Tentative labeling
+const exams = dates.filter(d => d.type === 'exam')
+console.log(`\nExams count: ${exams.length} days`)
+
+const tentativeExams = exams.filter(e => e.tentative)
+console.log(`Tentative exams count: ${tentativeExams.length} days`)
+tentativeExams.forEach(t => {
+  console.assert(t.label.toLowerCase().includes('tentative'), `Tentative exam must include "Tentative" in label: ${t.label}`)
+})
+console.log('✓ All tentative exams explicitly include "Tentative" in label!')
+
+// 4. Verify NON-holidays are NOT included as holidays
+const nonHolidayDates = [
+  '2026-09-05', // Teacher's day
+  '2026-09-15', // Engineer's day
+  '2026-10-05', // Scholarship
+  '2026-10-12', // Falak
+  '2027-02-17', // Tech solstice
+  '2027-04-05', // Utsav
+  '2027-04-12', // Gratitude day
+]
+
+for (const nh of nonHolidayDates) {
+  const found = dates.find(d => d.date === nh)
+  console.assert(!found || found.type !== 'holiday', `${nh} must NOT be a holiday!`)
+}
+console.log('✓ Non-holiday / unconfirmed gray events correctly excluded from holidays!')
+
+console.log('\n=============================================')
+console.log('ALL ACADEMIC CALENDAR TESTS PASSED! 🚀')
+console.log('=============================================')

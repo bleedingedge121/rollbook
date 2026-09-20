@@ -11,6 +11,8 @@ import {
   Plus,
 } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -20,6 +22,17 @@ interface Message {
     data: string
     url?: string
   }>
+}
+
+function formatMarkdownContent(raw: string): string {
+  if (!raw) return ''
+  return raw
+    // Ensure headings have a newline before them if preceded by text or horizontal rules
+    .replace(/([^\n])\s*(#{1,6}\s+)/g, '$1\n\n$2')
+    // Ensure horizontal rules have newlines around them
+    .replace(/([^\n])\s*(---|\*\*\*)\s*([^\n])/g, '$1\n\n$2\n\n$3')
+    // Ensure bullet points have a newline before them if squished together
+    .replace(/([^\n*])\s+(\*\s+\*\*)/g, '$1\n* **')
 }
 
 export const ChatWidget: React.FC = () => {
@@ -368,7 +381,82 @@ export const ChatWidget: React.FC = () => {
                         ))}
                       </div>
                     )}
-                    {m.content}
+                    {m.role === 'assistant' ? (
+                      <div className="text-xs leading-relaxed space-y-1">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1: ({ children }) => (
+                              <h1 className="text-sm font-bold font-heading tracking-tight mt-2.5 mb-1.5 text-[var(--foreground)] border-b border-[var(--border)]/30 pb-1">
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="text-xs font-bold font-heading tracking-tight mt-2 mb-1 text-[var(--foreground)]">
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="text-xs font-bold font-heading tracking-tight mt-1.5 mb-1 text-[var(--foreground)]">
+                                {children}
+                              </h3>
+                            ),
+                            p: ({ children }) => (
+                              <p className="mb-2 last:mb-0 leading-relaxed break-words">{children}</p>
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-bold text-[var(--foreground)]">{children}</strong>
+                            ),
+                            em: ({ children }) => <em className="italic opacity-90">{children}</em>,
+                            ul: ({ children }) => (
+                              <ul className="list-disc pl-4 space-y-1 my-1.5 marker:text-teal-500">{children}</ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="list-decimal pl-4 space-y-1 my-1.5 marker:text-teal-500">{children}</ol>
+                            ),
+                            li: ({ children }) => <li className="leading-relaxed pl-0.5">{children}</li>,
+                            hr: () => <hr className="my-2.5 border-t border-[var(--border)] opacity-40" />,
+                            blockquote: ({ children }) => (
+                              <blockquote className="border-l-2 border-teal-500 pl-2.5 my-2 italic text-[var(--muted-foreground)] bg-black/5 dark:bg-white/5 py-1 rounded-r">
+                                {children}
+                              </blockquote>
+                            ),
+                            code: ({ inline, children, ...props }: any) => {
+                              if (inline) {
+                                return (
+                                  <code
+                                    className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 text-[11px] font-mono font-semibold"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </code>
+                                )
+                              }
+                              return (
+                                <pre className="p-2.5 my-2 rounded-lg bg-black/10 dark:bg-white/10 overflow-x-auto text-[11px] font-mono">
+                                  <code {...props}>{children}</code>
+                                </pre>
+                              )
+                            },
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto my-2 border border-[var(--border)] rounded-lg">
+                                <table className="min-w-full divide-y divide-[var(--border)] text-[11px]">{children}</table>
+                              </div>
+                            ),
+                            th: ({ children }) => (
+                              <th className="px-2 py-1 bg-[var(--muted)] font-bold text-left text-[11px]">{children}</th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="px-2 py-1 border-t border-[var(--border)] text-[11px]">{children}</td>
+                            ),
+                          }}
+                        >
+                          {formatMarkdownContent(m.content)}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                    )}
                   </div>
                 </motion.div>
               ))}
