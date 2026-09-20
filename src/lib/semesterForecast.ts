@@ -70,10 +70,14 @@ export interface SemesterForecastResult {
   overallMinPresentRequired: number
   overallMaxSemesterSkips: number
   overallRemainingSkipsAllowed: number
+  avgSkipsPerCourse: number
+  courseCount: number
   overallIsAlreadySecured: boolean
   overallSafeToBunkDate: string | null
   overallSafeToBunkDateFormatted: string | null
   overallClassesToAttendUntilCruise: number
+  earliestCruiseDate: string | null
+  earliestCruiseDateFormatted: string | null
   courses: CourseSemesterForecast[]
 }
 
@@ -294,26 +298,49 @@ export function calculateSemesterForecast(params: {
   const overallCurrentPct =
     totalPastHeld > 0 ? Number(((totalPastPresent / totalPastHeld) * 100).toFixed(1)) : 100
 
-  const overallMinPresentRequired = Math.ceil(totalSemesterClasses * 0.75)
-  const overallMaxSemesterSkips = Math.max(0, totalSemesterClasses - overallMinPresentRequired)
-  const overallRemainingSkipsAllowed = overallMaxSemesterSkips - totalPastAbsent
-  const overallIsAlreadySecured = totalPastPresent >= overallMinPresentRequired
+  const courseCount = courseForecasts.length
+  const overallMinPresentRequired = courseForecasts.reduce((acc, c) => acc + c.minPresentRequired, 0)
+  // Total skips allowed across all courses is the sum of each course's individual max skips
+  const overallMaxSemesterSkips = courseForecasts.reduce((acc, c) => acc + c.maxSemesterSkips, 0)
+  const overallRemainingSkipsAllowed = courseForecasts.reduce((acc, c) => acc + c.remainingSkipsAllowed, 0)
+  const avgSkipsPerCourse = courseCount > 0 ? Number((overallRemainingSkipsAllowed / courseCount).toFixed(1)) : 0
 
+  const activeCourses = courseForecasts.filter((c) => c.totalSemesterClasses > 0)
+  const overallIsAlreadySecured = activeCourses.length > 0 && activeCourses.every((c) => c.isAlreadySecured)
+  const anyImpossible = activeCourses.some((c) => c.isImpossible)
+
+  // TRUE ALL-SUBJECT CRUISE MILESTONE:
+  // You can only safely skip ALL classes across ALL subjects once EVERY individual subject has reached >= 75%.
+  // That milestone is the latest safeToBunkDate among all active courses.
   let overallSafeToBunkDate: string | null = null
   let overallClassesToAttendUntilCruise = 0
+  let earliestCruiseDate: string | null = null
 
   if (overallIsAlreadySecured) {
     overallSafeToBunkDate = startDateStr
-  } else {
-    let cumulative = totalPastPresent
-    for (const inst of futureClassInstances) {
-      cumulative++
-      overallClassesToAttendUntilCruise++
-      if (cumulative >= overallMinPresentRequired) {
-        overallSafeToBunkDate = inst.date
-        break
+    overallClassesToAttendUntilCruise = 0
+  } else if (!anyImpossible) {
+    let latestDate: string | null = null
+    let earliestDate: string | null = null
+    let totalNeeded = 0
+
+    for (const c of activeCourses) {
+      totalNeeded += c.classesToAttendUntilCruise
+      if (c.safeToBunkDate) {
+        if (!latestDate || c.safeToBunkDate > latestDate) {
+          latestDate = c.safeToBunkDate
+        }
+        if (!c.isAlreadySecured) {
+          if (!earliestDate || c.safeToBunkDate < earliestDate) {
+            earliestDate = c.safeToBunkDate
+          }
+        }
       }
     }
+
+    overallSafeToBunkDate = latestDate
+    overallClassesToAttendUntilCruise = totalNeeded
+    earliestCruiseDate = earliestDate
   }
 
   return {
@@ -330,10 +357,14 @@ export function calculateSemesterForecast(params: {
     overallMinPresentRequired,
     overallMaxSemesterSkips,
     overallRemainingSkipsAllowed,
+    avgSkipsPerCourse,
+    courseCount,
     overallIsAlreadySecured,
     overallSafeToBunkDate,
     overallSafeToBunkDateFormatted: overallSafeToBunkDate ? formatDate(overallSafeToBunkDate) : null,
     overallClassesToAttendUntilCruise,
+    earliestCruiseDate,
+    earliestCruiseDateFormatted: earliestCruiseDate ? formatDate(earliestCruiseDate) : null,
     courses: courseForecasts,
   }
 }

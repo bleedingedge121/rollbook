@@ -22,6 +22,8 @@ import {
   Flame,
   Shield,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { toDateString, WEEKDAYS } from '@/lib/attendance'
@@ -58,6 +60,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   const [loggingId, setLoggingId] = useState<string | null>(null)
   const [isBatchBusy, setIsBatchBusy] = useState(false)
+  const [showForecastBreakdown, setShowForecastBreakdown] = useState(false)
   const prefersReducedMotion = useReducedMotion()
 
   const today = useMemo(() => new Date(), [])
@@ -413,66 +416,188 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* 3 Highlight Metric Tiles */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Milestone: Cruise Date */}
-          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5">
-            <div className="text-[10px] font-mono font-bold uppercase text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5" /> Safe-to-Bunk Cruise Date
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] font-mono font-bold uppercase text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" /> All-Clear Cruise Date
+              </div>
+              <div className="text-xl sm:text-2xl font-heading font-black text-[var(--foreground)] tracking-tight mt-1">
+                {semesterForecast.overallIsAlreadySecured
+                  ? 'Secured! 🎉'
+                  : semesterForecast.overallSafeToBunkDateFormatted || 'Calculating...'}
+              </div>
             </div>
-            <div className="text-xl sm:text-2xl font-heading font-black text-[var(--foreground)] tracking-tight">
-              {semesterForecast.overallIsAlreadySecured
-                ? 'Secured! 🎉'
-                : semesterForecast.overallSafeToBunkDateFormatted || 'Calculating...'}
+            <div>
+              <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                {semesterForecast.overallIsAlreadySecured
+                  ? 'Target ≥75% secured in all subjects for the entire semester!'
+                  : semesterForecast.overallSafeToBunkDateFormatted
+                  ? `Attend required classes until ${semesterForecast.overallSafeToBunkDateFormatted} to lock ≥75% in all ${semesterForecast.courseCount} subjects, then cruise until Dec 5.`
+                  : 'Attend upcoming classes to lock in your safe-to-skip status.'}
+              </p>
+              {semesterForecast.earliestCruiseDateFormatted &&
+                semesterForecast.earliestCruiseDateFormatted !== semesterForecast.overallSafeToBunkDateFormatted &&
+                !semesterForecast.overallIsAlreadySecured && (
+                  <div className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold mt-1.5 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> First subject clears on {semesterForecast.earliestCruiseDateFormatted}
+                  </div>
+                )}
             </div>
-            <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-              {semesterForecast.overallIsAlreadySecured
-                ? 'You have already attended enough classes to guarantee ≥75% for the entire semester!'
-                : semesterForecast.overallSafeToBunkDateFormatted
-                ? `Attend the next ${semesterForecast.overallClassesToAttendUntilCruise} classes until ${semesterForecast.overallSafeToBunkDateFormatted}, then you can skip ALL remaining classes until Dec 5!`
-                : 'Attend upcoming classes to lock in your safe-to-skip status.'}
-            </p>
           </div>
 
           {/* Remaining Skip Budget */}
-          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5">
-            <div className="text-[10px] font-mono font-bold uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <Zap className="w-3.5 h-3.5" /> Remaining Skip Budget
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] font-mono font-bold uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5" /> Safe Skips Remaining
+              </div>
+              <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+                <span
+                  className={`text-xl sm:text-2xl font-heading font-black ${
+                    semesterForecast.overallRemainingSkipsAllowed >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  ~{Math.round(semesterForecast.avgSkipsPerCourse)} Skips
+                </span>
+                <span className="text-[11px] font-mono text-[var(--muted-foreground)]">
+                  / subject
+                </span>
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] text-[var(--muted-foreground)]">
+                  {semesterForecast.overallRemainingSkipsAllowed} total across {semesterForecast.courseCount} subjects
+                </span>
+              </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <span
-                className={`text-xl sm:text-2xl font-heading font-black ${
-                  semesterForecast.overallRemainingSkipsAllowed >= 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-rose-600 dark:text-rose-400'
-                }`}
-              >
-                {semesterForecast.overallRemainingSkipsAllowed >= 0
-                  ? `${semesterForecast.overallRemainingSkipsAllowed} Skips`
-                  : `${semesterForecast.overallRemainingSkipsAllowed} Deficit`}
-              </span>
-              <span className="text-[11px] font-mono text-[var(--muted-foreground)]">
-                / {semesterForecast.overallMaxSemesterSkips} max
-              </span>
+            <div>
+              <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                {semesterForecast.overallRemainingSkipsAllowed > 0
+                  ? `You can safely miss ~${Math.round(semesterForecast.avgSkipsPerCourse)} more lectures in each subject before Dec 5 without dropping below 75%.`
+                  : semesterForecast.overallRemainingSkipsAllowed === 0
+                  ? 'You are on the exact 75% limit. Any further absence will drop you below 75%.'
+                  : 'You have exceeded the skip quota. Maximize attendance to recover!'}
+              </p>
+              <div className="text-[10px] font-mono text-[var(--muted-foreground)] mt-1 opacity-80">
+                💡 Subject-specific quota (cannot be pooled).
+              </div>
             </div>
-            <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
-              {semesterForecast.overallRemainingSkipsAllowed > 0
-                ? `You can safely miss up to ${semesterForecast.overallRemainingSkipsAllowed} more classes before Dec 5 and still finish ≥75%.`
-                : semesterForecast.overallRemainingSkipsAllowed === 0
-                ? 'You are exactly on the 75% limit. Any further absence will drop you below 75%.'
-                : 'You have exceeded the skip quota. Maximize attendance in upcoming classes to recover!'}
-            </p>
           </div>
 
           {/* Total Semester Classes */}
-          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5">
-            <div className="text-[10px] font-mono font-bold uppercase text-[var(--muted-foreground)] flex items-center gap-1">
-              <CalendarIcon className="w-3.5 h-3.5" /> Total Semester Classes
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5 flex flex-col justify-between">
+            <div>
+              <div className="text-[10px] font-mono font-bold uppercase text-[var(--muted-foreground)] flex items-center gap-1">
+                <CalendarIcon className="w-3.5 h-3.5" /> Semester Progress
+              </div>
+              <div className="text-xl sm:text-2xl font-heading font-black text-[var(--foreground)] tracking-tight mt-1 flex items-baseline gap-2">
+                <span>{semesterForecast.totalSemesterClasses} Lectures</span>
+                <span className="text-xs font-mono text-[var(--muted-foreground)] font-normal">
+                  ({Math.round((semesterForecast.totalPastHeld / Math.max(1, semesterForecast.totalSemesterClasses)) * 100)}% done)
+                </span>
+              </div>
             </div>
-            <div className="text-xl sm:text-2xl font-heading font-black text-[var(--foreground)] tracking-tight">
-              {semesterForecast.totalSemesterClasses} Lectures
+
+            <div>
+              {/* Progress bar */}
+              <div className="w-full bg-[var(--muted)] border border-[var(--border)] rounded-full h-2 overflow-hidden my-1">
+                <div
+                  className="h-full bg-teal-500 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.round(
+                        (semesterForecast.totalPastHeld /
+                          Math.max(1, semesterForecast.totalSemesterClasses)) *
+                          100
+                      )
+                    )}%`,
+                  }}
+                />
+              </div>
+              <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed font-mono">
+                {semesterForecast.totalPastHeld} held so far · {semesterForecast.totalFutureClasses} remaining until 05/12/2026.
+              </p>
             </div>
-            <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed font-mono">
-              {semesterForecast.totalPastHeld} held so far + {semesterForecast.totalFutureClasses} remaining until 05/12/2026.
-            </p>
           </div>
+        </div>
+
+        {/* Collapsible Subject Breakdown Accordion */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowForecastBreakdown((prev) => !prev)}
+            className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[var(--background)] hover:bg-[var(--muted)] border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] transition-all text-xs font-bold font-mono text-[var(--foreground)]"
+          >
+            <span className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-indigo-500" />
+              <span>Subject-by-Subject Skips &amp; Cruise Dates ({semesterForecast.courses.length} subjects)</span>
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
+              {showForecastBreakdown ? 'Hide' : 'View Breakdown'}
+              {showForecastBreakdown ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+            </span>
+          </button>
+
+          <AnimatePresence>
+            {showForecastBreakdown && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden pt-3"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {semesterForecast.courses.map((c) => (
+                    <div
+                      key={c.courseId}
+                      className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-3 shadow-[2px_2px_0px_var(--shadow-color)] font-mono space-y-1.5"
+                    >
+                      <div className="flex items-start justify-between gap-1">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--card)] border border-[var(--border)] text-[var(--foreground)]">
+                            {c.courseCode}
+                          </span>
+                          <p className="text-xs font-bold text-[var(--foreground)] truncate mt-1">
+                            {c.courseName}
+                          </p>
+                        </div>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                            c.isAlreadySecured
+                              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                              : c.remainingSkipsAllowed >= 0
+                              ? 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30'
+                              : 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30'
+                          }`}
+                        >
+                          {c.isAlreadySecured ? 'Secured 🎉' : `${c.remainingSkipsAllowed} Skips Left`}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1 text-[11px] pt-1 border-t border-[var(--border)]/60 text-[var(--muted-foreground)]">
+                        <div>
+                          <span className="block text-[9px] uppercase text-[var(--muted-foreground)]">Safe-to-Bunk</span>
+                          <span className="font-bold text-[var(--foreground)]">
+                            {c.isAlreadySecured ? 'Secured 🎉' : c.safeToBunkDateFormatted || 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[9px] uppercase text-[var(--muted-foreground)]">Semester Total</span>
+                          <span className="font-bold text-[var(--foreground)]">
+                            {c.totalSemesterClasses} classes ({c.pastHeld} held)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 
