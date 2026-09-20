@@ -6,6 +6,7 @@ import { formatDate, formatTime, formatSlotTime } from '@/lib/formatters'
 import { addDays, subDays, format, isBefore, isSameDay } from 'date-fns'
 import { requireUser } from '@/lib/session'
 import { autoApplySync, parsePastedTableText, SyncedCourse } from '@/lib/reconcile'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 function parseIsoDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
@@ -65,6 +66,23 @@ export async function POST(req: Request) {
   const auth = await requireUser(req)
   if (auth instanceof NextResponse) return auth
   const { userId } = auth
+
+  // High 3: Rate limit chat requests (20 messages per 1 hour per user)
+  const rateLimit = checkRateLimit('chat', userId, 20, 60 * 60 * 1000)
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      {
+        reply: `You are asking questions a bit too fast! Rate limit is 20 messages per hour. Please wait ${rateLimit.resetInSeconds} seconds before sending another message.`,
+        error: 'Too many requests',
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateLimit.resetInSeconds),
+        },
+      }
+    )
+  }
 
   try {
     const { messages } = await req.json()

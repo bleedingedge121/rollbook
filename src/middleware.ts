@@ -13,22 +13,19 @@ const PUBLIC_PATHS = [
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Handle CORS preflight for cross-origin sync push
-  if (pathname === '/api/sync/push' && req.method === 'OPTIONS') {
-    return new NextResponse(null, {
-      status: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    })
-  }
-
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname === p) ||
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon')
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/favicon') ||
+    pathname === '/apple-touch-icon.png' ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.ico') ||
+    pathname.endsWith('.json') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.webp')
 
   if (isPublic) {
     return NextResponse.next()
@@ -58,6 +55,6 @@ export const config = {
      * Match all paths except static files, so the login gate covers pages
      * and API routes alike.
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|txt|woff|woff2)$).*)',
   ],
 }

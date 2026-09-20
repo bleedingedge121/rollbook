@@ -4,11 +4,20 @@ import { prisma } from '@/lib/prisma'
 const SESSION_COOKIE = 'rollbook_session'
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days
 
-function getSecret(): string {
-  return (
-    process.env.APP_SESSION_SECRET ||
-    'rollbook-local-dev-secret-change-me-in-env'
-  )
+export function getSecret(): string {
+  const secret = process.env.APP_SESSION_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('APP_SESSION_SECRET must be set in production')
+    }
+    return 'rollbook-local-dev-secret-change-me-in-env' // dev only
+  }
+  return secret
+}
+
+// Startup warning check
+if (process.env.NODE_ENV === 'production' && !process.env.APP_SESSION_SECRET) {
+  console.error('[SECURITY CRITICAL] APP_SESSION_SECRET is NOT set in production! Authentication will fail.');
 }
 
 function base64UrlEncode(bytes: Uint8Array): string {

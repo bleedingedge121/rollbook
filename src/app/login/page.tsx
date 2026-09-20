@@ -13,6 +13,7 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [logoError, setLogoError] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,14 +55,23 @@ function LoginForm() {
         <div className="flex flex-col items-center text-center space-y-2">
           <motion.div
             whileHover={{ scale: 1.08, rotate: -2 }}
-            className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] shrink-0 bg-[#212f3d]"
+            className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[var(--border)] shadow-[4px_4px_0px_var(--shadow-color)] shrink-0 bg-[#212f3d] flex items-center justify-center"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/icons/icon-192x192.png"
-              alt="Roll Book Logo"
-              className="w-full h-full object-cover"
-            />
+            {!logoError ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src="/icons/icon-192x192.png"
+                alt="Roll Book Logo"
+                width={64}
+                height={64}
+                onError={() => setLogoError(true)}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="font-heading font-black text-2xl text-teal-400 select-none">
+                RB
+              </span>
+            )}
           </motion.div>
           <div>
             <h1 className="text-2xl font-heading font-black text-[var(--foreground)] tracking-tight">
