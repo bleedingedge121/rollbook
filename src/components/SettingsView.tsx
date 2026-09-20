@@ -30,10 +30,16 @@ import {
   HelpCircle,
   Code,
   ExternalLink,
+  Bell,
+  BellRing,
+  Volume2,
+  VolumeX,
+  Smartphone,
+  Clock,
 } from 'lucide-react'
 import { CourseWithStats, TimetableSlot, Holiday } from '@/types'
 import { WEEKDAYS } from '@/lib/attendance'
-import { formatDate, formatDateTime, formatSlotTime } from '@/lib/formatters'
+import { formatDate, formatDateTime, formatSlotTime, formatTime } from '@/lib/formatters'
 import { generateConsoleSnippet } from '@/lib/bookmarklet'
 import { CourseModal } from './CourseModal'
 import { SlotModal } from './SlotModal'
@@ -41,12 +47,14 @@ import { SyncModal, SyncDiffItem, DbCourseSummary, CourseMergeDecision } from '.
 import { SectionImportModal } from './SectionImportModal'
 import { parsePastedTableText, SyncedCourse } from '@/lib/reconcile'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { ClassRemindersReturn } from '@/hooks/useClassReminders'
 
 interface SettingsViewProps {
   courses: CourseWithStats[]
   slots: TimetableSlot[]
   holidays?: Holiday[]
   userRole?: string
+  reminders?: ClassRemindersReturn
   onSaveCourse: (courseData: any) => Promise<void>
   onDeleteCourse: (courseId: string) => Promise<void>
   onSaveSlot: (slotData: any) => Promise<void>
@@ -71,6 +79,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   slots,
   holidays = [],
   userRole = 'user',
+  reminders,
   onSaveCourse,
   onDeleteCourse,
   onSaveSlot,
@@ -79,7 +88,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteHoliday,
   onRefreshAll,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'sync' | 'courses' | 'timetable' | 'holidays' | 'backup'>('sync')
+  const [activeSubTab, setActiveSubTab] = useState<'sync' | 'courses' | 'timetable' | 'holidays' | 'notifications' | 'backup'>('sync')
   const prefersReducedMotion = useReducedMotion()
 
   // Modals state
@@ -539,6 +548,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           )}
           <Palmtree className="w-3.5 h-3.5 relative z-10" />
           <span className="relative z-10">Holidays & Exams ({holidays.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('notifications')}
+          className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
+            activeSubTab === 'notifications' ? 'text-white' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+          }`}
+        >
+          {activeSubTab === 'notifications' && (
+            <motion.div
+              layoutId="activeSettingsSubTab"
+              className="absolute inset-0 rounded-full bg-teal-600 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)]"
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
+          <Bell className="w-3.5 h-3.5 relative z-10" />
+          <span className="relative z-10">Reminders ({reminders?.settings.leadMinutes || 15}m)</span>
         </button>
 
         <button
@@ -1334,6 +1360,265 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <RotateCcw className="w-4 h-4 text-teal-600" /> Reset & Reload Sample Subjects
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB TAB 5: Notifications & Class Reminders */}
+      {activeSubTab === 'notifications' && (
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-teal-500/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <BellRing className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
+                    Class Reminder Alarms
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-600 dark:text-teal-300 font-bold border border-teal-500/30">
+                      PC • Android • iOS
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                    Receive automated notification alerts and chimes before scheduled lectures and labs.
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Badge & Enable Action */}
+              <div className="flex items-center gap-2 shrink-0">
+                {reminders?.permission === 'granted' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-xs font-bold border-2 border-emerald-500/40">
+                    <CheckCircle2 className="w-4 h-4" /> Active &amp; Scheduled
+                  </span>
+                ) : reminders?.permission === 'denied' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 text-xs font-bold border-2 border-rose-500/40">
+                    <AlertCircle className="w-4 h-4" /> Notifications Blocked
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => reminders?.requestPermission()}
+                    className="pill-btn px-4 py-1.5 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>Enable Notifications</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Notification Parameters & Controls */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-[var(--border)]">
+              {/* Control 1: Master Enable Toggle */}
+              <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] flex flex-col justify-between space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black font-heading text-[var(--foreground)]">Class Reminders</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        reminders?.updateSettings({ enabled: !reminders.settings.enabled })
+                      }
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        reminders?.settings.enabled ? 'bg-teal-600' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          reminders?.settings.enabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[var(--muted-foreground)]">
+                    Trigger system banners and alerts before each class.
+                  </p>
+                </div>
+                <div className="text-[10px] font-mono text-[var(--muted-foreground)]">
+                  Status: {reminders?.settings.enabled ? 'Enabled' : 'Paused'}
+                </div>
+              </div>
+
+              {/* Control 2: Lead Time Selector */}
+              <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] flex flex-col justify-between space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    <span className="text-xs font-black font-heading text-[var(--foreground)]">Alert Lead Time</span>
+                  </div>
+                  <p className="text-[11px] text-[var(--muted-foreground)]">
+                    How many minutes before class should the alert fire:
+                  </p>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[5, 10, 15, 30].map((mins) => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => reminders?.updateSettings({ leadMinutes: mins })}
+                      className={`py-1 rounded-xl text-xs font-bold transition-all border ${
+                        reminders?.settings.leadMinutes === mins
+                          ? 'bg-teal-600 text-white border-teal-500 shadow-sm'
+                          : 'bg-[var(--card)] text-[var(--foreground)] border-[var(--border)] hover:bg-[var(--muted)]'
+                      }`}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Control 3: Sound & Test Notification */}
+              <div className="p-4 rounded-2xl bg-[var(--background)] border-2 border-[var(--border)] flex flex-col justify-between space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      {reminders?.settings.sound ? (
+                        <Volume2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      ) : (
+                        <VolumeX className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
+                      )}
+                      <span className="text-xs font-black font-heading text-[var(--foreground)]">Audio Chime</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        reminders?.updateSettings({ sound: !reminders.settings.sound })
+                      }
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        reminders?.settings.sound ? 'bg-teal-600' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          reminders?.settings.sound ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-[var(--muted-foreground)]">
+                    Play a gentle 2-tone chime when the notification fires.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => reminders?.sendTestNotification()}
+                  className="pill-btn w-full py-1.5 bg-[var(--card)] hover:bg-[var(--muted)] text-[var(--foreground)] border-2 border-[var(--border)] text-xs font-bold transition-transform active:scale-95 flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <Bell className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Send Test Notification</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Next Reminder Status Banner */}
+            {reminders?.nextReminder ? (
+              <div className="p-3.5 rounded-2xl bg-teal-500/10 border-2 border-teal-500/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-600 flex items-center justify-center shrink-0">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[var(--foreground)]">
+                      Next Class Today: {reminders.nextReminder.courseName}
+                      {reminders.nextReminder.courseCode && ` (${reminders.nextReminder.courseCode})`}
+                    </div>
+                    <div className="text-[11px] text-[var(--muted-foreground)]">
+                      Scheduled at {formatTime(reminders.nextReminder.classTime)}
+                      {reminders.nextReminder.room ? ` in ${reminders.nextReminder.room}` : ''} • Alert fires at{' '}
+                      {formatTime(reminders.nextReminder.reminderTime)}
+                    </div>
+                  </div>
+                </div>
+                <span className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-teal-600 text-white text-[10px] font-bold font-mono">
+                  In Queue
+                </span>
+              </div>
+            ) : (
+              <div className="p-3 rounded-2xl bg-[var(--background)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] flex items-center gap-2">
+                <span>🗓️</span>
+                <span>No pending class reminders remaining for today. You&apos;re all set!</span>
+              </div>
+            )}
+          </div>
+
+          {/* 1-Click Phone Calendar Sync (.ics with -PT15M alarms) */}
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-indigo-500/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-indigo-600 flex items-center justify-center shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)] flex items-center gap-2">
+                    1-Click Native Phone Calendar Sync
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 font-bold border border-indigo-500/30">
+                      Apple • Google • Outlook
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                    Sync your timetable directly into your iPhone or Android calendar with built-in 15-minute alarms.
+                  </p>
+                </div>
+              </div>
+
+              <a
+                href="/api/calendar/export"
+                download="rollbook-classes.ics"
+                className="pill-btn px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              >
+                <Download className="w-4 h-4" />
+                <span>Add to Phone Calendar (.ics)</span>
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-[var(--border)]">
+              <div className="p-3.5 rounded-2xl bg-[var(--background)] border border-[var(--border)] space-y-1">
+                <div className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                  <span>🍎</span> Apple Calendar &amp; Watch (iPhone / Mac)
+                </div>
+                <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                  Tap the download button above. iOS will open Calendar and prompt &ldquo;Add All Events&rdquo;. Alarms ring 15 minutes before class with lock screen banners and Apple Watch taps, even in Low Power Mode!
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[var(--background)] border border-[var(--border)] space-y-1">
+                <div className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                  <span>📱</span> Google Calendar &amp; Android
+                </div>
+                <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+                  Open Google Calendar on web or mobile, select <em>Settings &rarr; Import &amp; Export</em>, and upload the downloaded <code className="font-mono text-teal-600 font-bold">.ics</code> file. All classes and 15-minute reminders sync instantly.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* iOS Setup Guide */}
+          <div className="bg-[var(--card)] border-2 border-[var(--border)] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-amber-500/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-amber-600 flex items-center justify-center shrink-0">
+                <Smartphone className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm sm:text-base font-heading font-black text-[var(--foreground)]">
+                  Tips for Lock Screen Notifications on iPhone &amp; iPad
+                </h4>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Apple requires progressive web apps to be saved to your Home Screen for Web Push notifications.
+                </p>
+              </div>
+            </div>
+
+            <ol className="text-xs text-[var(--foreground)] space-y-2 list-decimal list-inside leading-relaxed bg-[var(--background)] p-4 rounded-2xl border border-[var(--border)]">
+              <li>In Safari on your iPhone/iPad, tap the <strong>Share</strong> button (the square with an arrow pointing up ⬆️ in the browser bar).</li>
+              <li>Scroll down and tap <strong>Add to Home Screen</strong> (➕ icon).</li>
+              <li>Launch <strong>Roll Book</strong> from your Home Screen like a native app.</li>
+              <li>Come back to this Reminders tab and tap <strong>Enable Notifications</strong> to receive lock screen banners!</li>
+              <li><em>Alternative:</em> You can also use the <strong>1-Click Phone Calendar Sync</strong> above to get native Apple Calendar alarms without needing Home Screen installation.</li>
+            </ol>
           </div>
         </div>
       )}

@@ -12,6 +12,7 @@ import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/typ
 import { calculateAttendance } from '@/lib/attendance'
 import { Sparkles } from 'lucide-react'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
+import { useClassReminders } from '@/hooks/useClassReminders'
 
 // Lazy-load ChatWidget on client to optimize First Load JS
 const ChatWidget = dynamic(
@@ -33,6 +34,9 @@ export default function App() {
   // Quick Add / Edit Subject Modal State from Subjects View
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false)
   const [editingSubject, setEditingSubject] = useState<CourseWithStats | null>(null)
+
+  // Automated 15-Minute Class Reminders (PC, Android, iOS)
+  const reminders = useClassReminders(allSlots, holidays)
 
   // Fetch all core data in parallel
   const fetchData = useCallback(async () => {
@@ -403,6 +407,7 @@ export default function App() {
             onSaveHoliday={handleSaveHoliday}
             onDeleteHoliday={handleDeleteHoliday}
             onRefreshAll={fetchData}
+            reminders={reminders}
           />
         )}
       </main>
