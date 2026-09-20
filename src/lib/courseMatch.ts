@@ -5,12 +5,18 @@
 // timetable under slightly different wording all converge on one Course row
 // instead of creating duplicates.
 
+export function isLabCourse(name?: string, code?: string): boolean {
+  const text = `${name || ''} ${code || ''}`.toLowerCase()
+  return /\b(lab|laboratory|bwp\s*lab|practical)\b/i.test(text)
+}
+
 export function normalizeText(text: string): string {
   if (!text) return ''
   return text
     .toLowerCase()
     .replace(/[_\-.:,()/]/g, ' ')
-    .replace(/\b(and|the|of|for|in|to|with|using|basic|fundamentals|introduction|practice|lab|department)\b/g, '')
+    .replace(/\blaboratory\b/g, 'lab')
+    .replace(/\b(and|the|of|for|in|to|with|using|basic|fundamentals|introduction|department)\b/g, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -21,6 +27,11 @@ export function normalizeCode(code: string): string {
 }
 
 export function calculateSimilarity(str1: string, str2: string): number {
+  // A lab course and a non-lab (theory) course must NEVER match by name similarity
+  if (isLabCourse(str1) !== isLabCourse(str2)) {
+    return 0.0
+  }
+
   const norm1 = normalizeText(str1)
   const norm2 = normalizeText(str2)
   if (norm1 === norm2) return 1.0
@@ -49,7 +60,7 @@ export interface MatchableCourse {
 
 // Finds the best existing course match for an incoming (name, code) pair.
 // Tries exact normalized-code match first (handles "EES 1004" vs "EES_1004" vs "EES1004"),
-// then falls back to name similarity above a confidence threshold.
+// then falls back to name similarity above a confidence threshold (strictly keeping lab vs theory separated).
 export function findBestMatch(
   incomingName: string,
   incomingCode: string,
@@ -57,14 +68,23 @@ export function findBestMatch(
 ): { course: MatchableCourse; confidence: number; matchType: 'exact' | 'suggested' } | null {
   const incomingCodeNorm = normalizeCode(incomingCode)
 
-  for (const c of existing) {
-    if (incomingCodeNorm && normalizeCode(c.code) === incomingCodeNorm) {
-      return { course: c, confidence: 1.0, matchType: 'exact' }
+  if (incomingCodeNorm) {
+    for (const c of existing) {
+      if (normalizeCode(c.code) === incomingCodeNorm) {
+        return { course: c, confidence: 1.0, matchType: 'exact' }
+      }
     }
   }
 
+  const incomingIsLab = isLabCourse(incomingName, incomingCode)
+
   let best: { course: MatchableCourse; confidence: number } | null = null
   for (const c of existing) {
+    // Strictly isolate practical lab subjects from classroom theory subjects
+    if (incomingIsLab !== isLabCourse(c.name, c.code)) {
+      continue
+    }
+
     const sim = calculateSimilarity(incomingName, c.name)
     if (sim > (best?.confidence ?? 0)) {
       best = { course: c, confidence: sim }

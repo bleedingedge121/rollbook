@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { normalizeText, calculateSimilarity } from '@/lib/courseMatch'
+import { normalizeText, calculateSimilarity, normalizeCode, isLabCourse } from '@/lib/courseMatch'
 
 export interface SyncedCourse {
   name: string
@@ -188,6 +188,43 @@ export function parsePastedTableText(text: string): SyncedCourse[] {
  * matching existing courses by code or fuzzy name, or creating new ones.
  * Updates both synced baseline counts and simple counter counts.
  */
+export async function healSeparatedLabSlots(userId: string) {
+  try {
+    const courses = await prisma.course.findMany({
+      where: { userId },
+      include: { timetableSlots: true },
+    })
+
+    const ppsTheory = courses.find(
+      (c) => normalizeCode(c.code) === 'CES1102' && !isLabCourse(c.name, c.code)
+    )
+    const ppsLab = courses.find(
+      (c) =>
+        normalizeCode(c.code) === 'CES1111' ||
+        (isLabCourse(c.name, c.code) && normalizeText(c.name).includes('programming'))
+    )
+
+    if (ppsTheory && ppsLab && ppsTheory.id !== ppsLab.id) {
+      const slotsToMove = ppsTheory.timetableSlots.filter((s) => {
+        const isTwoHour =
+          /-(?:11:00|13:00|16:00|17:00)/.test(s.label) &&
+          /(?:09:00|11:00|14:00|15:00)-/.test(s.label)
+        const isLabRoom = /413|403|lab/i.test(s.room || '')
+        return isTwoHour || isLabRoom
+      })
+
+      for (const slot of slotsToMove) {
+        await prisma.timetableSlot.update({
+          where: { id: slot.id },
+          data: { courseId: ppsLab.id },
+        })
+      }
+    }
+  } catch (err) {
+    console.error('Failed to heal separated lab slots:', err)
+  }
+}
+
 export async function autoApplySync(
   userId: string,
   incomingCourses: SyncedCourse[],
@@ -200,24 +237,46 @@ export async function autoApplySync(
   })
 
   const appliedCourseNames: string[] = []
+  const matchedDbCourseIds = new Set<string>()
 
   for (const inc of incomingCourses) {
-    const codeUpper = (inc.code || '').toUpperCase().trim()
-    const codeDigits = codeUpper.replace(/\D/g, '')
+    const codeNorm = normalizeCode(inc.code || '')
+    const codeDigits = codeNorm.replace(/\D/g, '')
+    const incIsLab = isLabCourse(inc.name, inc.code)
 
-    let match = dbCourses.find((c) => c.code.toUpperCase().trim() === codeUpper)
+    // Candidates are DB courses not yet claimed by an earlier course in this sync run
+    const candidates = dbCourses.filter((c) => !matchedDbCourseIds.has(c.id))
 
+    let match: (typeof dbCourses)[0] | undefined
+
+    // 1. Exact normalized code match (e.g. "CES_1102" === "CES1102", "CES_1111" === "CES1111")
+    if (codeNorm) {
+      match = candidates.find((c) => normalizeCode(c.code) === codeNorm)
+    }
+
+    // 2. Exact normalized name match, strictly preserving lab vs theory boundary
     if (!match) {
       const normIncName = normalizeText(inc.name)
-      match = dbCourses.find((c) => normalizeText(c.name) === normIncName)
+      match = candidates.find(
+        (c) =>
+          isLabCourse(c.name, c.code) === incIsLab &&
+          normalizeText(c.name) === normIncName
+      )
     }
 
+    // 3. Code digits match (e.g. 1102 vs 1102), strictly preserving lab vs theory boundary
     if (!match && codeDigits.length >= 3) {
-      match = dbCourses.find((c) => c.code.replace(/\D/g, '') === codeDigits)
+      match = candidates.find(
+        (c) =>
+          isLabCourse(c.name, c.code) === incIsLab &&
+          normalizeCode(c.code).replace(/\D/g, '') === codeDigits
+      )
     }
 
+    // 4. Fuzzy name similarity (>= 0.7), strictly preserving lab vs theory boundary
     if (!match) {
-      const candidates = dbCourses
+      const fuzzyList = candidates
+        .filter((c) => isLabCourse(c.name, c.code) === incIsLab)
         .map((c) => ({
           course: c,
           similarity: calculateSimilarity(inc.name, c.name),
@@ -225,8 +284,8 @@ export async function autoApplySync(
         .filter((item) => item.similarity >= 0.7)
         .sort((a, b) => b.similarity - a.similarity)
 
-      if (candidates.length > 0) {
-        match = candidates[0].course
+      if (fuzzyList.length > 0) {
+        match = fuzzyList[0].course
       }
     }
 
@@ -235,6 +294,7 @@ export async function autoApplySync(
     const held = present + absent
 
     if (match) {
+      matchedDbCourseIds.add(match.id)
       await prisma.course.update({
         where: { id: match.id },
         data: {
@@ -256,11 +316,12 @@ export async function autoApplySync(
 
       appliedCourseNames.push(match.name)
     } else {
+      const newCourseCode = (inc.code || inc.name.slice(0, 6)).toUpperCase().trim()
       const newCourse = await prisma.course.create({
         data: {
           userId,
           name: inc.name,
-          code: (inc.code || inc.name.slice(0, 6)).toUpperCase().trim(),
+          code: newCourseCode,
           requiredPercent: 75.0,
           syncedPresent: present,
           syncedAbsent: absent,
@@ -269,9 +330,17 @@ export async function autoApplySync(
           syncedAt: syncDate,
         },
       })
+      matchedDbCourseIds.add(newCourse.id)
+      dbCourses.push({
+        ...newCourse,
+        attendance: [],
+      } as any)
       appliedCourseNames.push(newCourse.name)
     }
   }
+
+  // Heal any timetable slots for separated lab subjects
+  await healSeparatedLabSlots(userId)
 
   return {
     success: true,
@@ -293,27 +362,36 @@ export async function buildReconcileDiff(
     include: { attendance: true },
   })
 
+  const matchedDbCourseIds = new Set<string>()
+
   const diff = incomingCourses.map((inc) => {
-    const codeUpper = (inc.code || '').toUpperCase().trim()
-    const codeDigits = codeUpper.replace(/\D/g, '')
+    const codeNorm = normalizeCode(inc.code || '')
+    const codeDigits = codeNorm.replace(/\D/g, '')
+    const incIsLab = isLabCourse(inc.name, inc.code)
+
+    const candidates = dbCourses.filter((c) => !matchedDbCourseIds.has(c.id))
 
     let bestMatch: (typeof dbCourses)[0] | null = null
     let matchType: 'exact' | 'suggested' | 'none' = 'none'
     let bestConfidence = 0
 
-    const exactCodeMatch = dbCourses.find(
-      (c) => c.code.toUpperCase().trim() === codeUpper
-    )
-    if (exactCodeMatch) {
-      bestMatch = exactCodeMatch
-      matchType = 'exact'
-      bestConfidence = 1.0
+    // 1. Exact normalized code match
+    if (codeNorm) {
+      const codeMatch = candidates.find((c) => normalizeCode(c.code) === codeNorm)
+      if (codeMatch) {
+        bestMatch = codeMatch
+        matchType = 'exact'
+        bestConfidence = 1.0
+      }
     }
 
+    // 2. Exact normalized name match (respecting lab vs theory boundary)
     if (!bestMatch) {
       const normIncName = normalizeText(inc.name)
-      const exactNameMatch = dbCourses.find(
-        (c) => normalizeText(c.name) === normIncName
+      const exactNameMatch = candidates.find(
+        (c) =>
+          isLabCourse(c.name, c.code) === incIsLab &&
+          normalizeText(c.name) === normIncName
       )
       if (exactNameMatch) {
         bestMatch = exactNameMatch
@@ -322,9 +400,12 @@ export async function buildReconcileDiff(
       }
     }
 
+    // 3. Code digits match (respecting lab vs theory boundary)
     if (!bestMatch && codeDigits.length >= 3) {
-      const numMatch = dbCourses.find(
-        (c) => c.code.replace(/\D/g, '') === codeDigits
+      const numMatch = candidates.find(
+        (c) =>
+          isLabCourse(c.name, c.code) === incIsLab &&
+          normalizeCode(c.code).replace(/\D/g, '') === codeDigits
       )
       if (numMatch) {
         bestMatch = numMatch
@@ -333,18 +414,26 @@ export async function buildReconcileDiff(
       }
     }
 
-    const candidates = dbCourses
-      .map((c) => ({
-        course: c,
-        similarity: calculateSimilarity(inc.name, c.name),
-      }))
-      .filter((item) => item.similarity >= 0.3)
-      .sort((a, b) => b.similarity - a.similarity)
+    // 4. Fuzzy name similarity (respecting lab vs theory boundary)
+    if (!bestMatch) {
+      const fuzzyList = candidates
+        .filter((c) => isLabCourse(c.name, c.code) === incIsLab)
+        .map((c) => ({
+          course: c,
+          similarity: calculateSimilarity(inc.name, c.name),
+        }))
+        .filter((item) => item.similarity >= 0.3)
+        .sort((a, b) => b.similarity - a.similarity)
 
-    if (!bestMatch && candidates.length > 0) {
-      bestMatch = candidates[0].course
-      matchType = 'suggested'
-      bestConfidence = candidates[0].similarity
+      if (fuzzyList.length > 0) {
+        bestMatch = fuzzyList[0].course
+        matchType = 'suggested'
+        bestConfidence = fuzzyList[0].similarity
+      }
+    }
+
+    if (bestMatch) {
+      matchedDbCourseIds.add(bestMatch.id)
     }
 
     const present = Math.max(0, inc.present || 0)

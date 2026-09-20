@@ -33,8 +33,13 @@ export async function POST(req: Request) {
 
     // Build a diff: for each course in the section, is it an exact match,
     // a suggested (fuzzy) match, or new?
+    const claimedPreviewIds = new Set<string>()
     const diff = sectionData.courses.map((c) => {
-      const match = findBestMatch(c.name, c.code, existingCourses)
+      const available = existingCourses.filter((ec) => !claimedPreviewIds.has(ec.id))
+      const match = findBestMatch(c.name, c.code, available)
+      if (match) {
+        claimedPreviewIds.add(match.course.id)
+      }
       return {
         officialCode: c.code,
         officialName: c.name,
@@ -58,6 +63,7 @@ export async function POST(req: Request) {
     // Apply: resolve each course to a target courseId (existing or newly created),
     // then replace timetable slots for exactly those courses with the official schedule.
     const shortToCourseId: Record<string, string> = {}
+    const claimedCourseIds = new Set<string>()
 
     for (const c of sectionData.courses) {
       const decision = merges?.[c.code] // 'NEW' | 'SKIP' | existing courseId | undefined
@@ -72,8 +78,9 @@ export async function POST(req: Request) {
       } else if (decision === 'NEW') {
         targetId = null // force create below
       } else {
-        // No explicit decision: use the auto-match from diff
-        const match = findBestMatch(c.name, c.code, existingCourses)
+        // No explicit decision: use the auto-match from diff against unclaimed existing courses
+        const available = existingCourses.filter((ec) => !claimedCourseIds.has(ec.id))
+        const match = findBestMatch(c.name, c.code, available)
         targetId = match ? match.course.id : null
       }
 
@@ -90,6 +97,7 @@ export async function POST(req: Request) {
         existingCourses.push({ id: created.id, name: created.name, code: created.code })
       }
 
+      claimedCourseIds.add(targetId)
       shortToCourseId[c.short] = targetId
     }
 
