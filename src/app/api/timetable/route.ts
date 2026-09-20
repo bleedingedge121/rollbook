@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireUser, verifyCourseOwnership } from '@/lib/session'
+import { autoHealUserCourses } from '@/lib/reconcile'
 
 export async function GET() {
   const auth = await requireUser()
@@ -8,6 +9,7 @@ export async function GET() {
   const { userId } = auth
 
   try {
+    await autoHealUserCourses(userId)
     const slots = await prisma.timetableSlot.findMany({
       where: {
         course: { userId },

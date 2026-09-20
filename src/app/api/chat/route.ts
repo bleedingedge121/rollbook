@@ -5,7 +5,7 @@ import { calculateAttendance, toDateString, WEEKDAYS } from '@/lib/attendance'
 import { formatDate, formatTime, formatSlotTime } from '@/lib/formatters'
 import { addDays, subDays, format, isBefore, isSameDay } from 'date-fns'
 import { requireUser } from '@/lib/session'
-import { autoApplySync, parsePastedTableText, SyncedCourse } from '@/lib/reconcile'
+import { autoApplySync, parsePastedTableText, SyncedCourse, autoHealUserCourses } from '@/lib/reconcile'
 import { checkRateLimit } from '@/lib/rateLimit'
 
 function parseIsoDate(str: string): Date {
@@ -86,6 +86,7 @@ export async function POST(req: Request) {
 
   try {
     const { messages } = await req.json()
+    await autoHealUserCourses(userId)
 
     const apiKey = process.env.GEMINI_API_KEY
     if (!apiKey) {

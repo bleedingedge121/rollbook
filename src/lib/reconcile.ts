@@ -188,48 +188,107 @@ export function parsePastedTableText(text: string): SyncedCourse[] {
  * matching existing courses by code or fuzzy name, or creating new ones.
  * Updates both synced baseline counts and simple counter counts.
  */
-export async function healSeparatedLabSlots(userId: string) {
+/**
+ * Automatically heals existing user accounts created during earlier versions
+ * where PPS Lab (CES1111) was collapsed into PPS Theory (CES1102) across Physics
+ * and Chemistry cycles. Restores PPS Lab as its own course and reassigns 2-hour lab
+ * timetable slots without requiring the user to re-import their section timetable.
+ */
+export async function autoHealUserCourses(userId: string) {
   try {
     const courses = await prisma.course.findMany({
       where: { userId },
       include: { timetableSlots: true },
     })
 
+    if (courses.length === 0) return
+
     const ppsTheory = courses.find(
-      (c) => normalizeCode(c.code) === 'CES1102' && !isLabCourse(c.name, c.code)
+      (c) =>
+        (normalizeCode(c.code) === 'CES1102' ||
+          normalizeText(c.name) === 'programming for problem solving') &&
+        !isLabCourse(c.name, c.code)
     )
-    const ppsLab = courses.find(
+    let ppsLab = courses.find(
       (c) =>
         normalizeCode(c.code) === 'CES1111' ||
         (isLabCourse(c.name, c.code) && normalizeText(c.name).includes('programming'))
     )
 
-    if (ppsTheory && ppsLab && ppsTheory.id !== ppsLab.id) {
-      const slotsToMove = ppsTheory.timetableSlots.filter((s) => {
+    // Check if PPS Theory has slots that belong to PPS Lab
+    const labSlotsOnTheory =
+      ppsTheory?.timetableSlots.filter((s) => {
         const isTwoHour =
           /-(?:11:00|13:00|16:00|17:00)/.test(s.label) &&
           /(?:09:00|11:00|14:00|15:00)-/.test(s.label)
         const isLabRoom = /413|403|lab/i.test(s.room || '')
         return isTwoHour || isLabRoom
-      })
+      }) || []
 
-      for (const slot of slotsToMove) {
-        await prisma.timetableSlot.update({
-          where: { id: slot.id },
-          data: { courseId: ppsLab.id },
+    const theoryHeld = (ppsTheory?.syncedPresent || 0) + (ppsTheory?.syncedAbsent || 0)
+    const isSuspectedLabNumbers =
+      theoryHeld > 0 && theoryHeld <= 7 && (ppsTheory?.syncedAbsent || 0) === 0
+
+    // If PPS Lab is missing AND (ppsTheory has lab slots OR user has 8+ section courses)
+    if (!ppsLab && ppsTheory && (labSlotsOnTheory.length > 0 || courses.length >= 8)) {
+      ppsLab = await prisma.course.create({
+        data: {
+          userId,
+          name: 'Programming for Problem Solving Lab',
+          code: 'CES1111',
+          requiredPercent: 75.0,
+          color: '#06b6d4',
+          syncedPresent: isSuspectedLabNumbers ? ppsTheory.syncedPresent : 0,
+          syncedAbsent: isSuspectedLabNumbers ? ppsTheory.syncedAbsent : 0,
+          simpleAttended: isSuspectedLabNumbers ? ppsTheory.simpleAttended : 0,
+          simpleHeld: isSuspectedLabNumbers ? ppsTheory.simpleHeld : 0,
+          syncedAt: ppsTheory.syncedAt,
+        },
+        include: { timetableSlots: true },
+      })
+    }
+
+    if (ppsTheory && ppsLab && ppsTheory.id !== ppsLab.id) {
+      // If lab was created or empty and theory had the lab numbers, transfer them
+      if (
+        (ppsLab.simpleHeld === 0 || ppsLab.syncedPresent === 0) &&
+        isSuspectedLabNumbers &&
+        ppsTheory.syncedPresent
+      ) {
+        await prisma.course.update({
+          where: { id: ppsLab.id },
+          data: {
+            syncedPresent: ppsTheory.syncedPresent,
+            syncedAbsent: 0,
+            simpleAttended: ppsTheory.syncedPresent,
+            simpleHeld: ppsTheory.syncedPresent,
+            syncedAt: ppsTheory.syncedAt,
+          },
         })
+      }
+
+      if (labSlotsOnTheory.length > 0) {
+        for (const slot of labSlotsOnTheory) {
+          await prisma.timetableSlot.update({
+            where: { id: slot.id },
+            data: { courseId: ppsLab.id },
+          })
+        }
       }
     }
   } catch (err) {
-    console.error('Failed to heal separated lab slots:', err)
+    console.error('Failed to auto-heal user courses:', err)
   }
 }
+
+export const healSeparatedLabSlots = autoHealUserCourses
 
 export async function autoApplySync(
   userId: string,
   incomingCourses: SyncedCourse[],
   syncedAt?: string
 ) {
+  await autoHealUserCourses(userId)
   const syncDate = syncedAt ? new Date(syncedAt) : new Date()
   const dbCourses = await prisma.course.findMany({
     where: { userId },
@@ -357,6 +416,7 @@ export async function buildReconcileDiff(
   userId: string,
   incomingCourses: SyncedCourse[]
 ) {
+  await autoHealUserCourses(userId)
   const dbCourses = await prisma.course.findMany({
     where: { userId },
     include: { attendance: true },
