@@ -364,6 +364,9 @@ export default function App() {
         {activeTab === 'subjects' && (
           <SubjectsView
             courses={courses}
+            allSlots={allSlots}
+            allAttendance={allAttendance}
+            holidays={holidays}
             onAddCourse={() => {
               setEditingSubject(null)
               setIsSubjectModalOpen(true)

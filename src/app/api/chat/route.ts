@@ -8,6 +8,7 @@ import { requireUser } from '@/lib/session'
 import { autoApplySync, parsePastedTableText, SyncedCourse, autoHealUserCourses } from '@/lib/reconcile'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { getOfficialCalendarDates } from '@/lib/academicCalendar'
+import { calculateSemesterForecast } from '@/lib/semesterForecast'
 
 function parseIsoDate(str: string): Date {
   const [y, m, d] = str.split('-').map(Number)
@@ -264,6 +265,20 @@ export async function POST(req: Request) {
           properties: {},
         },
       },
+      {
+        name: 'get_semester_forecast',
+        description:
+          'Calculate full semester projections until instruction ends on Dec 5, 2026. Returns total semester classes, allowed misses, remaining skip budget, and the exact "Cruise Date" (Safe-to-Bunk milestone date until which you must attend classes so you can safely skip all remaining classes until Dec 5 and finish >= 75%).',
+        parameters: {
+          type: Type.OBJECT,
+          properties: {
+            courseCode: {
+              type: Type.STRING,
+              description: 'Optional course code (e.g. CES_1102) to inspect a specific subject. Omit to get full semester forecast for all subjects.',
+            },
+          },
+        },
+      },
     ]
 
     // Helper to retrieve holidays (uses DB holidays if present; otherwise defaults to official calendar)
@@ -274,11 +289,12 @@ export async function POST(req: Request) {
           if (h.date === '2026-10-01' && h.label.includes('Mid-Term')) return false
           if (h.label.includes('Re-Mid')) return false
           if (h.label.includes('Make-Up') || h.label.includes('Makeup')) return false
+          if (h.date > '2027-01-03') return false
           return true
         })
       }
 
-      const official = getOfficialCalendarDates('2026-09-20')
+      const official = getOfficialCalendarDates('2026-09-20', '2027-01-03')
       return official.map((off, i) => ({
         id: `official-${off.date}-${i}`,
         date: off.date,
@@ -310,12 +326,23 @@ export async function POST(req: Request) {
       }
 
       if (name === 'get_attendance_summary') {
-        const [courses, attendance] = await Promise.all([
+        const [courses, attendance, slots, holidays] = await Promise.all([
           prisma.course.findMany({ where: { userId } }),
           prisma.attendanceRecord.findMany({ where: { course: { userId } } }),
+          prisma.timetableSlot.findMany({ where: { course: { userId } } }),
+          getMergedHolidays(),
         ])
 
+        const forecast = calculateSemesterForecast({
+          courses,
+          slots,
+          attendanceRecords: attendance,
+          holidays,
+          referenceDate: toDateString(new Date()),
+        })
+
         const summary = courses.map((c) => {
+          const fc = forecast.courses.find((f) => f.courseId === c.id)
           if (c.trackingMode === 'simple') {
             const held = c.simpleHeld || 0
             const present = c.simpleAttended || 0
@@ -334,6 +361,17 @@ export async function POST(req: Request) {
               mustAttendNext: stats.mustAttendNext,
               isSafe: stats.isSafe,
               statusText: stats.statusText,
+              semesterForecast: fc
+                ? {
+                    totalSemesterClasses: fc.totalSemesterClasses,
+                    futureClassesRemaining: fc.futureClassesCount,
+                    maxSemesterSkips: fc.maxSemesterSkips,
+                    remainingSkipsAllowed: fc.remainingSkipsAllowed,
+                    safeToBunkDate: fc.safeToBunkDateFormatted,
+                    classesToAttendUntilCruise: fc.classesToAttendUntilCruise,
+                    statusText: fc.statusText,
+                  }
+                : null,
             }
           }
 
@@ -359,6 +397,17 @@ export async function POST(req: Request) {
             mustAttendNext: stats.mustAttendNext,
             isSafe: stats.isSafe,
             statusText: stats.statusText,
+            semesterForecast: fc
+              ? {
+                  totalSemesterClasses: fc.totalSemesterClasses,
+                  futureClassesRemaining: fc.futureClassesCount,
+                  maxSemesterSkips: fc.maxSemesterSkips,
+                  remainingSkipsAllowed: fc.remainingSkipsAllowed,
+                  safeToBunkDate: fc.safeToBunkDateFormatted,
+                  classesToAttendUntilCruise: fc.classesToAttendUntilCruise,
+                  statusText: fc.statusText,
+                }
+              : null,
           }
         })
 
@@ -378,6 +427,10 @@ export async function POST(req: Request) {
             totalAbsent: overallAbsent,
             totalHeld: overallHeld,
             isSafe: overallPct >= 75,
+            semesterTotalClasses: forecast.totalSemesterClasses,
+            semesterRemainingSkipsAllowed: forecast.overallRemainingSkipsAllowed,
+            semesterCruiseDate: forecast.overallSafeToBunkDateFormatted,
+            semesterInstructionEnd: forecast.semesterEndDateFormatted,
           },
           courses: summary,
         }
@@ -636,6 +689,41 @@ export async function POST(req: Request) {
         }
       }
 
+      if (name === 'get_semester_forecast') {
+        const [courses, slots, attendanceRecords, holidays] = await Promise.all([
+          prisma.course.findMany({ where: { userId } }),
+          prisma.timetableSlot.findMany({ where: { course: { userId } } }),
+          prisma.attendanceRecord.findMany({ where: { course: { userId } } }),
+          getMergedHolidays(),
+        ])
+
+        const forecast = calculateSemesterForecast({
+          courses,
+          slots,
+          attendanceRecords,
+          holidays,
+          referenceDate: toDateString(new Date()),
+        })
+
+        if (args?.courseCode) {
+          const code = String(args.courseCode).trim().toUpperCase()
+          const single = forecast.courses.find((c) => c.courseCode.toUpperCase() === code)
+          if (!single) {
+            return {
+              error: `Course with code "${args.courseCode}" was not found in your account.`,
+              availableCourses: forecast.courses.map((c) => c.courseCode),
+            }
+          }
+          return {
+            semesterEndDate: forecast.semesterEndDateFormatted,
+            winterVacation: `${forecast.winterVacationStartDate} to ${forecast.winterVacationEndDate}`,
+            course: single,
+          }
+        }
+
+        return forecast
+      }
+
       return { error: 'Unknown tool name' }
     }
 
@@ -653,30 +741,31 @@ RULES:
 8. If the user pastes attendance data, an SLCM table, or asks to update their attendance from text, call \`sync_attendance_data\` to save it directly to their Roll Book database account if not already synced. If a [SYSTEM NOTIFICATION] indicates Roll Book already synchronized the courses, celebrate the sync, confirm how many courses were updated, and provide an encouraging, organized breakdown of their subjects, present/total classes, and current percentages.
 9. When the user sends or uploads one or more screenshots/images of an attendance portal or SLCM table (even if split across multiple screenshots covering the top and bottom of the table), inspect ALL images collectively. Deduplicate any overlapping course rows across multiple screenshots. Extract all course names, course codes (e.g. SMS_1102, CES_1102, CES_1111), total classes, present count, and absent count for every unique course found across all uploaded screenshots. Immediately call \`sync_attendance_data\` with the deduplicated list of courses to save them directly to the user's Roll Book account. Once synchronized, confirm the exact courses and numbers recorded, and provide an encouraging summary of their overall attendance health.
 10. CRITICAL COURSE SEPARATION: "PROGRAMMING FOR PROBLEM SOLVING" (PPS theory, code CES_1102) and "PROGRAMMING FOR PROBLEM SOLVING LAB" (PPS Lab practical, code CES_1111) are TWO COMPLETELY SEPARATE SUBJECTS with separate codes and separate attendance records. Always treat and synchronize them as two distinct courses.
-11. OFFICIAL ACADEMIC CALENDAR & HOLIDAYS (MIT Bengaluru 2026-2027, starting from September 20, 2026):
+11. OFFICIAL ACADEMIC CALENDAR & HOLIDAYS (MIT Bengaluru Odd Semester 2026-2027, Sep 20, 2026 – Jan 3, 2027):
+- SEMESTER CYCLE BOUNDARY: This academic calendar strictly covers the current Odd Semester cycle up to January 3, 2027 (end of Winter Vacation). On January 4, 2027, cycles rotate (new timetables, new subjects), so no events after January 3 are included in this cycle!
+- Semester Instruction End: 05/12/2026 (Saturday). All regular timetable teaching finishes on Dec 5.
+- Winter Vacation: 06/12/2026 – 03/01/2027 (Official college holidays / vacation — NO classes; Even Semester classes start 04/01/2027).
 - Confirmed College Holidays (in RED on calendar — NO classes):
   * 02/10/2026: Gandhi Jayanti
   * 20/10/2026: Vijaya Dashami
   * 09/11/2026: Deepavali
-  * 06/12/2026 – 03/01/2027: Winter Vacation (Odd semester ends 05/12/2026; NO classes — college holidays until 03/01/2027; Christmas on 25/12/2026; Even Semester starts 04/01/2027)
+  * 06/12/2026 – 03/01/2027: Winter Vacation
   * 25/12/2026: Christmas
-  * 15/01/2027: Makara Sankranthi
-  * 26/01/2027: Republic Day
-  * 22/02/2027: Holi
-  * 10/03/2027: Ramzan
-  * 26/03/2027: Good Friday
-  * 08/04/2027: Ugadi
-  * 17/05/2027: Bakrid
 - Examination Windows (NO regular timetable classes, exam periods):
   * 23/09/2026 – 30/09/2026: Mid-Term Examinations (strictly 23 to 30 September; on 01/10/2026 regular timetable classes resume as normal!)
   * 30/10/2026 & 02/11/2026 – 06/11/2026: Lab End Semester Examinations
   * 14/11/2026 – 28/11/2026: Tentative End Semester Examinations (Always explicitly label as Tentative)
-  * 03/03/2027 – 09/03/2027: Mid-Term Examinations (Even Semester)
-  * 13/04/2027 – 19/04/2027: Lab End Semester Examinations
-  * 24/04/2027 – 08/05/2027: Tentative End Semester Examinations (Even Semester, Always explicitly label as Tentative)
 - RE-MID TERMS & MAKE-UP EXAMS: Re-mid terms and make-up exams are re-assessments only for students with backlogs or re-tests. Normal students have regular scheduled classes (or winter vacation in December) during these periods, so do NOT treat re-mid terms or make-up exams as general student exam periods or holidays.
 - CRITICAL CALENDAR FILTER: If an event is NOT in red on the calendar and NOT an exam (such as Teacher's Day, Engineer's Day, Falak, Tech Solstice, Re-quiz, Class Committee meetings, Last Instructional Day, Gratitude Day, Utsav, etc.), DO NOT believe or count it as a holiday! It is a normal instructional working day with regular scheduled classes.
-12. MARKDOWN FORMATTING: Always format your answers with clean, beautiful Markdown. Put headings on their own separate lines preceded by blank lines (e.g. \\n\\n### Heading\\n\\n). Put bullet points on separate lines (e.g. \\n* **Item:** details). Use bold for dates, course codes, and key metrics. Never squish headings, rules, or bullets into a single inline paragraph.`
+12. MARKDOWN FORMATTING: Always format your answers with clean, beautiful Markdown. Put headings on their own separate lines preceded by blank lines (e.g. \n\n### Heading\n\n). Put bullet points on separate lines (e.g. \n* **Item:** details). Use bold for dates, course codes, and key metrics. Never squish headings, rules, or bullets into a single inline paragraph.
+13. SEMESTER FORECAST & SAFE-TO-BUNK "CRUISE DATE" CALCULATIONS:
+- Whenever the user asks questions such as "how many total classes will there be this semester", "how many classes can I miss for the semester", "till what day do I have to attend classes so I can skip all remaining classes and stay above 75%", or "when can I cruise/bunk the rest", ALWAYS call \`get_semester_forecast\` (or inspect \`get_attendance_summary.overall\` and \`semesterForecast\`).
+- Explain:
+  1. The semester timeline: Instruction ends Dec 5, 2026, followed by Winter Vacation Dec 6 to Jan 3.
+  2. Future scheduled classes: calculated from their weekly timetable slots minus confirmed holidays and exam windows.
+  3. Total classes in the semester (held so far + remaining scheduled).
+  4. Total misses allowed for the semester and remaining skips allowed right now.
+  5. The exact "Cruise Date" (Safe-to-Bunk Milestone): Explain that if they attend all classes starting today consecutively, by that date they will reach 75% of the total semester classes, meaning they can safely skip EVERY single remaining class from that date until Dec 5 without falling below 75%!`
 
     // Format messages for Gemini
     const contents: any[] = []

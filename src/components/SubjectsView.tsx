@@ -22,8 +22,9 @@ import {
   Sliders,
   Minus,
 } from 'lucide-react'
-import { CourseWithStats, AttendanceRecord } from '@/types'
+import { CourseWithStats, AttendanceRecord, TimetableSlot, Holiday } from '@/types'
 import { formatDate } from '@/lib/formatters'
+import { calculateSemesterForecast, CourseSemesterForecast } from '@/lib/semesterForecast'
 import {
   ResponsiveContainer,
   LineChart,
@@ -35,6 +36,9 @@ import { motion, AnimatePresence, Variants, useReducedMotion } from 'framer-moti
 
 interface SubjectsViewProps {
   courses: CourseWithStats[]
+  allSlots?: TimetableSlot[]
+  allAttendance?: AttendanceRecord[]
+  holidays?: Holiday[]
   onAddCourse: () => void
   onEditCourse: (course: CourseWithStats) => void
   onDeleteCourse: (courseId: string) => Promise<void>
@@ -45,6 +49,9 @@ interface SubjectsViewProps {
 
 export const SubjectsView: React.FC<SubjectsViewProps> = ({
   courses,
+  allSlots = [],
+  allAttendance = [],
+  holidays = [],
   onAddCourse,
   onEditCourse,
   onDeleteCourse,
@@ -68,6 +75,20 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
     if (filterMode === 'critical') return courses.filter((c) => !c.stats.isSafe)
     return courses
   }, [courses, filterMode])
+
+  // Precompute full semester forecast mapping for each course (memoized)
+  const forecastMap = useMemo(() => {
+    if (!allSlots || allSlots.length === 0) return new Map<string, CourseSemesterForecast>()
+    const result = calculateSemesterForecast({
+      courses,
+      slots: allSlots,
+      attendanceRecords: allAttendance,
+      holidays,
+    })
+    const map = new Map<string, CourseSemesterForecast>()
+    result.courses.forEach((c) => map.set(c.courseId, c))
+    return map
+  }, [courses, allSlots, allAttendance, holidays])
 
   // Stepper handlers for Simple Mode
   const handleSimpleCountChange = async (
@@ -267,6 +288,7 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
             const { stats } = course
             const isSimpleMode = course.trackingMode === 'simple'
             const trendData = generateTrendData(course.attendance || [])
+            const courseForecast = forecastMap.get(course.id)
 
             return (
               <motion.div
@@ -463,6 +485,63 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     <Info className="w-4 h-4 shrink-0 mt-0.5" />
                     <span className="font-mono text-[11px] leading-relaxed">{stats.statusText}</span>
                   </div>
+
+                  {/* Semester Cruise Radar & Skip Budget */}
+                  {courseForecast && courseForecast.totalSemesterClasses > 0 && (
+                    <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-3 space-y-2.5 font-mono shadow-[2px_2px_0px_var(--shadow-color)]">
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase">
+                        <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+                          <ShieldCheck className="w-3.5 h-3.5" /> Semester Cruise Radar
+                        </span>
+                        <span className="text-[10px] text-[var(--muted-foreground)]">
+                          {courseForecast.totalSemesterClasses} Total Lectures
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {/* Safe-to-Bunk Date */}
+                        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-2 space-y-0.5">
+                          <span className="text-[10px] text-[var(--muted-foreground)] block">Safe-to-Bunk Date</span>
+                          <span className="font-heading font-black text-xs sm:text-sm text-[var(--foreground)] truncate block">
+                            {courseForecast.isAlreadySecured
+                              ? 'Secured! 🎉'
+                              : courseForecast.safeToBunkDateFormatted || (courseForecast.isImpossible ? 'Critical ⚠️' : 'Calculating...')}
+                          </span>
+                        </div>
+
+                        {/* Remaining Skip Budget */}
+                        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-2 space-y-0.5">
+                          <span className="text-[10px] text-[var(--muted-foreground)] block">Allowed Skips Left</span>
+                          <div className="flex items-baseline gap-1">
+                            <span
+                              className={`font-heading font-black text-xs sm:text-sm ${
+                                courseForecast.remainingSkipsAllowed >= 0
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-rose-600 dark:text-rose-400'
+                              }`}
+                            >
+                              {courseForecast.remainingSkipsAllowed >= 0
+                                ? `${courseForecast.remainingSkipsAllowed}`
+                                : `${courseForecast.remainingSkipsAllowed}`}
+                            </span>
+                            <span className="text-[10px] text-[var(--muted-foreground)]">
+                              / {courseForecast.maxSemesterSkips} max
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="text-[10px] text-[var(--muted-foreground)] leading-relaxed font-sans">
+                        {courseForecast.isAlreadySecured
+                          ? '🎉 Target ≥75% already secured! You can safely skip all remaining classes for this subject.'
+                          : courseForecast.isImpossible
+                          ? `⚠️ Even with 100% attendance in all ${courseForecast.futureClassesCount} remaining classes, max achievable is ${courseForecast.maxAchievablePercentage}%.`
+                          : courseForecast.safeToBunkDateFormatted
+                          ? `Attend the next ${courseForecast.classesToAttendUntilCruise} classes until ${courseForecast.safeToBunkDateFormatted}, then you can skip the rest until Dec 5.`
+                          : `Must attend upcoming classes to reach ${courseForecast.minPresentRequired} attendances.`}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Mini Sparkline Chart for Detailed Mode */}
                   {!isSimpleMode && trendData.length > 1 && (

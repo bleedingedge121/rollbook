@@ -11,6 +11,7 @@
  * 3. Exam periods are marked as type: 'exam'.
  * 4. Tentative exams (End-Sem) explicitly include "Tentative" in their label.
  * 5. Starts strictly from September 20th, 2026 onwards.
+ * 6. Strictly ends on January 3rd, 2027 (end of current Odd Semester cycle + Winter Vacation).
  */
 
 export interface CalendarEventDef {
@@ -81,71 +82,6 @@ export const OFFICIAL_ACADEMIC_CALENDAR_EVENTS: CalendarEventDef[] = [
     type: 'holiday',
     tentative: false,
   },
-
-  // --- EVEN SEMESTER (Jan 2027 - May 2027) ---
-  {
-    startDate: '2027-01-15',
-    label: 'Makara Sankranthi',
-    type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2027-01-26',
-    label: 'Republic Day',
-    type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2027-02-22',
-    label: 'Holi',
-    type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2027-03-03',
-    endDate: '2027-03-09',
-    label: 'Mid-Term Examinations',
-    type: 'exam',
-    tentative: false,
-  },
-  {
-    startDate: '2027-03-10',
-    label: 'Ramzan',
-    type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2027-03-26',
-    label: 'Good Friday',
-    type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2027-04-08',
-    label: 'Ugadi',
-    type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2027-04-13',
-    endDate: '2027-04-19',
-    label: 'Lab End Semester Examinations',
-    type: 'exam',
-    tentative: false,
-  },
-  {
-    startDate: '2027-04-24',
-    endDate: '2027-05-08',
-    label: 'Tentative End Semester Examinations',
-    type: 'exam',
-    tentative: true,
-  },
-  {
-    startDate: '2027-05-17',
-    label: 'Bakrid',
-    type: 'holiday',
-    tentative: false,
-  },
 ]
 
 export interface FlatCalendarEvent {
@@ -156,10 +92,10 @@ export interface FlatCalendarEvent {
 }
 
 /**
- * Returns all individual calendar day entries starting from September 20th, 2026.
+ * Returns all individual calendar day entries starting from September 20th, 2026 until January 3rd, 2027.
  * Confirmed holidays strictly take precedence over overlapping exam windows (e.g. Christmas).
  */
-export function getOfficialCalendarDates(cutoffDate = '2026-09-20'): FlatCalendarEvent[] {
+export function getOfficialCalendarDates(cutoffDate = '2026-09-20', maxDate = '2027-01-03'): FlatCalendarEvent[] {
   const dateMap = new Map<string, FlatCalendarEvent>()
 
   // 1. Process exam windows first
@@ -176,7 +112,7 @@ export function getOfficialCalendarDates(cutoffDate = '2026-09-20'): FlatCalenda
       const dateStr = `${year}-${month}-${day}`
 
       // Skip Sundays from exam periods (Sundays are off days)
-      if (current.getDay() !== 0 && dateStr >= cutoffDate && !dateMap.has(dateStr)) {
+      if (current.getDay() !== 0 && dateStr >= cutoffDate && dateStr <= maxDate && !dateMap.has(dateStr)) {
         dateMap.set(dateStr, {
           date: dateStr,
           label: event.label,
@@ -202,7 +138,7 @@ export function getOfficialCalendarDates(cutoffDate = '2026-09-20'): FlatCalenda
       const day = String(current.getDate()).padStart(2, '0')
       const dateStr = `${year}-${month}-${day}`
 
-      if (dateStr >= cutoffDate) {
+      if (dateStr >= cutoffDate && dateStr <= maxDate) {
         dateMap.set(dateStr, {
           date: dateStr,
           label: event.label,

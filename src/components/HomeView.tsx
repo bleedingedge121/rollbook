@@ -26,6 +26,7 @@ import {
 import { CourseWithStats, TimetableSlot, AttendanceRecord, Holiday } from '@/types'
 import { toDateString, WEEKDAYS } from '@/lib/attendance'
 import { formatDate, formatSlotTime } from '@/lib/formatters'
+import { calculateSemesterForecast } from '@/lib/semesterForecast'
 import { motion, AnimatePresence, Variants, useReducedMotion } from 'framer-motion'
 
 interface HomeViewProps {
@@ -93,6 +94,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isOverallSafe: pct >= 75,
     }
   }, [courses])
+
+  // Calculate full semester forecast & cruise milestone (memoized)
+  const semesterForecast = useMemo(() => {
+    return calculateSemesterForecast({
+      courses,
+      slots: allSlots,
+      attendanceRecords: allAttendance,
+      holidays,
+    })
+  }, [courses, allSlots, allAttendance, holidays])
 
   // Find unlogged past classes from the last 7 days (memoized, excludes simple mode courses)
   const unloggedPastItems = useMemo(() => {
@@ -368,7 +379,104 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </motion.div>
 
-      {/* 2. Today's Flight Schedule & Immediate Actions */}
+      {/* 2. Semester Flight Forecast & Cruise Radar */}
+      <motion.div
+        variants={itemVariants}
+        className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-5 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5 overflow-hidden"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-[var(--border)] pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--shadow-color)] text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)] flex flex-wrap items-center gap-2">
+                <span>Semester Flight Forecast &amp; Cruise Radar</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-500/30">
+                  Odd Sem 2026
+                </span>
+              </h2>
+              <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
+                Classes end <strong className="text-[var(--foreground)]">5 Dec 2026</strong> • Winter Break: <strong className="text-[var(--foreground)]">6 Dec 2026 – 3 Jan 2027</strong> (Cycles rotate 4 Jan)
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onNavigateToCalendar}
+            className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 font-mono shrink-0 self-start sm:self-auto"
+          >
+            Flight Calendar <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* 3 Highlight Metric Tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Milestone: Cruise Date */}
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5">
+            <div className="text-[10px] font-mono font-bold uppercase text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" /> Safe-to-Bunk Cruise Date
+            </div>
+            <div className="text-xl sm:text-2xl font-heading font-black text-[var(--foreground)] tracking-tight">
+              {semesterForecast.overallIsAlreadySecured
+                ? 'Secured! 🎉'
+                : semesterForecast.overallSafeToBunkDateFormatted || 'Calculating...'}
+            </div>
+            <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+              {semesterForecast.overallIsAlreadySecured
+                ? 'You have already attended enough classes to guarantee ≥75% for the entire semester!'
+                : semesterForecast.overallSafeToBunkDateFormatted
+                ? `Attend the next ${semesterForecast.overallClassesToAttendUntilCruise} classes until ${semesterForecast.overallSafeToBunkDateFormatted}, then you can skip ALL remaining classes until Dec 5!`
+                : 'Attend upcoming classes to lock in your safe-to-skip status.'}
+            </p>
+          </div>
+
+          {/* Remaining Skip Budget */}
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5">
+            <div className="text-[10px] font-mono font-bold uppercase text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <Zap className="w-3.5 h-3.5" /> Remaining Skip Budget
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-xl sm:text-2xl font-heading font-black ${
+                  semesterForecast.overallRemainingSkipsAllowed >= 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-rose-600 dark:text-rose-400'
+                }`}
+              >
+                {semesterForecast.overallRemainingSkipsAllowed >= 0
+                  ? `${semesterForecast.overallRemainingSkipsAllowed} Skips`
+                  : `${semesterForecast.overallRemainingSkipsAllowed} Deficit`}
+              </span>
+              <span className="text-[11px] font-mono text-[var(--muted-foreground)]">
+                / {semesterForecast.overallMaxSemesterSkips} max
+              </span>
+            </div>
+            <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">
+              {semesterForecast.overallRemainingSkipsAllowed > 0
+                ? `You can safely miss up to ${semesterForecast.overallRemainingSkipsAllowed} more classes before Dec 5 and still finish ≥75%.`
+                : semesterForecast.overallRemainingSkipsAllowed === 0
+                ? 'You are exactly on the 75% limit. Any further absence will drop you below 75%.'
+                : 'You have exceeded the skip quota. Maximize attendance in upcoming classes to recover!'}
+            </p>
+          </div>
+
+          {/* Total Semester Classes */}
+          <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5">
+            <div className="text-[10px] font-mono font-bold uppercase text-[var(--muted-foreground)] flex items-center gap-1">
+              <CalendarIcon className="w-3.5 h-3.5" /> Total Semester Classes
+            </div>
+            <div className="text-xl sm:text-2xl font-heading font-black text-[var(--foreground)] tracking-tight">
+              {semesterForecast.totalSemesterClasses} Lectures
+            </div>
+            <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed font-mono">
+              {semesterForecast.totalPastHeld} held so far + {semesterForecast.totalFutureClasses} remaining until 05/12/2026.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 3. Today's Flight Schedule & Immediate Actions */}
       <motion.div
         variants={itemVariants}
         className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-4 sm:p-6 lg:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4"

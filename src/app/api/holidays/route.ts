@@ -21,7 +21,7 @@ export async function GET(req?: Request) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    // Purge unwanted 1st October mid-term, any re-midterm exams, and make-up exams from database
+    // Purge unwanted 1st October mid-term, re-midterms, make-up exams, and events after Jan 3, 2027 (when cycles rotate)
     await prisma.holiday.deleteMany({
       where: {
         OR: [
@@ -29,6 +29,7 @@ export async function GET(req?: Request) {
           { label: { contains: 'Re-Mid' } },
           { label: { contains: 'Make-Up' } },
           { label: { contains: 'Makeup' } },
+          { date: { gte: '2027-01-04' } },
         ],
       },
     }).catch(() => {})

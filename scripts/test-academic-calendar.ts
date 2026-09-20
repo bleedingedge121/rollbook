@@ -24,13 +24,6 @@ const expectedHolidays = [
   { date: '2026-10-20', label: 'Vijaya Dashami' },
   { date: '2026-11-09', label: 'Deepavali' },
   { date: '2026-12-25', label: 'Christmas' },
-  { date: '2027-01-15', label: 'Makara Sankranthi' },
-  { date: '2027-01-26', label: 'Republic Day' },
-  { date: '2027-02-22', label: 'Holi' },
-  { date: '2027-03-10', label: 'Ramzan' },
-  { date: '2027-03-26', label: 'Good Friday' },
-  { date: '2027-04-08', label: 'Ugadi' },
-  { date: '2027-05-17', label: 'Bakrid' },
 ]
 
 for (const exp of expectedHolidays) {
@@ -38,7 +31,12 @@ for (const exp of expectedHolidays) {
   console.assert(found !== undefined, `Missing holiday on ${exp.date}: ${exp.label}`)
   console.assert(found?.label === exp.label, `Expected ${exp.label}, got ${found?.label}`)
 }
-console.log('✓ All 11 confirmed RED holidays present and verified!')
+console.log('✓ Confirmed RED holidays present and verified for Odd Semester!')
+
+// Verify no events after Jan 3, 2027 (Cycles rotate Jan 4)
+const eventsAfterJan3 = dates.filter(d => d.date >= '2027-01-04')
+console.assert(eventsAfterJan3.length === 0, `No events should exist after 2027-01-03, found ${eventsAfterJan3.length}`)
+console.log('✓ Verified 0 events after 2027-01-03 (Cycles rotate on Jan 4)!')
 
 // 3. Verify Exams and Tentative labeling
 const exams = dates.filter(d => d.type === 'exam')
@@ -58,7 +56,7 @@ console.log('✓ 1st October is verified as a normal working day with regular cl
 
 const midTerms = dates.filter(d => d.label === 'Mid-Term Examinations')
 const lastMidTerm = midTerms[midTerms.length - 1]
-console.assert(lastMidTerm?.date === '2026-09-30' || lastMidTerm?.date === '2027-03-09', `Odd Sem Mid-Terms must end on 2026-09-30`)
+console.assert(lastMidTerm?.date === '2026-09-30', `Odd Sem Mid-Terms must end on 2026-09-30`)
 console.log('✓ Odd Semester Mid-Terms strictly end on 2026-09-30!')
 
 // 5. Verify Re-Mid Terms and Make-Up exams are completely removed (normal students have classes/vacation)
