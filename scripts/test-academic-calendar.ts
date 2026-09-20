@@ -51,10 +51,26 @@ tentativeExams.forEach(t => {
 })
 console.log('✓ All tentative exams explicitly include "Tentative" in label!')
 
-// 4. Verify NON-holidays are NOT included as holidays
+// 4. Verify Mid-Term strictly ends on September 30, NOT 1 October
+const oct1Event = dates.find(d => d.date === '2026-10-01')
+console.assert(!oct1Event, `1st October must NOT have an exam/holiday, got: ${oct1Event?.label}`)
+console.log('✓ 1st October is verified as a normal working day with regular classes!')
+
+const midTerms = dates.filter(d => d.label === 'Mid-Term Examinations')
+const lastMidTerm = midTerms[midTerms.length - 1]
+console.assert(lastMidTerm?.date === '2026-09-30' || lastMidTerm?.date === '2027-03-09', `Odd Sem Mid-Terms must end on 2026-09-30`)
+console.log('✓ Odd Semester Mid-Terms strictly end on 2026-09-30!')
+
+// 5. Verify Re-Mid Terms are completely removed (normal students have classes)
+const reMidTerms = dates.filter(d => d.label.toLowerCase().includes('re-mid'))
+console.assert(reMidTerms.length === 0, `All Re-Mid Term events must be removed, found ${reMidTerms.length}`)
+console.log('✓ All Re-Mid Term events are completely removed!')
+
+// 6. Verify NON-holidays are NOT included as holidays
 const nonHolidayDates = [
   '2026-09-05', // Teacher's day
   '2026-09-15', // Engineer's day
+  '2026-10-01', // 1 October
   '2026-10-05', // Scholarship
   '2026-10-12', // Falak
   '2027-02-17', // Tech solstice

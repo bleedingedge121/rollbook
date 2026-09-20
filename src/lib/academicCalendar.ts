@@ -25,7 +25,7 @@ export const OFFICIAL_ACADEMIC_CALENDAR_EVENTS: CalendarEventDef[] = [
   // --- ODD SEMESTER (Sep 20, 2026 - Jan 2027) ---
   {
     startDate: '2026-09-23',
-    endDate: '2026-10-01',
+    endDate: '2026-09-30',
     label: 'Mid-Term Examinations',
     type: 'exam',
     tentative: false,
@@ -40,20 +40,6 @@ export const OFFICIAL_ACADEMIC_CALENDAR_EVENTS: CalendarEventDef[] = [
     startDate: '2026-10-20',
     label: 'Vijaya Dashami',
     type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2026-10-22',
-    endDate: '2026-10-23',
-    label: 'Re-Mid Term Examinations',
-    type: 'exam',
-    tentative: false,
-  },
-  {
-    startDate: '2026-10-26',
-    endDate: '2026-10-29',
-    label: 'Re-Mid Term Examinations',
-    type: 'exam',
     tentative: false,
   },
   {
@@ -132,19 +118,6 @@ export const OFFICIAL_ACADEMIC_CALENDAR_EVENTS: CalendarEventDef[] = [
     startDate: '2027-03-26',
     label: 'Good Friday',
     type: 'holiday',
-    tentative: false,
-  },
-  {
-    startDate: '2027-03-27',
-    label: 'Re-Midterm Examinations',
-    type: 'exam',
-    tentative: false,
-  },
-  {
-    startDate: '2027-03-29',
-    endDate: '2027-04-02',
-    label: 'Re-Midterm Examinations',
-    type: 'exam',
     tentative: false,
   },
   {

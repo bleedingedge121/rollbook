@@ -21,19 +21,28 @@ export async function GET(req?: Request) {
   if (auth instanceof NextResponse) return auth
 
   try {
+    // Purge unwanted 1st October mid-term and any re-midterm exams from database
+    await prisma.holiday.deleteMany({
+      where: {
+        OR: [
+          { date: '2026-10-01', label: { contains: 'Mid-Term' } },
+          { label: { contains: 'Re-Mid' } },
+        ],
+      },
+    }).catch(() => {})
+
     let holidays = await prisma.holiday.findMany({
       orderBy: { date: 'asc' },
     })
 
-    // Ensure all official calendar events starting from Sep 20, 2026 are present
-    const officialDates = getOfficialCalendarDates('2026-09-20')
-    const existingDateSet = new Set(holidays.map((h) => h.date))
-    const missing = officialDates.filter((od) => !existingDateSet.has(od.date))
-
-    if (missing.length > 0) {
+    // Only seed initial official calendar if the Holiday table is completely empty!
+    // This guarantees that when an admin or user deletes an event, it stays deleted
+    // and is never resurrected on subsequent requests.
+    if (holidays.length === 0) {
+      const officialDates = getOfficialCalendarDates('2026-09-20')
       try {
         await prisma.holiday.createMany({
-          data: missing.map((m) => ({
+          data: officialDates.map((m) => ({
             date: m.date,
             label: m.label,
             type: m.type,
@@ -44,18 +53,16 @@ export async function GET(req?: Request) {
           orderBy: { date: 'asc' },
         })
       } catch (dbErr) {
-        console.warn('Could not auto-seed missing official calendar events into DB:', dbErr)
-        // Fallback: merge memory objects
-        for (const m of missing) {
-          holidays.push({
-            id: `official-${m.date}`,
+        console.warn('Could not auto-seed official calendar events into DB:', dbErr)
+        return NextResponse.json(
+          officialDates.map((m, idx) => ({
+            id: `official-${idx}-${m.date}`,
             date: m.date,
             label: m.label,
             type: m.type,
-            createdAt: new Date(),
-          } as any)
-        }
-        holidays.sort((a, b) => a.date.localeCompare(b.date))
+            createdAt: new Date().toISOString(),
+          }))
+        )
       }
     }
 

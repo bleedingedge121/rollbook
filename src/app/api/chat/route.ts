@@ -266,26 +266,24 @@ export async function POST(req: Request) {
       },
     ]
 
-    // Helper to retrieve DB holidays merged with official academic calendar (starting Sep 20, 2026)
+    // Helper to retrieve holidays (uses DB holidays if present; otherwise defaults to official calendar)
     const getMergedHolidays = async () => {
       const dbHolidays = await prisma.holiday.findMany({ orderBy: { date: 'asc' } }).catch(() => [])
-      const official = getOfficialCalendarDates('2026-09-20')
-      const dbDateSet = new Set(dbHolidays.map((h) => h.date))
-
-      const merged = [...dbHolidays]
-      for (const off of official) {
-        if (!dbDateSet.has(off.date)) {
-          merged.push({
-            id: `official-${off.date}`,
-            date: off.date,
-            label: off.label,
-            type: off.type,
-            createdAt: new Date(),
-          } as any)
-        }
+      if (dbHolidays.length > 0) {
+        return dbHolidays.filter((h) => {
+          if (h.date === '2026-10-01' && h.label.includes('Mid-Term')) return false
+          if (h.label.includes('Re-Mid')) return false
+          return true
+        })
       }
 
-      return merged.sort((a, b) => a.date.localeCompare(b.date))
+      const official = getOfficialCalendarDates('2026-09-20')
+      return official.map((off, i) => ({
+        id: `official-${off.date}-${i}`,
+        date: off.date,
+        label: off.label,
+        type: off.type,
+      }))
     }
 
     // Tool execution functions scoped to authenticated user
@@ -668,16 +666,15 @@ RULES:
   * 08/04/2027: Ugadi
   * 17/05/2027: Bakrid
 - Examination Windows (NO regular timetable classes, exam periods):
-  * 23/09/2026 – 01/10/2026: Mid-Term Examinations
-  * 22/10/2026 – 23/10/2026 & 26/10/2026 – 29/10/2026: Re-Mid Term Examinations
+  * 23/09/2026 – 30/09/2026: Mid-Term Examinations (strictly 23 to 30 September; on 01/10/2026 regular timetable classes resume as normal!)
   * 30/10/2026 & 02/11/2026 – 06/11/2026: Lab End Semester Examinations
   * 14/11/2026 – 28/11/2026: Tentative End Semester Examinations (Always explicitly label as Tentative)
   * 18/12/2026 – 02/01/2027: Tentative Make-Up Examinations (Always explicitly label as Tentative)
   * 03/03/2027 – 09/03/2027: Mid-Term Examinations (Even Semester)
-  * 27/03/2027 & 29/03/2027 – 02/04/2027: Re-Midterm Examinations
   * 13/04/2027 – 19/04/2027: Lab End Semester Examinations
   * 24/04/2027 – 08/05/2027: Tentative End Semester Examinations (Even Semester, Always explicitly label as Tentative)
   * 12/06/2027 – 26/06/2027: Tentative Make-Up Examinations (Always explicitly label as Tentative)
+- RE-MID TERMS: Re-mid terms are retests only for students taking re-assessments. Normal students have regular scheduled classes during re-mid terms, so do NOT treat re-mid terms as holidays or exam suspensions.
 - CRITICAL CALENDAR FILTER: If an event is NOT in red on the calendar and NOT an exam (such as Teacher's Day, Engineer's Day, Falak, Tech Solstice, Re-quiz, Class Committee meetings, Last Instructional Day, Gratitude Day, Utsav, etc.), DO NOT believe or count it as a holiday! It is a normal instructional working day with regular scheduled classes.
 12. MARKDOWN FORMATTING: Always format your answers with clean, beautiful Markdown. Put headings on their own separate lines preceded by blank lines (e.g. \\n\\n### Heading\\n\\n). Put bullet points on separate lines (e.g. \\n* **Item:** details). Use bold for dates, course codes, and key metrics. Never squish headings, rules, or bullets into a single inline paragraph.`
 
