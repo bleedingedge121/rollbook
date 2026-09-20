@@ -61,12 +61,29 @@ const lastMidTerm = midTerms[midTerms.length - 1]
 console.assert(lastMidTerm?.date === '2026-09-30' || lastMidTerm?.date === '2027-03-09', `Odd Sem Mid-Terms must end on 2026-09-30`)
 console.log('✓ Odd Semester Mid-Terms strictly end on 2026-09-30!')
 
-// 5. Verify Re-Mid Terms are completely removed (normal students have classes)
+// 5. Verify Re-Mid Terms and Make-Up exams are completely removed (normal students have classes/vacation)
 const reMidTerms = dates.filter(d => d.label.toLowerCase().includes('re-mid'))
 console.assert(reMidTerms.length === 0, `All Re-Mid Term events must be removed, found ${reMidTerms.length}`)
 console.log('✓ All Re-Mid Term events are completely removed!')
 
-// 6. Verify NON-holidays are NOT included as holidays
+const makeUpExams = dates.filter(d => d.label.toLowerCase().includes('make-up') || d.label.toLowerCase().includes('makeup'))
+console.assert(makeUpExams.length === 0, `All Make-Up exams must be removed, found ${makeUpExams.length}`)
+console.log('✓ All Make-Up exam events are completely removed!')
+
+// 6. Verify Winter Vacation from 2026-12-06 to 2027-01-03 (29 days total)
+const winterVacationDays = dates.filter(
+  d => d.date >= '2026-12-06' && d.date <= '2027-01-03' && d.type === 'holiday'
+)
+console.assert(winterVacationDays.length === 29, `Expected 29 days of winter vacation, got ${winterVacationDays.length}`)
+const dec6 = dates.find(d => d.date === '2026-12-06')
+console.assert(dec6?.label === 'Winter Vacation', `Dec 6 must be Winter Vacation, got ${dec6?.label}`)
+const jan3 = dates.find(d => d.date === '2027-01-03')
+console.assert(jan3?.label === 'Winter Vacation', `Jan 3 must be Winter Vacation, got ${jan3?.label}`)
+const dec25 = dates.find(d => d.date === '2026-12-25')
+console.assert(dec25?.label === 'Christmas', `Dec 25 must be Christmas, got ${dec25?.label}`)
+console.log('✓ Winter Vacation (2026-12-06 to 2027-01-03, 29 days) verified!')
+
+// 7. Verify NON-holidays are NOT included as holidays
 const nonHolidayDates = [
   '2026-09-05', // Teacher's day
   '2026-09-15', // Engineer's day

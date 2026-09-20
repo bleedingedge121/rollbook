@@ -273,6 +273,7 @@ export async function POST(req: Request) {
         return dbHolidays.filter((h) => {
           if (h.date === '2026-10-01' && h.label.includes('Mid-Term')) return false
           if (h.label.includes('Re-Mid')) return false
+          if (h.label.includes('Make-Up') || h.label.includes('Makeup')) return false
           return true
         })
       }
@@ -657,6 +658,7 @@ RULES:
   * 02/10/2026: Gandhi Jayanti
   * 20/10/2026: Vijaya Dashami
   * 09/11/2026: Deepavali
+  * 06/12/2026 – 03/01/2027: Winter Vacation (Odd semester ends 05/12/2026; NO classes — college holidays until 03/01/2027; Christmas on 25/12/2026; Even Semester starts 04/01/2027)
   * 25/12/2026: Christmas
   * 15/01/2027: Makara Sankranthi
   * 26/01/2027: Republic Day
@@ -669,12 +671,10 @@ RULES:
   * 23/09/2026 – 30/09/2026: Mid-Term Examinations (strictly 23 to 30 September; on 01/10/2026 regular timetable classes resume as normal!)
   * 30/10/2026 & 02/11/2026 – 06/11/2026: Lab End Semester Examinations
   * 14/11/2026 – 28/11/2026: Tentative End Semester Examinations (Always explicitly label as Tentative)
-  * 18/12/2026 – 02/01/2027: Tentative Make-Up Examinations (Always explicitly label as Tentative)
   * 03/03/2027 – 09/03/2027: Mid-Term Examinations (Even Semester)
   * 13/04/2027 – 19/04/2027: Lab End Semester Examinations
   * 24/04/2027 – 08/05/2027: Tentative End Semester Examinations (Even Semester, Always explicitly label as Tentative)
-  * 12/06/2027 – 26/06/2027: Tentative Make-Up Examinations (Always explicitly label as Tentative)
-- RE-MID TERMS: Re-mid terms are retests only for students taking re-assessments. Normal students have regular scheduled classes during re-mid terms, so do NOT treat re-mid terms as holidays or exam suspensions.
+- RE-MID TERMS & MAKE-UP EXAMS: Re-mid terms and make-up exams are re-assessments only for students with backlogs or re-tests. Normal students have regular scheduled classes (or winter vacation in December) during these periods, so do NOT treat re-mid terms or make-up exams as general student exam periods or holidays.
 - CRITICAL CALENDAR FILTER: If an event is NOT in red on the calendar and NOT an exam (such as Teacher's Day, Engineer's Day, Falak, Tech Solstice, Re-quiz, Class Committee meetings, Last Instructional Day, Gratitude Day, Utsav, etc.), DO NOT believe or count it as a holiday! It is a normal instructional working day with regular scheduled classes.
 12. MARKDOWN FORMATTING: Always format your answers with clean, beautiful Markdown. Put headings on their own separate lines preceded by blank lines (e.g. \\n\\n### Heading\\n\\n). Put bullet points on separate lines (e.g. \\n* **Item:** details). Use bold for dates, course codes, and key metrics. Never squish headings, rules, or bullets into a single inline paragraph.`
 

@@ -9,7 +9,7 @@
  * 2. Unconfirmed/gray items (e.g. Teacher's Day, Engineer's Day, Falak, Tech Solstice, Re-quiz,
  *    Class Committee meetings) are NOT holidays.
  * 3. Exam periods are marked as type: 'exam'.
- * 4. Tentative exams (End-Sem, Make-up) explicitly include "Tentative" in their label.
+ * 4. Tentative exams (End-Sem) explicitly include "Tentative" in their label.
  * 5. Starts strictly from September 20th, 2026 onwards.
  */
 
@@ -69,11 +69,11 @@ export const OFFICIAL_ACADEMIC_CALENDAR_EVENTS: CalendarEventDef[] = [
     tentative: true,
   },
   {
-    startDate: '2026-12-18',
-    endDate: '2027-01-02',
-    label: 'Tentative Make-Up Examinations',
-    type: 'exam',
-    tentative: true,
+    startDate: '2026-12-06',
+    endDate: '2027-01-03',
+    label: 'Winter Vacation',
+    type: 'holiday',
+    tentative: false,
   },
   {
     startDate: '2026-12-25',
@@ -145,15 +145,6 @@ export const OFFICIAL_ACADEMIC_CALENDAR_EVENTS: CalendarEventDef[] = [
     label: 'Bakrid',
     type: 'holiday',
     tentative: false,
-  },
-
-  // --- SUMMER TERM (June - July 2027) ---
-  {
-    startDate: '2027-06-12',
-    endDate: '2027-06-26',
-    label: 'Tentative Make-Up Examinations',
-    type: 'exam',
-    tentative: true,
   },
 ]
 

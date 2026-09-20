@@ -21,15 +21,37 @@ export async function GET(req?: Request) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    // Purge unwanted 1st October mid-term and any re-midterm exams from database
+    // Purge unwanted 1st October mid-term, any re-midterm exams, and make-up exams from database
     await prisma.holiday.deleteMany({
       where: {
         OR: [
           { date: '2026-10-01', label: { contains: 'Mid-Term' } },
           { label: { contains: 'Re-Mid' } },
+          { label: { contains: 'Make-Up' } },
+          { label: { contains: 'Makeup' } },
         ],
       },
     }).catch(() => {})
+
+    // Ensure Winter Vacation (2026-12-06 to 2027-01-03) is seeded for existing databases
+    const hasWinterVacation = await prisma.holiday.findFirst({
+      where: { label: 'Winter Vacation' },
+      select: { id: true },
+    })
+    if (!hasWinterVacation) {
+      const officialDates = getOfficialCalendarDates('2026-09-20')
+      const winterVacationDates = officialDates.filter((d) => d.label === 'Winter Vacation')
+      if (winterVacationDates.length > 0) {
+        await prisma.holiday.createMany({
+          data: winterVacationDates.map((m) => ({
+            date: m.date,
+            label: m.label,
+            type: m.type,
+          })),
+          skipDuplicates: true,
+        }).catch(() => {})
+      }
+    }
 
     let holidays = await prisma.holiday.findMany({
       orderBy: { date: 'asc' },
