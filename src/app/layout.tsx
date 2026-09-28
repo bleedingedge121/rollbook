@@ -19,7 +19,7 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: 'Roll Book — Playful Attendance & Planning',
-  description: 'Verified attendance tracker with honest flight planning and AI advisor.',
+  description: 'Verified attendance tracker with lecture timetable, safe bunk planner, and AI advisor.',
   manifest: '/manifest.json',
   icons: {
     icon: [

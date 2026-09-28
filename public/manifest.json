@@ -1,7 +1,7 @@
 {
   "name": "Roll Book",
   "short_name": "Roll Book",
-  "description": "Playful, honest university attendance management & flight planning with AI advisor.",
+  "description": "Playful, honest university attendance management & lecture planning with AI advisor.",
   "start_url": "/",
   "id": "/",
   "display": "standalone",

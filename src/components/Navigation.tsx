@@ -58,7 +58,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   const navItems = [
     { id: 'home' as TabType, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'subjects' as TabType, label: 'Subjects', icon: BookOpen },
-    { id: 'calendar' as TabType, label: 'Trajectory Lab', icon: CalendarDays },
+    { id: 'calendar' as TabType, label: 'Timetable & Calendar', icon: CalendarDays },
     { id: 'settings' as TabType, label: 'Command & Sync', icon: Settings },
   ]
 

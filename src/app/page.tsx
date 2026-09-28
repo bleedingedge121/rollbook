@@ -312,7 +312,7 @@ export default function App() {
         </div>
         <div className="space-y-2 w-full max-w-xs px-4 text-center">
           <p className="text-sm font-heading font-black text-[var(--foreground)] tracking-tight">
-            Preparing Flight Deck...
+            Loading Attendance Dashboard...
           </p>
           <div className="h-3 rounded-full bg-[var(--muted)] border border-[var(--border)] overflow-hidden">
             <div className="h-full bg-teal-600 w-2/3 animate-pulse" />

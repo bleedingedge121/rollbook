@@ -382,7 +382,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </motion.div>
 
-      {/* 2. Semester Flight Forecast & Cruise Radar */}
+      {/* 2. Semester Attendance Forecast & Safe-Bunk Planner */}
       <motion.div
         variants={itemVariants}
         className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-5 sm:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-5 overflow-hidden"
@@ -394,7 +394,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)] flex flex-wrap items-center gap-2">
-                <span>Semester Flight Forecast &amp; Cruise Radar</span>
+                <span>Semester Attendance Forecast &amp; Safe-Bunk Planner</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-500/30">
                   Odd Sem 2026
                 </span>
@@ -409,17 +409,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onClick={onNavigateToCalendar}
             className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 font-mono shrink-0 self-start sm:self-auto"
           >
-            Flight Calendar <ArrowRight className="w-3.5 h-3.5" />
+            Lecture Calendar <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         {/* 3 Highlight Metric Tiles */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Milestone: Cruise Date */}
+          {/* Milestone: Safe-to-Bunk Date */}
           <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] space-y-1.5 flex flex-col justify-between">
             <div>
               <div className="text-[10px] font-mono font-bold uppercase text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5" /> All-Clear Cruise Date
+                <ShieldCheck className="w-3.5 h-3.5" /> Safe-to-Bunk Date (≥75% Lock)
               </div>
               <div className="text-xl sm:text-2xl font-heading font-black text-[var(--foreground)] tracking-tight mt-1">
                 {semesterForecast.overallIsAlreadySecured
@@ -432,14 +432,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 {semesterForecast.overallIsAlreadySecured
                   ? 'Target ≥75% secured in all subjects for the entire semester!'
                   : semesterForecast.overallSafeToBunkDateFormatted
-                  ? `Attend required classes until ${semesterForecast.overallSafeToBunkDateFormatted} to lock ≥75% in all ${semesterForecast.courseCount} subjects, then cruise until Dec 5.`
+                  ? `Attend required classes until ${semesterForecast.overallSafeToBunkDateFormatted} to lock ≥75% in all ${semesterForecast.courseCount} subjects, then you can safely skip the rest until Dec 5.`
                   : 'Attend upcoming classes to lock in your safe-to-skip status.'}
               </p>
               {semesterForecast.earliestCruiseDateFormatted &&
                 semesterForecast.earliestCruiseDateFormatted !== semesterForecast.overallSafeToBunkDateFormatted &&
                 !semesterForecast.overallIsAlreadySecured && (
                   <div className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold mt-1.5 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> First subject clears on {semesterForecast.earliestCruiseDateFormatted}
+                    <Sparkles className="w-3 h-3" /> First subject locks on {semesterForecast.earliestCruiseDateFormatted}
                   </div>
                 )}
             </div>
@@ -530,7 +530,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           >
             <span className="flex items-center gap-2">
               <Layers className="w-4 h-4 text-indigo-500" />
-              <span>Subject-by-Subject Skips &amp; Cruise Dates ({semesterForecast.courses.length} subjects)</span>
+              <span>Subject-by-Subject Skips &amp; Safe Dates ({semesterForecast.courses.length} subjects)</span>
             </span>
             <span className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
               {showForecastBreakdown ? 'Hide' : 'View Breakdown'}
@@ -601,7 +601,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </motion.div>
 
-      {/* 3. Today's Flight Schedule & Immediate Actions */}
+      {/* 3. Today's Lecture Schedule & Immediate Actions */}
       <motion.div
         variants={itemVariants}
         className="bg-[var(--card)] border-2 border-[var(--border)] rounded-3xl p-4 sm:p-6 lg:p-7 shadow-[6px_6px_0px_var(--shadow-color)] space-y-4"
@@ -613,7 +613,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-heading font-black text-[var(--foreground)] flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <span>Today’s Flight Schedule</span>
+                <span>Today’s Lecture Schedule</span>
                 <span className="text-xs font-mono font-normal text-[var(--muted-foreground)]">
                   ({WEEKDAYS[currentWeekday]}, {formatDate(today)})
                 </span>

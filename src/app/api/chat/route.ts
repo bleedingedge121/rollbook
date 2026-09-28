@@ -268,7 +268,7 @@ export async function POST(req: Request) {
       {
         name: 'get_semester_forecast',
         description:
-          'Calculate full semester projections until instruction ends on Dec 5, 2026. Returns total semester classes, allowed misses, remaining skip budget, and the exact "Cruise Date" (Safe-to-Bunk milestone date until which you must attend classes so you can safely skip all remaining classes until Dec 5 and finish >= 75%).',
+          'Calculate full semester projections until instruction ends on Dec 5, 2026. Returns total semester classes, allowed misses, remaining skip budget, and the exact "Safe-to-Bunk Date" (milestone date until which you must attend classes so you can safely skip all remaining classes until Dec 5 and finish >= 75%).',
         parameters: {
           type: Type.OBJECT,
           properties: {
@@ -728,7 +728,7 @@ export async function POST(req: Request) {
     }
 
     // Prepare message contents for Gemini
-    const systemInstruction = `You are Roll Book's intelligent attendance assistant and academic flight advisor.
+    const systemInstruction = `You are Roll Book's intelligent attendance assistant and college academic advisor.
 Your job is to answer the user's questions about their real university attendance, schedule, timetable, safe skip buffers, and recovery streaks, and manage their calendar holidays when requested.
 RULES:
 1. NEVER guess or hallucinate attendance numbers, courses, percentages, or dates. ALWAYS call the provided tools to retrieve or modify real verified data.
@@ -758,14 +758,14 @@ RULES:
 - RE-MID TERMS & MAKE-UP EXAMS: Re-mid terms and make-up exams are re-assessments only for students with backlogs or re-tests. Normal students have regular scheduled classes (or winter vacation in December) during these periods, so do NOT treat re-mid terms or make-up exams as general student exam periods or holidays.
 - CRITICAL CALENDAR FILTER: If an event is NOT in red on the calendar and NOT an exam (such as Teacher's Day, Engineer's Day, Falak, Tech Solstice, Re-quiz, Class Committee meetings, Last Instructional Day, Gratitude Day, Utsav, etc.), DO NOT believe or count it as a holiday! It is a normal instructional working day with regular scheduled classes.
 12. MARKDOWN FORMATTING: Always format your answers with clean, beautiful Markdown. Put headings on their own separate lines preceded by blank lines (e.g. \n\n### Heading\n\n). Put bullet points on separate lines (e.g. \n* **Item:** details). Use bold for dates, course codes, and key metrics. Never squish headings, rules, or bullets into a single inline paragraph.
-13. SEMESTER FORECAST & SAFE-TO-BUNK "CRUISE DATE" CALCULATIONS:
-- Whenever the user asks questions such as "how many total classes will there be this semester", "how many classes can I miss for the semester", "till what day do I have to attend classes so I can skip all remaining classes and stay above 75%", or "when can I cruise/bunk the rest", ALWAYS call \`get_semester_forecast\` (or inspect \`get_attendance_summary.overall\` and \`semesterForecast\`).
+13. SEMESTER FORECAST & SAFE-TO-BUNK MILESTONE CALCULATIONS:
+- Whenever the user asks questions such as "how many total classes will there be this semester", "how many classes can I miss for the semester", "till what day do I have to attend classes so I can skip all remaining classes and stay above 75%", or "when can I safely bunk the rest", ALWAYS call \`get_semester_forecast\` (or inspect \`get_attendance_summary.overall\` and \`semesterForecast\`).
 - Explain:
   1. The semester timeline: Instruction ends Dec 5, 2026, followed by Winter Vacation Dec 6 to Jan 3.
   2. Future scheduled classes: calculated from their weekly timetable slots minus confirmed holidays and exam windows.
   3. Total classes in the semester (held so far + remaining scheduled).
   4. Total misses allowed for the semester and remaining skips allowed right now.
-  5. The exact "Cruise Date" (Safe-to-Bunk Milestone): Explain that if they attend all classes starting today consecutively, by that date they will reach 75% of the total semester classes, meaning they can safely skip EVERY single remaining class from that date until Dec 5 without falling below 75%!`
+  5. The exact "Safe-to-Bunk Date" (≥75% Lock Milestone): Explain that if they attend all classes starting today consecutively, by that date they will reach 75% of the total semester classes, meaning they can safely skip EVERY single remaining class from that date until Dec 5 without falling below 75%!`
 
     // Format messages for Gemini
     const contents: any[] = []

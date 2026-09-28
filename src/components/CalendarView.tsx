@@ -332,7 +332,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-[var(--foreground)] tracking-tight flex items-center gap-2 sm:gap-2.5">
             <CalendarIcon className="w-6 h-6 sm:w-7 sm:h-7 text-teal-600 dark:text-teal-400 shrink-0" />
-            <span>Trajectory Lab & Flight Calendar</span>
+            <span>Timetable &amp; Lecture Calendar</span>
           </h1>
           <p className="text-xs sm:text-sm text-[var(--muted-foreground)] mt-1">
             Solid badges denote confirmed history; dashed outlines project future scenarios.
@@ -423,7 +423,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-4 shadow-[3px_3px_0px_var(--shadow-color)] relative overflow-hidden">
             <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" /> Projected Trajectory
+              <TrendingUp className="w-3.5 h-3.5" /> Projected Attendance
             </div>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-2xl font-heading font-black text-teal-600 dark:text-teal-400">
@@ -466,7 +466,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {trajectoryData.length > 1 && (
           <div className="space-y-2 pt-2">
             <div className="text-xs font-bold text-[var(--foreground)] flex items-center justify-between font-mono">
-              <span>Trajectory Projection Curve</span>
+              <span>Attendance Projection Curve</span>
               <span className="text-[var(--muted-foreground)]">Solid: Actual / Dashed: Simulation</span>
             </div>
             <div className="h-44 w-full min-w-0 overflow-hidden">

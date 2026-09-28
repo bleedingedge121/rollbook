@@ -486,12 +486,12 @@ export const SubjectsView: React.FC<SubjectsViewProps> = ({
                     <span className="font-mono text-[11px] leading-relaxed">{stats.statusText}</span>
                   </div>
 
-                  {/* Semester Cruise Radar & Skip Budget */}
+                  {/* Semester Attendance Buffer & Skip Budget */}
                   {courseForecast && courseForecast.totalSemesterClasses > 0 && (
                     <div className="bg-[var(--background)] border-2 border-[var(--border)] rounded-2xl p-3 space-y-2.5 font-mono shadow-[2px_2px_0px_var(--shadow-color)]">
                       <div className="flex items-center justify-between text-[10px] font-bold uppercase">
                         <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
-                          <ShieldCheck className="w-3.5 h-3.5" /> Semester Cruise Radar
+                          <ShieldCheck className="w-3.5 h-3.5" /> Semester Attendance Buffer
                         </span>
                         <span className="text-[10px] text-[var(--muted-foreground)]">
                           {courseForecast.totalSemesterClasses} Total Lectures
