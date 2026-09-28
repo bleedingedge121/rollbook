@@ -373,8 +373,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (!confirm(`Remove ${desc}?`)) return
 
     try {
-      const res = await fetch(`/api/holidays?ids=${group.ids.join(',')}`, {
+      const queryParams = new URLSearchParams()
+      if (group.ids && group.ids.length > 0) {
+        queryParams.set('ids', group.ids.join(','))
+      }
+      if (group.startDate) queryParams.set('startDate', group.startDate)
+      if (group.endDate) queryParams.set('endDate', group.endDate)
+
+      const res = await fetch(`/api/holidays?${queryParams.toString()}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: group.ids,
+          startDate: group.startDate,
+          endDate: group.endDate,
+        }),
       })
       if (!res.ok) {
         const data = await res.json()

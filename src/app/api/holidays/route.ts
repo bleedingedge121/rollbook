@@ -21,46 +21,12 @@ export async function GET(req?: Request) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    // Purge unwanted 1st October mid-term, re-midterms, make-up exams, and events after Jan 3, 2027 (when cycles rotate)
-    await prisma.holiday.deleteMany({
-      where: {
-        OR: [
-          { date: '2026-10-01', label: { contains: 'Mid-Term' } },
-          { label: { contains: 'Re-Mid' } },
-          { label: { contains: 'Make-Up' } },
-          { label: { contains: 'Makeup' } },
-          { date: { gte: '2027-01-04' } },
-        ],
-      },
-    }).catch(() => {})
-
-    // Ensure Winter Vacation (2026-12-06 to 2027-01-03) is seeded for existing databases
-    const hasWinterVacation = await prisma.holiday.findFirst({
-      where: { label: 'Winter Vacation' },
-      select: { id: true },
-    })
-    if (!hasWinterVacation) {
-      const officialDates = getOfficialCalendarDates('2026-09-20')
-      const winterVacationDates = officialDates.filter((d) => d.label === 'Winter Vacation')
-      if (winterVacationDates.length > 0) {
-        await prisma.holiday.createMany({
-          data: winterVacationDates.map((m) => ({
-            date: m.date,
-            label: m.label,
-            type: m.type,
-          })),
-          skipDuplicates: true,
-        }).catch(() => {})
-      }
-    }
-
     let holidays = await prisma.holiday.findMany({
       orderBy: { date: 'asc' },
     })
 
     // Only seed initial official calendar if the Holiday table is completely empty!
-    // This guarantees that when an admin or user deletes an event, it stays deleted
-    // and is never resurrected on subsequent requests.
+    // What an admin deletes stays deleted, and what an admin adds stays added.
     if (holidays.length === 0) {
       const officialDates = getOfficialCalendarDates('2026-09-20')
       try {
@@ -92,7 +58,7 @@ export async function GET(req?: Request) {
     return NextResponse.json(holidays)
   } catch (error) {
     console.error('Failed to fetch holidays:', error)
-    // Resilient fallback returning official calendar dates directly
+    // Resilient fallback returning official calendar dates directly with stable identifiers
     const fallback = getOfficialCalendarDates('2026-09-20').map((m, idx) => ({
       id: `official-${idx}-${m.date}`,
       date: m.date,
@@ -113,7 +79,9 @@ export async function POST(req: Request) {
     const { date, startDate, endDate, label, type } = body
 
     const holidayLabel = (label || 'Holiday / No Class').trim()
-    const holidayType = type || 'holiday'
+    const holidayType = type === 'exam' ? 'exam' : 'holiday'
+
+    const dateList: string[] = []
 
     // Multi-day date range support
     if (startDate && endDate) {
@@ -128,55 +96,55 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'End date cannot be before start date' }, { status: 400 })
       }
 
-      const dateList: string[] = []
       while (isBefore(current, end) || isSameDay(current, end)) {
         dateList.push(formatIsoDate(current))
         current = addDays(current, 1)
       }
-
-      // Upsert all dates in the range atomically
-      const results = await prisma.$transaction(
-        dateList.map((d) =>
-          prisma.holiday.upsert({
-            where: { date: d },
-            update: {
-              label: holidayLabel,
-              type: holidayType,
-            },
-            create: {
-              date: d,
-              label: holidayLabel,
-              type: holidayType,
-            },
-          })
-        )
-      )
-
-      return NextResponse.json({ success: true, count: results.length, holidays: results }, { status: 201 })
-    }
-
-    // Single day
-    if (!date) {
+    } else if (date) {
+      const d = parseIsoDate(date)
+      if (isNaN(d.getTime())) {
+        return NextResponse.json({ error: 'Invalid date format (use YYYY-MM-DD)' }, { status: 400 })
+      }
+      dateList.push(formatIsoDate(d))
+    } else {
       return NextResponse.json({ error: 'Either "date" or "startDate" and "endDate" are required' }, { status: 400 })
     }
 
-    const holiday = await prisma.holiday.upsert({
-      where: { date },
-      update: {
+    if (dateList.length === 0) {
+      return NextResponse.json({ error: 'No valid dates provided' }, { status: 400 })
+    }
+
+    // Clear any existing entries for these dates first to ensure idempotent replacement
+    await prisma.holiday.deleteMany({
+      where: { date: { in: dateList } },
+    }).catch(() => {})
+
+    // Create new holiday rows
+    await prisma.holiday.createMany({
+      data: dateList.map((d) => ({
+        date: d,
         label: holidayLabel,
         type: holidayType,
-      },
-      create: {
-        date,
-        label: holidayLabel,
-        type: holidayType,
-      },
+      })),
+      skipDuplicates: true,
     })
 
-    return NextResponse.json(holiday, { status: 201 })
-  } catch (error) {
+    const createdHolidays = await prisma.holiday.findMany({
+      where: { date: { in: dateList } },
+      orderBy: { date: 'asc' },
+    })
+
+    if (dateList.length === 1 && createdHolidays.length > 0) {
+      return NextResponse.json(createdHolidays[0], { status: 201 })
+    }
+
+    return NextResponse.json(
+      { success: true, count: createdHolidays.length, holidays: createdHolidays },
+      { status: 201 }
+    )
+  } catch (error: any) {
     console.error('Failed to save holiday:', error)
-    return NextResponse.json({ error: 'Failed to save holiday' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Failed to save holiday' }, { status: 500 })
   }
 }
 
@@ -187,33 +155,86 @@ export async function DELETE(req: Request) {
   try {
     const url = new URL(req.url)
     const queryIds = url.searchParams.get('ids')
-    
+    const queryDates = url.searchParams.get('dates')
+    const queryStartDate = url.searchParams.get('startDate')
+    const queryEndDate = url.searchParams.get('endDate')
+
     let idsToDelete: string[] = []
+    let datesToDelete: string[] = []
+
     if (queryIds) {
-      idsToDelete = queryIds.split(',').map((id) => id.trim()).filter(Boolean)
-    } else {
-      try {
-        const body = await req.json()
-        if (Array.isArray(body.ids)) {
-          idsToDelete = body.ids
-        }
-      } catch {}
+      idsToDelete.push(...queryIds.split(',').map((id) => id.trim()).filter(Boolean))
+    }
+    if (queryDates) {
+      datesToDelete.push(...queryDates.split(',').map((d) => d.trim()).filter(Boolean))
     }
 
-    if (idsToDelete.length === 0) {
-      return NextResponse.json({ error: 'No holiday IDs provided for deletion' }, { status: 400 })
+    try {
+      const body = await req.json()
+      if (Array.isArray(body.ids)) {
+        idsToDelete.push(...body.ids.map((id: any) => String(id).trim()).filter(Boolean))
+      }
+      if (Array.isArray(body.dates)) {
+        datesToDelete.push(...body.dates.map((d: any) => String(d).trim()).filter(Boolean))
+      }
+      if (body.startDate && body.endDate) {
+        let current = parseIsoDate(body.startDate)
+        const end = parseIsoDate(body.endDate)
+        if (!isNaN(current.getTime()) && !isNaN(end.getTime())) {
+          while (isBefore(current, end) || isSameDay(current, end)) {
+            datesToDelete.push(formatIsoDate(current))
+            current = addDays(current, 1)
+          }
+        }
+      }
+    } catch {}
+
+    // Check query start/end date range
+    if (queryStartDate && queryEndDate) {
+      let current = parseIsoDate(queryStartDate)
+      const end = parseIsoDate(queryEndDate)
+      if (!isNaN(current.getTime()) && !isNaN(end.getTime())) {
+        while (isBefore(current, end) || isSameDay(current, end)) {
+          datesToDelete.push(formatIsoDate(current))
+          current = addDays(current, 1)
+        }
+      }
+    }
+
+    // Extract any embedded ISO dates from synthetic IDs (e.g. "official-0-2026-09-20")
+    for (const id of idsToDelete) {
+      const match = id.match(/(\d{4}-\d{2}-\d{2})/)
+      if (match) {
+        datesToDelete.push(match[1])
+      }
+    }
+
+    // Deduplicate
+    idsToDelete = Array.from(new Set(idsToDelete))
+    datesToDelete = Array.from(new Set(datesToDelete))
+
+    if (idsToDelete.length === 0 && datesToDelete.length === 0) {
+      return NextResponse.json({ error: 'No holiday IDs or dates provided for deletion' }, { status: 400 })
+    }
+
+    const whereConditions: any[] = []
+    if (idsToDelete.length > 0) {
+      whereConditions.push({ id: { in: idsToDelete } })
+    }
+    if (datesToDelete.length > 0) {
+      whereConditions.push({ date: { in: datesToDelete } })
     }
 
     const result = await prisma.holiday.deleteMany({
       where: {
-        id: { in: idsToDelete },
+        OR: whereConditions,
       },
     })
 
     return NextResponse.json({ success: true, count: result.count })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to delete holidays:', error)
-    return NextResponse.json({ error: 'Failed to delete holidays' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Failed to delete holidays' }, { status: 500 })
   }
 }
 

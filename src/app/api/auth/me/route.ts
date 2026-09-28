@@ -13,9 +13,22 @@ export async function GET() {
     try {
       const dbUser = await prisma.user.findUnique({
         where: { id: user.userId },
-        select: { role: true },
+        select: { id: true, role: true, username: true },
       })
-      role = dbUser?.role || 'user'
+      if (dbUser) {
+        const adminList = (process.env.ADMIN_USERNAMES || '')
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
+        const isAdmin =
+          dbUser.role === 'admin' ||
+          dbUser.username.toLowerCase() === 'admin' ||
+          adminList.includes(dbUser.username.toLowerCase())
+
+        role = isAdmin ? 'admin' : dbUser.role
+      } else {
+        role = 'user'
+      }
     } catch {
       role = 'user'
     }

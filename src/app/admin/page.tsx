@@ -252,24 +252,37 @@ export default function AdminPage() {
   // Create Holiday
   const handleCreateHoliday = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newHolidayLabel.trim()) return
+    if (!newHolidayLabel.trim()) {
+      showToast('Please enter an event name or reason.', 'error')
+      return
+    }
+
+    let body: any = {
+      label: newHolidayLabel.trim(),
+      type: newHolidayType,
+    }
+
+    if (holidayMode === 'range') {
+      if (!newHolidayStartDate || !newHolidayEndDate) {
+        showToast('Please select both start date and end date.', 'error')
+        return
+      }
+      if (newHolidayStartDate > newHolidayEndDate) {
+        showToast('Start date cannot be after end date.', 'error')
+        return
+      }
+      body.startDate = newHolidayStartDate
+      body.endDate = newHolidayEndDate
+    } else {
+      if (!newHolidayDate) {
+        showToast('Please select a date.', 'error')
+        return
+      }
+      body.date = newHolidayDate
+    }
 
     setIsSubmittingHoliday(true)
     try {
-      let body: any = {
-        label: newHolidayLabel.trim(),
-        type: newHolidayType,
-      }
-
-      if (holidayMode === 'range') {
-        if (!newHolidayStartDate || !newHolidayEndDate) return
-        body.startDate = newHolidayStartDate
-        body.endDate = newHolidayEndDate
-      } else {
-        if (!newHolidayDate) return
-        body.date = newHolidayDate
-      }
-
       const res = await fetch('/api/holidays', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -297,8 +310,21 @@ export default function AdminPage() {
     if (!confirm(`Delete declared event "${group.label}" for all students?`)) return
 
     try {
-      const res = await fetch(`/api/holidays?ids=${group.ids.join(',')}`, {
+      const queryParams = new URLSearchParams()
+      if (group.ids && group.ids.length > 0) {
+        queryParams.set('ids', group.ids.join(','))
+      }
+      if (group.startDate) queryParams.set('startDate', group.startDate)
+      if (group.endDate) queryParams.set('endDate', group.endDate)
+
+      const res = await fetch(`/api/holidays?${queryParams.toString()}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: group.ids,
+          startDate: group.startDate,
+          endDate: group.endDate,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete holiday')

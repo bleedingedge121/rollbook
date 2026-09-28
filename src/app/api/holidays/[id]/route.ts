@@ -16,18 +16,26 @@ export async function DELETE(
       where: { id },
     })
 
-    if (!existing) {
-      return NextResponse.json({ error: 'Holiday not found' }, { status: 404 })
+    if (existing) {
+      await prisma.holiday.delete({
+        where: { id },
+      })
+      return NextResponse.json({ success: true })
     }
 
-    await prisma.holiday.delete({
-      where: { id },
-    })
+    // If id contains a date or is a synthetic ID (e.g. official-0-2026-09-20)
+    const dateMatch = id.match(/(\d{4}-\d{2}-\d{2})/)
+    if (dateMatch) {
+      const result = await prisma.holiday.deleteMany({
+        where: { date: dateMatch[1] },
+      })
+      return NextResponse.json({ success: true, count: result.count })
+    }
 
-    return NextResponse.json({ success: true })
-  } catch (error) {
+    return NextResponse.json({ error: 'Holiday not found' }, { status: 404 })
+  } catch (error: any) {
     console.error('Failed to delete holiday:', error)
-    return NextResponse.json({ error: 'Failed to delete holiday' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Failed to delete holiday' }, { status: 500 })
   }
 }
 

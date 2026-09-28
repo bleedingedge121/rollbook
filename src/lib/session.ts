@@ -89,14 +89,35 @@ export async function requireAdmin(
     select: { id: true, username: true, role: true },
   })
 
-  if (!dbUser || dbUser.role !== 'admin') {
+  if (!dbUser) {
+    return NextResponse.json({ error: 'User not found' }, { status: 401 })
+  }
+
+  const adminList = (process.env.ADMIN_USERNAMES || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+
+  const isAdmin =
+    dbUser.role === 'admin' ||
+    dbUser.username.toLowerCase() === 'admin' ||
+    adminList.includes(dbUser.username.toLowerCase())
+
+  if (!isAdmin) {
     return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
+  }
+
+  if (dbUser.role !== 'admin') {
+    await prisma.user.update({
+      where: { id: dbUser.id },
+      data: { role: 'admin' },
+    }).catch(() => {})
   }
 
   return {
     userId: dbUser.id,
     username: dbUser.username,
-    role: dbUser.role,
+    role: 'admin',
   }
 }
 
